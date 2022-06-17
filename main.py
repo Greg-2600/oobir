@@ -13,7 +13,8 @@ with open('data/lists/ticker.list', "r") as ticker_file:
 
         this_ticker_info = this_ticker.info
 
-        path = Path.cwd() / 'data' / 'fundamentals' / ticker.strip()
+        ticker_file_name = ticker.strip() + '.json'
+        path = Path.cwd() / 'data' / 'fundamentals' / ticker_file_name
         with open(path, "w") as this_ticker_file:
             this_ticker_file.write(json.dumps(this_ticker_info))
             this_ticker_file.close()
