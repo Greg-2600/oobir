@@ -2,8 +2,20 @@ import yfinance as yf
 import json
 from pathlib import Path
 from pandas import DataFrame
+import yahoo_fin.stock_info as si
 
 # tickers = ['^DJI', 'CHTR', 'GOOG']
+
+#analysts_data = si.get_analysts_info("amzn")
+#print(analysts_data)
+#holders = si.get_holders("amzn")
+#info = holders["Top Institutional Holders"]
+#print(info.Holder[0])
+# print(this_ticker_info.institutional_holders)
+##this_ticker_info.keys()
+# print(this_ticker_info['currentRatio'])
+##print(this_ticker_info.get_financials())
+# print(fs)
 
 with open('data/lists/ticker.list', "r") as ticker_file:
     tickers = ticker_file.readlines()
