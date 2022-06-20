@@ -17,7 +17,7 @@ import yahoo_fin.stock_info as si
 ##print(this_ticker_info.get_financials())
 # print(fs)
 
-with open('data/lists/ticker.list', "r") as ticker_file:
+with open('../data/lists/ticker.list', "r") as ticker_file:
     tickers = ticker_file.readlines()
 
     for ticker in tickers:
@@ -27,7 +27,7 @@ with open('data/lists/ticker.list', "r") as ticker_file:
         this_ticker_info = this_ticker.info
 
         ticker_file_name = ticker.strip() + '.json'
-        path = Path.cwd() / 'data' / 'fundamentals' / ticker_file_name
+        path = Path.cwd().parent / 'data' / 'fundamentals' / ticker_file_name
         with open(path, "w") as this_ticker_file:
             this_ticker_file.write(json.dumps(this_ticker_info))
             this_ticker_file.close()
