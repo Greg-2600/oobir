@@ -2,7 +2,7 @@
 
 import random
 from Tickers import Generate_Tickers
-from src.Fundamentals import YF_Fundamentals
+from Fundamentals import YF_Fundamentals
 from Price_History import Price_History
 
 this_tickers = Generate_Tickers.get_tickers()
