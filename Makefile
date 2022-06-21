@@ -14,8 +14,8 @@ $(VENV)/bin/activate: requirements.txt
 venv: $(VENV)/bin/activate
 
 run: venv
-	cd src && uvicorn main:app --reload
-	#./$(VENV)/bin/python3 uvicorn src/main:app --reload
+	cd src && uvicorn main:app --reload --host 0.0.0.0 --port 8000
+	#./$(VENV)/bin/python3 uvicorn src/main:app --reload --host 0.0.0.0 --port 8000
 
 
 clean:
