@@ -1,21 +1,41 @@
-# RUN ALL THE TESTS until py-test is implemented
+from fastapi import FastAPI
+import yfinance as yf
+import yahoo_fin.stock_info as si
+import json
+from functools import reduce
 
-import random
-from Tickers import Generate_Tickers
-from Fundamentals import YF_Fundamentals
-from Price_History import Price_History
+app = FastAPI()
 
-this_tickers = Generate_Tickers.get_tickers()
-random_ticker = random.choice(this_tickers)
-#print(this_tickers)
+@app.get("/")
+async def root():
+    return {"message": "oobir is back"}
 
-this_fundamentals = YF_Fundamentals
-fundamentals = this_fundamentals(random_ticker)
 
-this_price_history = Price_History
-price_history = this_price_history(random_ticker)
 
-#this_obj = {}
-#this_obj[tickers] =
 
-#print(this_obj)
+@app.get("/fundamentals/{ticker}")
+async def read_item(ticker: str):
+    ticker_obj = yf.Ticker(ticker)
+    return {"ticker": ticker, "fundamentals": ticker_obj.info}
+
+@app.get("/price_history/{ticker}")
+async def read_item(ticker: str):
+    price_history = si.get_data(ticker)
+    result = price_history.to_json(orient="table")
+    return {"ticker": ticker, "price_history": result}
+
+@app.get("/tickers")
+async def read_item():
+    tickers_sp = si.tickers_sp500()
+    tickers_dow = si.tickers_dow()
+    tickers_nasdaq = si.tickers_nasdaq()
+    tickers_other = si.tickers_other()
+
+    tickers_all = []
+    tickers_all.extend(tickers_sp)
+    tickers_all.extend(tickers_dow)
+    tickers_all.extend(tickers_nasdaq)
+    tickers_all.extend(tickers_other)
+    tickers_all_deduplicated = list(set(tickers_all))
+
+    return {"ticker": "l", "result": tickers_all_deduplicated}

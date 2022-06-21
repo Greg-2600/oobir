@@ -14,7 +14,9 @@ $(VENV)/bin/activate: requirements.txt
 venv: $(VENV)/bin/activate
 
 run: venv
-	./$(VENV)/bin/python3 main.py
+	cd src && uvicorn main:app --reload
+	#./$(VENV)/bin/python3 uvicorn src/main:app --reload
+
 
 clean:
 	rm -rf $(VENV)
