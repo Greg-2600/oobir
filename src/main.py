@@ -1,3 +1,4 @@
+import json
 import fastapi
 import yfinance as yf
 import yahoo_fin.stock_info as si
@@ -14,16 +15,15 @@ async def get_hello_world():
 @app.get("/fundamentals/{ticker}")
 async def get_fundamentals(ticker: str):
     """Given a valid ticker, fundamental analysis data is returned"""
-    ticker_obj = yf.Ticker(ticker)
-    return {"ticker": ticker, "fundamentals": ticker_obj.info}
+    fundamentals_obj = yf.Ticker(ticker)
+    return json.dumps(dict(fundamentals_obj.info))
 
 
 @app.get("/price_history/{ticker}")
 async def get_price_history(ticker: str):
     """Given a valid ticker, price history information is returned"""
     price_history = si.get_data(ticker)
-    result = price_history.to_json(orient="table")
-    return {"ticker": ticker, "price_history": result}
+    return json.dumps(price_history.to_json(orient="table"))
 
 
 @app.get("/tickers")
@@ -32,11 +32,12 @@ async def get_tickers():
     tickers_sp = si.tickers_sp500()
     tickers_dow = si.tickers_dow()
     tickers_nasdaq = si.tickers_nasdaq()
-    tickers_other = si.tickers_other()
+    # tickers_other = si.tickers_other()
     tickers_all = []
     tickers_all.extend(tickers_sp)
     tickers_all.extend(tickers_dow)
     tickers_all.extend(tickers_nasdaq)
-    tickers_all.extend(tickers_other)
+    # tickers_all.extend(tickers_other)
     tickers_all_deduplicated = list(set(tickers_all))
-    return {"ticker": "ALL", "result": tickers_all_deduplicated}
+    # del tickers_all_deduplicated[0]
+    return json.dumps(tickers_all_deduplicated)
