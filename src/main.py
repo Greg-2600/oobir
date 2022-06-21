@@ -23,7 +23,8 @@ async def get_fundamentals(ticker: str):
 async def get_price_history(ticker: str):
     """Given a valid ticker, price history information is returned"""
     price_history = si.get_data(ticker)
-    return json.dumps(price_history.to_json(orient="table"))
+    #return json.dumps(price_history.to_json(orient="table"))
+    return price_history.to_json(orient="table")
 
 
 @app.get("/tickers")
