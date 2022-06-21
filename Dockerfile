@@ -1,9 +1,8 @@
 FROM python:3.9
+WORKDIR /oobir
+COPY requirements.txt ./
+COPY ./src/ ./
+COPY . .
 
-WORKDIR /code
-
-COPY ./ /code/
-
-RUN make run
-
-CMD ["make run"]
+RUN pip install --no-cache-dir -r requirements.txt
+CMD [ "uvicorn", "main:app", "--reload" ]

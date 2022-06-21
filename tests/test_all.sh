@@ -6,7 +6,8 @@
 #curl http://127.0.0.1:8000/price_history/GOOG
 #curl http://127.0.0.1:8000/price_history/MSFT
 #curl http://127.0.0.1:8000/price_history/CHTR
-curl http://127.0.0.1:8000/tickers
+curl http://192.168.1.69:8000/
+curl http://127.0.0.1:8000/
 
 
 #endpoint='http://127.0.0.1:8000';
