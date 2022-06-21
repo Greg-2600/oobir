@@ -38,4 +38,4 @@ async def read_item():
     tickers_all.extend(tickers_other)
     tickers_all_deduplicated = list(set(tickers_all))
 
-    return {"ticker": "l", "result": tickers_all_deduplicated}
+    return {"ticker": "ALL", "result": tickers_all_deduplicated}
