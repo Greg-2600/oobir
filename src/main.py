@@ -1,16 +1,13 @@
 from fastapi import FastAPI
 import yfinance as yf
 import yahoo_fin.stock_info as si
-import json
-from functools import reduce
 
 app = FastAPI()
+
 
 @app.get("/")
 async def root():
     return {"message": "oobir is back"}
-
-
 
 
 @app.get("/fundamentals/{ticker}")
@@ -18,11 +15,13 @@ async def read_item(ticker: str):
     ticker_obj = yf.Ticker(ticker)
     return {"ticker": ticker, "fundamentals": ticker_obj.info}
 
+
 @app.get("/price_history/{ticker}")
 async def read_item(ticker: str):
     price_history = si.get_data(ticker)
     result = price_history.to_json(orient="table")
     return {"ticker": ticker, "price_history": result}
+
 
 @app.get("/tickers")
 async def read_item():
