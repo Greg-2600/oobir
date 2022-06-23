@@ -81,3 +81,6 @@ yahoo-fin==0.8.9.1
 yfinance==0.1.72
 zipp==3.8.0
 zope.interface==5.4.0
+pymongo
+dnspython
+bson
