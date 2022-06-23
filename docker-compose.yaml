@@ -1,7 +1,7 @@
 version: "3.8"
 services:
   mongodb:
-    image: mongo
+    image: mongo:4.4.14-focal
     container_name: oobir.mongodb
     environment:
       - MONGO_INITDB_ROOT_USERNAME=microservice
@@ -10,6 +10,7 @@ services:
       - mongodb-data:/data/db
     ports:
       - 27017:27017
+    expose: [56808]
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongo 127.0.0.1:27018/test --quiet
       interval: 30s
