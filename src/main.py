@@ -39,6 +39,7 @@ async def get_tickers():
     tickers_all.extend(tickers_dow)
     tickers_all.extend(tickers_nasdaq)
     # tickers_all.extend(tickers_other)
-    tickers_all_deduplicated = list(set(tickers_all))
+    tickers_all_no_null = list(filter(None, tickers_all))
+    tickers_all_deduplicated = list(set(tickers_all_no_null))
     # del tickers_all_deduplicated[0]
     return json.dumps(tickers_all_deduplicated)
