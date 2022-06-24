@@ -17,7 +17,6 @@ run: venv
 	cd src && uvicorn main:app --reload --host 0.0.0.0 --port 8000
 	#./$(VENV)/bin/python3 uvicorn src/main:app --reload --host 0.0.0.0 --port 8000
 
-
 clean:
 	rm -rf $(VENV)
 	find . -type f -name '*.pyc' -delete
