@@ -84,3 +84,4 @@ zope.interface==5.4.0
 pymongo
 dnspython
 bson
+uvicorn
