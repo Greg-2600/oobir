@@ -29,7 +29,7 @@ joblib==1.1.0
 keras==2.9.0
 kiwisolver==1.4.3
 lazy-object-proxy==1.7.1
-lxml==4.9.0
+lxml==4.9.1
 matplotlib==3.5.2
 mccabe==0.7.0
 multitasking==0.0.10
