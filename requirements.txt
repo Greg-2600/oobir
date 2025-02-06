@@ -79,7 +79,7 @@ websockets==10.3
 wrapt==1.14.1
 yahoo-fin==0.8.9.1
 yfinance==0.1.72
-zipp==3.8.0
+zipp==3.19.1
 zope.interface==5.4.0
 pymongo
 dnspython
