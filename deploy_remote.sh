@@ -8,6 +8,7 @@ REMOTE=${1:-greg@192.168.1.248}
 REMOTE_PATH=${2:-'~/oobir'}
 
 echo "Deploying workspace to ${REMOTE}:${REMOTE_PATH}"
+echo "=================================================="
 
 # Prepare remote path. If the user provided a path starting with '~', use $HOME on the remote host
 if [[ "${REMOTE_PATH}" == ~* ]]; then
@@ -103,4 +104,10 @@ python flow.py --host http://localhost:11435 AAPL get_ai_fundamental_analysis ||
 exit 0
 ENDSSH
 
-echo "Deployment finished. Check the remote logs or run the script again locally." 
+echo "Deployment finished. Check the remote logs or run the script again locally."
+echo "=================================================="
+echo "Next steps:"
+echo "  - SSH to remote: ssh ${REMOTE}"
+echo "  - Navigate to: ${REMOTE_PATH_REMOTE}"
+echo "  - Start API: docker compose up or python flow_api.py"
+echo "  - Check logs: docker compose logs -f or tail -f *.log" 
