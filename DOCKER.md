@@ -216,12 +216,17 @@ docker compose exec app python -m unittest discover -v
 ### Test All 23 API Endpoints
 
 ```bash
-# Run the comprehensive endpoint test script
-docker compose exec app python test_apis.py http://localhost:8000
+# Test data endpoints (9 endpoints)
+./test_data_endpoints.sh http://localhost:8000
+./test_data_endpoints.sh http://localhost:8000 MSFT
 
-# Or from your local machine (requires requests library)
-pip install requests
-python test_apis.py http://localhost:8000
+# Test AI endpoints (5 endpoints)
+./test_ai_endpoints.sh http://localhost:8000
+./test_ai_endpoints.sh http://localhost:8000 AAPL
+
+# Or test against remote container
+./test_data_endpoints.sh http://192.168.1.248:8000 CHTR
+./test_ai_endpoints.sh http://192.168.1.248:8000 TSLA
 ```
 
 ### Verify Specific Endpoints
@@ -382,7 +387,7 @@ docker stats --no-stream
 
 - **Quick Start:** Follow [README.md](README.md) for usage examples
 - **API Reference:** See [DOCS.md](DOCS.md) for comprehensive API documentation
-- **Testing:** Run `test_apis.py` to verify all endpoints
+- **Testing:** Run `./test_data_endpoints.sh` or `./test_ai_endpoints.sh` to verify all endpoints
 - **Deployment:** Use [deploy_remote.sh](deploy_remote.sh) for production deployment
 
 ---

@@ -13,7 +13,13 @@ echo "=================================================="
 # Prepare remote path. If the user provided a path starting with '~', use $HOME on the remote host
 if [[ "${REMOTE_PATH}" == ~* ]]; then
   # keep a literal $HOME so it expands on the remote side
-  REMOTE_PATH_REMOTE="\$HOME${REMOTE_PATH#~}"
+  # Remove the ~ and append to $HOME
+  tail="${REMOTE_PATH#\~}"
+  if [ -z "$tail" ]; then
+    REMOTE_PATH_REMOTE="\$HOME"
+  else
+    REMOTE_PATH_REMOTE="\$HOME${tail}"
+  fi
 elif [[ "${REMOTE_PATH}" == /* ]]; then
   # User passed an absolute path (likely expanded locally). Map common local home paths
   # like /Users/<user>/... to remote $HOME/...
@@ -40,7 +46,7 @@ echo "Copying archive to ${REMOTE}:${TMP_ARCHIVE}"
 scp "${TMP_ARCHIVE}" "${REMOTE}:${TMP_ARCHIVE}"
 
 echo "Extracting on remote host into ${REMOTE_PATH_REMOTE}"
-ssh ${REMOTE} "mkdir -p ${REMOTE_PATH_REMOTE} && tar xzf '${TMP_ARCHIVE}' -C ${REMOTE_PATH_REMOTE} && rm -f '${TMP_ARCHIVE}' || true"
+ssh ${REMOTE} "mkdir -p '${REMOTE_PATH_REMOTE}' && tar xzf '${TMP_ARCHIVE}' -C '${REMOTE_PATH_REMOTE}' && rm -f '${TMP_ARCHIVE}' || true"
 
 # clean up local temporary archive
 rm -f "${TMP_ARCHIVE}"

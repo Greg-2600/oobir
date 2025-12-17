@@ -305,10 +305,13 @@ class TestFundamentals:
 ### API Endpoint Testing
 
 ```bash
-# Test all 23 endpoints locally
-python test_apis.py http://localhost:8000
+# Test all data endpoints (9 endpoints)
+./test_data_endpoints.sh http://localhost:8000
 
-# Test specific endpoint category
+# Test all AI endpoints (5 endpoints)
+./test_ai_endpoints.sh http://localhost:8000
+
+# Test specific endpoint category manually
 curl http://localhost:8000/api/fundamentals/AAPL
 curl http://localhost:8000/api/ai/action-recommendation/AAPL
 ```

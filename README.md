@@ -186,10 +186,15 @@ python -m unittest discover -v
 ### Run API Tests
 
 ```bash
-# Test all 23 endpoints against running API
-python test_apis.py http://localhost:8000
+# Test data endpoints (9 endpoints)
+./test_data_endpoints.sh http://localhost:8000
+./test_data_endpoints.sh http://localhost:8000 MSFT
 
-# Or test specific API endpoints with pytest
+# Test AI endpoints (5 endpoints)
+./test_ai_endpoints.sh http://localhost:8000
+./test_ai_endpoints.sh http://localhost:8000 AAPL
+
+# Or run unit tests for API endpoints
 python -m pytest tests/test_flow_api.py -v
 ```
 
