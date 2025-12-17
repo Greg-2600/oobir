@@ -98,14 +98,20 @@ fi
 
 echo ""
 echo "Step 5: Removing project directory (optional)"
-read -p "Remove project directory ${REMOTE_PATH}? [y/N]: " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-  cd ..
-  rm -rf "${REMOTE_PATH}"
-  echo "  - Project directory removed"
+if [ -t 0 ]; then
+  # Interactive mode: prompt for confirmation
+  read -p "Remove project directory ${REMOTE_PATH}? [y/N]: " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
+    cd ..
+    rm -rf "${REMOTE_PATH}"
+    echo "  - Project directory removed"
+  else
+    echo "  - Project directory preserved"
+  fi
 else
-  echo "  - Project directory preserved"
+  # Non-interactive mode: preserve directory by default
+  echo "  - Running in non-interactive mode, preserving project directory"
 fi
 
 echo ""
