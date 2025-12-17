@@ -286,7 +286,8 @@ This document provides a quick overview of all available documentation and what 
 ### Testing
 - `tests/test_flow.py` - Unit tests
 - `tests/test_flow_api.py` - Integration tests
-- `test_apis.py` - Live endpoint tests
+- `test_data_endpoints.sh` - Live data endpoint tests (curl)
+- `test_ai_endpoints.sh` - Live AI endpoint tests (curl)
 
 ### Deployment
 - `deploy_remote.sh` - Remote deployment script

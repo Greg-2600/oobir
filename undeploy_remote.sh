@@ -130,7 +130,7 @@ echo "  - Volumes: removed (oobir_*)"
 echo "  - Images: oobir images removed"
 echo "  - Ollama image: preserved (contains model data)"
 echo ""
-echo "To redeploy, run: ./deploy_remote.sh ${REMOTE}"
+echo "To redeploy, run: ./deploy_remote.sh <user@host> <remote_path>"
 
 exit 0
 ENDSSH

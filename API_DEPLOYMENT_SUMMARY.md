@@ -99,13 +99,13 @@ curl http://192.168.1.248:8000/api/price-history/MSFT
 curl http://192.168.1.248:8000/api/ai/action-recommendation-word/TSLA
 ```
 
-**3. Python with requests**
+**3. Shell Scripts (recommended)**
 ```bash
-# Install requests if needed
-pip3 install requests
+# Run data endpoint smoke tests
+./test_data_endpoints.sh http://192.168.1.248:8000 AAPL
 
-# Run comprehensive test script
-python3 test_apis.py http://192.168.1.248:8000
+# Run AI endpoint smoke tests
+./test_ai_endpoints.sh http://192.168.1.248:8000 AAPL
 ```
 
 **4. Python Code Example**
@@ -153,7 +153,8 @@ docker-compose exec app curl http://localhost:8000/api/fundamentals/AAPL
 |------|-------|---------|
 | `flow_api.py` | 437 | FastAPI application with 18 endpoints |
 | `tests/test_flow_api.py` | 189 | Pytest test suite for API endpoints |
-| `test_apis.py` | 166 | Standalone endpoint tester (local machine) |
+| `test_data_endpoints.sh` | — | Data endpoint smoke test (curl-based) |
+| `test_ai_endpoints.sh` | — | AI endpoint smoke test (curl-based) |
 
 ### Modified Files
 | File | Changes |
@@ -174,7 +175,8 @@ docker-compose exec app curl http://localhost:8000/api/fundamentals/AAPL
 │         Local Machine (macOS)               │
 │                                             │
 │  ┌─────────────────────────────────────┐   │
-│  │  test_apis.py (requests)            │───┼──┐
+│  │  test_data_endpoints.sh /           │───┼──┐
+│  │  test_ai_endpoints.sh (curl)        │───┼──┤
 │  │  curl / Browser / Python requests   │───┼──┤
 │  └─────────────────────────────────────┘   │  │
 └─────────────────────────────────────────────┘  │
@@ -364,7 +366,7 @@ ssh greg@192.168.1.248 "docker-compose exec ollama ollama pull huihui_ai/llama3.
 - ✅ All passing with mocks
 
 ### API Endpoint Tests
-- `test_apis.py` - Live endpoint testing (23 endpoints)
+- Shell scripts - Live endpoint testing (23 endpoints)
 - ✅ All responding (data endpoints return real data)
 - Includes: 4 metadata + 2 health + 9 data (including screener) + 8 AI
 
@@ -382,7 +384,7 @@ The OOBIR FastAPI application is **fully deployed and operational** on 192.168.1
 The system is ready for:
 
 - **Development**: Add more features, modify endpoints, integrate with other services
-- **Testing**: Use interactive docs, health checks, or test_apis.py for comprehensive testing
+- **Testing**: Use interactive docs, health checks, or shell scripts (`test_data_endpoints.sh`, `test_ai_endpoints.sh`) for comprehensive testing
 - **Production**: Currently suitable for internal use (no authentication); add security layers for public deployment
 - **Monitoring**: Health check endpoints enable uptime monitoring and alerting
 
