@@ -24,4 +24,4 @@ jobs:
       run: |
         # Use --exit-zero to make pylint informational rather than blocking
         # This allows establishing baselines and gradually improving code quality
-        pylint $(git ls-files '*.py') --exit-zero || true
+        pylint $(git ls-files '*.py') --exit-zero
