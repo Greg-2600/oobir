@@ -1,12 +1,20 @@
-#!./venv/bin/python
+#!/usr/bin/env python3
+"""Stock analysis and AI-driven insights module using yfinance and Ollama.
+
+This module provides functions to fetch financial data for stocks using yfinance,
+perform technical and fundamental analysis, and generate AI-driven insights using
+Ollama LLM integration.
+"""
+# pylint: disable=global-statement,import-outside-toplevel,no-member
 
 import os
 import sys
 import json
 import inspect
+from datetime import date, datetime
+
 import yfinance as yf
 import pandas as pd
-from datetime import date, datetime
 
 # Point ollama client to a remote host by default. Can be overridden with OLLAMA_HOST env var.
 _default_ollama = os.environ.get("OLLAMA_HOST", "http://192.168.1.248:11434")
@@ -16,9 +24,9 @@ os.environ.setdefault("OLLAMA_BASE_URL", _default_ollama)
 
 # Defer importing `ollama.chat` until after any CLI `--host` override so the
 # environment variables can be set first. `ensure_ollama()` will import and
-# cache the `chat` callable in `_chat`.
-_chat = None
-_ChatResponse = None
+# cache the `chat` callable in `_CHAT`.
+_CHAT = None
+_CHAT_RESPONSE = None
 
 def ensure_ollama(host: str | None = None):
     """
@@ -47,7 +55,7 @@ def ensure_ollama(host: str | None = None):
     - Safe to call multiple times; only imports ollama on first call
     - The default host is defined by _default_ollama module variable
     """
-    global _chat, _ChatResponse
+    global _CHAT, _CHAT_RESPONSE  # pylint: disable=global-statement,import-outside-toplevel
     if host:
         os.environ["OLLAMA_HOST"] = host
         os.environ["OLLAMA_URL"] = host
@@ -59,18 +67,23 @@ def ensure_ollama(host: str | None = None):
     os.environ.setdefault("OLLAMA_URL", _host)
     os.environ.setdefault("OLLAMA_BASE_URL", _host)
 
-    if _chat is None:
-        from ollama import chat as _chat_fn
+    if _CHAT is None:
+        from ollama import chat as _chat_fn  # pylint: disable=import-outside-toplevel,no-member
         try:
-            from ollama import ChatResponse as _ChatResp
-        except Exception:
-            _ChatResp = None
-        _chat = _chat_fn
-        _ChatResponse = _ChatResp
+            from ollama import ChatResponse as _chat_resp  # pylint: disable=import-outside-toplevel,no-member
+            _CHAT_RESPONSE = _chat_resp
+        except Exception:  # pylint: disable=broad-except
+            _CHAT_RESPONSE = None
+        _CHAT = _chat_fn
 
 # Suppress specific warnings by redirecting stderr
-class DummyFile:
-    def write(self, x): pass
+class DummyFile:  # pylint: disable=too-few-public-methods
+    """Dummy file object to suppress warnings."""
+
+    def write(self, x):
+        """Discard written output."""
+
+
 # Redirect stderr to suppress warnings
 sys.stderr = DummyFile()
 
@@ -91,7 +104,6 @@ def get_fundamentals(ticker):
 
     Side effects
     ------------
-    - Prints the serialized JSON to stdout.
     - Catches and prints any exceptions encountered while fetching data.
 
     Notes
@@ -99,21 +111,18 @@ def get_fundamentals(ticker):
     - Requires the yfinance package and the json module.
     - yfinance.Ticker.info performs network I/O and may return incomplete data or raise exceptions.
     """
-    """retreive and return company fundamentals as JSON."""
     try:
         yf_obj = yf.Ticker(ticker)
         fundamentals_json = json.dumps(yf_obj.info)
-        print(fundamentals_json)
         return fundamentals_json
 
-    except Exception as e:
-        print(f"An error occurred while fetching fundamentals: {e}")
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while fetching fundamentals: {exc}")
         return None
 
 
 def get_price_history(ticker):
-    """
-    Retrieve the recent price history for a given ticker symbol and return it as a JSON string.
+    """Retrieve the recent price history for a given ticker symbol and return it as a JSON string.
 
     Parameters
     ----------
@@ -139,7 +148,6 @@ def get_price_history(ticker):
     >>> isinstance(json_str, str)
     True
     """
-    """retreive the price history for a given ticker."""
     try:
         pd.set_option('display.max_rows', None)
         yf_obj = yf.Ticker(ticker)
@@ -147,14 +155,13 @@ def get_price_history(ticker):
         price_history_json = price_history.to_json(orient="table")
         return price_history_json
 
-    except Exception as e:
-        print(f"An error occurred while fetching price_history: {e}")
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while fetching price_history: {exc}")
         return None
 
 
 def get_analyst_price_targets(ticker):
-    """
-    Retrieve analyst price targets for a given ticker symbol.
+    """Retrieve analyst price targets for a given ticker symbol.
 
     Parameters
     ----------
@@ -164,32 +171,34 @@ def get_analyst_price_targets(ticker):
     Returns
     -------
     dict or object or None
-        - dict: a dictionary representation of the analyst price targets if conversion succeeds.
-        - object: the original object returned by yfinance.Ticker(...).analyst_price_targets (commonly a pandas.DataFrame) if conversion to dict fails.
-        - None: if an exception occurs while fetching data; an error message is printed in this case.
+                - dict: a dictionary representation of the analyst price targets
+                    if conversion succeeds.
+                - object: the original object returned by
+                    yfinance.Ticker(...).analyst_price_targets (commonly a
+                    pandas.DataFrame) if conversion to dict fails.
+                - None: if an exception occurs while fetching data; an error
+                    message is printed in this case.
 
     Notes
     -----
     - This function uses yfinance.Ticker(ticker).analyst_price_targets under the hood.
     - Exceptions raised by yfinance are caught; no exceptions are propagated.
     """
-    """retrieve analyst price targets for a given ticker"""
     try:
         yf_obj = yf.Ticker(ticker)
         analyst_price_targets = yf_obj.analyst_price_targets
         try:
             return dict(analyst_price_targets)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             return analyst_price_targets
 
-    except Exception as e:
-        print(f"An error occurred while fetching analyst_price_targets: {e}")
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while fetching analyst_price_targets: {exc}")
         return None
 
 
 def get_calendar(ticker):
-    """
-    Retrieve the calendar for a given ticker.
+    """Retrieve the calendar for a given ticker.
 
     Parameters
     ----------
@@ -215,26 +224,27 @@ def get_calendar(ticker):
     - Date and datetime objects in the calendar are converted to ISO format when
       the direct to_dict() call is not available.
     """
-    """retrieve the calendar for a given ticker"""
     try:
         yf_obj = yf.Ticker(ticker)
         calendar = yf_obj.calendar
         try:
-            return calendar.to_dict()
-        except Exception:
+            return calendar.to_dict()  # pylint: disable=no-member
+        except Exception:  # pylint: disable=broad-except
             try:
-                return {k: (v.isoformat() if isinstance(v, (date, datetime)) else v) for k, v in dict(calendar).items()}
-            except Exception:
+                return {
+                    k: (v.isoformat() if isinstance(v, (date, datetime)) else v)
+                    for k, v in dict(calendar).items()
+                }
+            except Exception:  # pylint: disable=broad-except
                 return dict(calendar)
 
-    except Exception as e:
-        print(f"An error occurred while fetching calendar: {e}")
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while fetching calendar: {exc}")
         return None
 
 
 def get_quarterly_income_stmt(ticker):
-    """
-    Retrieve the quarterly income statement for a given ticker symbol using yfinance.
+    """Retrieve the quarterly income statement for a given ticker symbol using yfinance.
 
     Parameters
     ----------
@@ -256,7 +266,6 @@ def get_quarterly_income_stmt(ticker):
     - This function catches exceptions raised by yfinance and by `.to_dict()`. It
       prints an error message on failure and returns None.
     """
-    """retrieve analyst price targets for a given ticker"""
     try:
         yf_obj = yf.Ticker(ticker)
         quarterly_income_stmt = yf_obj.quarterly_income_stmt
@@ -264,17 +273,16 @@ def get_quarterly_income_stmt(ticker):
             # Convert Timestamp index to string to make it JSON-serializable
             quarterly_income_stmt.index = quarterly_income_stmt.index.astype(str)
             return quarterly_income_stmt.to_dict()
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             return quarterly_income_stmt
 
-    except Exception as e:
-        print(f"An error occurred while fetching quarterly_income_stmt: {e}")
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while fetching quarterly_income_stmt: {exc}")
         return None
 
 
 def get_option_chain(ticker):
-    """
-    Retrieve the option chain (calls) for a given ticker using yfinance.
+    """Retrieve the option chain (calls) for a given ticker using yfinance.
 
     Parameters
     ----------
@@ -284,17 +292,21 @@ def get_option_chain(ticker):
     Returns
     -------
     dict or list or object or None
-        - If successful, attempts to return the calls option chain as a dict via DataFrame.to_dict().
-        - If that conversion fails, attempts to return a list of record dicts (using _asdict or dict on each record).
-        - If those conversions fail, returns the raw option_chain object as returned by yfinance.
-        - Returns None if an exception occurs while fetching data (an error message is printed).
+        - If successful, attempts to return the calls option chain as a dict via
+          DataFrame.to_dict().
+        - If that conversion fails, attempts to return a list of record dicts
+          (using _asdict or dict on each record).
+        - If those conversions fail, returns the raw option_chain object as returned
+          by yfinance.
+        - Returns None if an exception occurs while fetching data (an error message
+          is printed).
 
     Notes
     -----
     - Uses the first available expiration date (yf.Ticker(ticker).options[0]).
-    - Requires the yfinance package. Conversions are best-effort and exceptions are swallowed to provide a fallback value.
+    - Requires the yfinance package. Conversions are best-effort and exceptions
+      are swallowed to provide a fallback value.
     """
-    """retrieve option chain for a given ticker"""
     try:
         yf_obj = yf.Ticker(ticker)
         option_chain = yf_obj.option_chain(yf_obj.options[0]).calls
@@ -302,32 +314,34 @@ def get_option_chain(ticker):
             # Convert Timestamp index to string to make it JSON-serializable
             option_chain.index = option_chain.index.astype(str)
             return option_chain.to_dict()
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             try:
-                return [r._asdict() if hasattr(r, '_asdict') else dict(r) for r in option_chain]
-            except Exception:
+                return [
+                    r._asdict() if hasattr(r, '_asdict') else dict(r)
+                    for r in option_chain
+                ]
+            except Exception:  # pylint: disable=broad-except
                 return option_chain
 
-    except Exception as e:
-        print(f"An error occurred while fetching option_chain: {e}")
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while fetching option_chain: {exc}")
         return None
 
 
 def get_news(ticker):
-    """retrieve news for a given ticker"""
+    """Retrieve news for a given ticker."""
     try:
         yf_obj = yf.Ticker(ticker)
         news = yf_obj.get_news(count=10, tab='news')
         return news
 
-    except Exception as e:
-        print(f"An error occurred while fetching news: {e}")
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while fetching news: {exc}")
         return None
 
 
 def get_balance_sheet(ticker):
-    """
-    Retrieve the annual balance sheet for a given ticker.
+    """Retrieve the annual balance sheet for a given ticker.
 
     Parameters
     ----------
@@ -337,7 +351,8 @@ def get_balance_sheet(ticker):
     Returns
     -------
     dict | pandas.DataFrame | None
-        - dict: the balance sheet converted from a pandas.DataFrame via DataFrame.to_dict()
+        - dict: the balance sheet converted from a pandas.DataFrame via
+          DataFrame.to_dict()
         - pandas.DataFrame: the raw DataFrame if conversion to dict fails
         - None: if an exception occurs while fetching the data
 
@@ -352,7 +367,6 @@ def get_balance_sheet(ticker):
     >>> get_balance_sheet("AAPL")
     {'Total Assets': {...}, ...}
     """
-    """retrieve the annual balance sheet for a given ticker"""
     try:
         pd.set_option('display.max_rows', None)
         yf_obj = yf.Ticker(ticker)
@@ -361,23 +375,23 @@ def get_balance_sheet(ticker):
             # Convert Timestamp index to string to make it JSON-serializable
             balance_sheet.index = balance_sheet.index.astype(str)
             return balance_sheet.to_dict()
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             return balance_sheet
 
-    except Exception as e:
-        print(f"An error occurred while fetching news: {e}")
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while fetching balance_sheet: {exc}")
         return None
 
 
 def get_screen_undervalued_large_caps():
-    """retrieve stock screen of get_screen_undervalued_large_caps"""
+    """Retrieve stock screen of undervalued large cap stocks."""
     try:
         screen = yf.screen("undervalued_large_caps")
         tickers = [quote['symbol'] for quote in screen['quotes']]
         return tickers
 
-    except Exception as e:
-        print(f"An error occurred while fetching undervalued_large_caps: {e}")
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while fetching undervalued_large_caps: {exc}")
         return None
 
 
@@ -414,26 +428,33 @@ def get_ai_balance_sheet_analysis(ticker):
           investor. Output is AI-generated and may not reflect the views of that
           individual. Use the analysis as informational, not as definitive advice.
     """
-    """ask AI to perform an analysis on a balance sheet given a ticker."""
     try:
         balance_sheet = get_balance_sheet(ticker)
 
         ensure_ollama()
-        response = _chat(model='huihui_ai/llama3.2-abliterate:3b', messages=[{
+        response = _CHAT(
+            model='huihui_ai/llama3.2-abliterate:3b',
+            messages=[{
                 'role': 'user',
-                'content': f'You are Benjamin Graham, a renowned value investor. Please provide your expert insights and guidance on valuation metrics, fundamental analysis, and potential risks and rewards {balance_sheet}. ', }, ])
+                'content': (
+                    'You are Benjamin Graham, a renowned value investor. '
+                    'Please provide your expert insights and guidance on '
+                    'valuation metrics, fundamental analysis, and potential '
+                    f'risks and rewards {balance_sheet}.'
+                ),
+            }]
+        )
 
-        balance_sheet_analysis = getattr(response, 'message', response).content
+        balance_sheet_analysis = getattr(response, 'message', response).content  # pylint: disable=no-member
         return balance_sheet_analysis
 
-    except Exception as e:
-        print(f"An error occurred while performing balance_sheet_analysis: {e}")
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while performing balance_sheet_analysis: {exc}")
         return None
 
 
 def get_ai_fundamental_analysis(ticker):
-    """
-    Ask an AI to perform a fundamentals-based analysis for a given ticker.
+    """Ask an AI to perform a fundamentals-based analysis for a given ticker.
 
     This function:
     - Retrieves fundamentals for the provided ticker via get_fundamentals(ticker).
@@ -451,168 +472,240 @@ def get_ai_fundamental_analysis(ticker):
             None if an error occurs.
 
     Side effects:
-            - Calls get_fundamentals, ensure_ollama, and _chat (may perform network/IO).
+            - Calls get_fundamentals, ensure_ollama, and _CHAT (may perform network/IO).
             - Prints an error message and returns None if an exception is raised.
 
     Notes:
             The function catches all exceptions and does not propagate them to the caller.
     """
-    """ask AI to perform an analysis on fundamentals given a ticker."""
     try:
         fundamentals = get_fundamentals(ticker)
 
         ensure_ollama()
-        response = _chat(model='huihui_ai/llama3.2-abliterate:3b', messages=[{
+        response = _CHAT(
+            model='huihui_ai/llama3.2-abliterate:3b',
+            messages=[{
                 'role': 'user',
-                'content': f'You are Benjamin Graham, a renowned value investor. Please provide your expert insights and guidance on valuation metrics, fundamental analysis, and potential risks and rewards {fundamentals}. ', }, ])
+                'content': (
+                    'You are Benjamin Graham, a renowned value investor. '
+                    'Please provide your expert insights and guidance on '
+                    'valuation metrics, fundamental analysis, and potential '
+                    f'risks and rewards {fundamentals}.'
+                ),
+            }]
+        )
 
-        fundamental_analysis = getattr(response, 'message', response).content
+        fundamental_analysis = getattr(response, 'message', response).content  # pylint: disable=no-member
         return fundamental_analysis
 
-    except Exception as e:
-        print(f"An error occurred while performing fundamental anaylsis: {e}")
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while performing fundamental analysis: {exc}")
         return None
 
 
 def get_ai_quarterly_income_stm_analysis(ticker):
-    """
-    Perform an AI-driven analysis of a company's quarterly income statement.
+    """Perform an AI-driven analysis of a company's quarterly income statement.
 
     Parameters
     ----------
     ticker : str
-        The stock ticker symbol whose quarterly income statement will be fetched and analyzed.
+        The stock ticker symbol whose quarterly income statement will be fetched
+        and analyzed.
 
     Returns
     -------
     str or None
-        The AI-generated analysis text of the quarterly income statement, or None if an error occurred.
+        The AI-generated analysis text of the quarterly income statement, or None
+        if an error occurred.
 
     Behavior
     --------
     - Fetches financial data via get_quarterly_income_stmt(ticker).
     - Ensures the Ollama environment is available by calling ensure_ollama().
-    - Sends a prompt (framed as the Benjamin Graham persona) and the fetched statement to the _chat model 'huihui_ai/llama3.2-abliterate:3b'.
+    - Sends a prompt (framed as the Benjamin Graham persona) and the fetched
+      statement to the _CHAT model 'huihui_ai/llama3.2-abliterate:3b'.
     - Extracts and returns the returned chat message content.
 
     Errors
     ------
-    All exceptions are caught; errors are printed to stdout and the function returns None.
+    All exceptions are caught; errors are printed to stdout and the function
+    returns None.
 
     Security/Privacy Notes
     ----------------------
-    - The raw quarterly income statement is included in the model prompt; sanitize or redact sensitive information if required.
-    - Using a persona in prompts may produce stylistic or interpretive content rather than authoritative financial advice; validate any investment guidance independently.
+    - The raw quarterly income statement is included in the model prompt; sanitize
+      or redact sensitive information if required.
+    - Using a persona in prompts may produce stylistic or interpretive content
+      rather than authoritative financial advice; validate any investment guidance
+      independently.
     """
-    """ask AI to perform an analysis on quarterly_income_stmt given a ticker."""
     try:
         quarterly_income_stm = get_quarterly_income_stmt(ticker)
 
         ensure_ollama()
-        response = _chat(model='huihui_ai/llama3.2-abliterate:3b', messages=[{
+        response = _CHAT(
+            model='huihui_ai/llama3.2-abliterate:3b',
+            messages=[{
                 'role': 'user',
-                'content': f'You are Benjamin Graham, a renowned value investor. Please provide your expert insights and guidance on valuation metrics, fundamental analysis, and potential risks and rewards {quarterly_income_stm}. ', }, ])
+                'content': (
+                    'You are Benjamin Graham, a renowned value investor. '
+                    'Please provide your expert insights and guidance on '
+                    'valuation metrics, fundamental analysis, and potential '
+                    f'risks and rewards {quarterly_income_stm}.'
+                ),
+            }]
+        )
 
-        quarterly_income_stm_analysis = getattr(response, 'message', response).content
+        quarterly_income_stm_analysis = getattr(response, 'message', response).content  # pylint: disable=no-member
         return quarterly_income_stm_analysis
 
-    except Exception as e:
-        print(f"An error occurred while performing fundamental anaylsis: {e}")
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while performing income statement analysis: {exc}")
         return None
 
 
 def get_ai_technical_analysis(ticker):
-    """ask AI to perform an analysis on price data given a ticker."""
+    """Perform AI-driven technical analysis on price data."""
     try:
         price_history = get_price_history(ticker)
 
         ensure_ollama()
-        response = _chat(
-            model='huihui_ai/llama3.2-abliterate:3b', messages=[{
+        response = _CHAT(
+            model='huihui_ai/llama3.2-abliterate:3b',
+            messages=[{
                 'role': 'user',
-                'content': f'You are John Murphy, a renowned technical analyst. Please conduct a technical analysis on this price data: {price_history}' , }, ])
+                'content': (
+                    'You are John Murphy, a renowned technical analyst. '
+                    'Please conduct a technical analysis on this price data: '
+                    f'{price_history}'
+                ),
+            }]
+        )
 
-        technical_analysis = getattr(response, 'message', response).content
+        technical_analysis = getattr(response, 'message', response).content  # pylint: disable=no-member
         return technical_analysis
 
-    except Exception as e:
-        print(f"An error occurred while performing AI tehnical anaylsis: {e}")
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while performing AI technical analysis: {exc}")
         return None
 
 
 def get_ai_action_recommendation(ticker):
-    """ask AI to Recommend a Buy, Sell, or Hold, given a ticker."""
+    """Generate AI recommendation to buy, sell, or hold a stock."""
     try:
         technical_analysis = get_ai_technical_analysis(ticker)
         fundamental_analysis = get_ai_fundamental_analysis(ticker)
 
         ensure_ollama()
-        response = _chat(model='huihui_ai/llama3.2-abliterate:3b', messages=[{
+        response = _CHAT(
+            model='huihui_ai/llama3.2-abliterate:3b',
+            messages=[{
                 'role': 'user',
-                'content': f'You are the expert and experienced stock broker specializing in retirement accounts. Please analyize this information and recommend to buy, sell, or hold: {ticker} {technical_analysis} {fundamental_analysis}', }, ])
+                'content': (
+                    'You are an expert and experienced stock broker specializing '
+                    'in retirement accounts. Please analyze this information and '
+                    'recommend to buy, sell, or hold: '
+                    f'{ticker} {technical_analysis} {fundamental_analysis}'
+                ),
+            }]
+        )
 
-        action_analysis = getattr(response, 'message', response).content
+        action_analysis = getattr(response, 'message', response).content  # pylint: disable=no-member
         return action_analysis
-    except Exception as e:
-        print(f"An error occurred while performing AI action recommendation: {e}")
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while performing AI action recommendation: {exc}")
         return None
 
 
 def get_ai_action_recommendation_sentence(ticker):
-    """ask AI to recommendation to just a single sentenc given a recommendaton."""
+    """Generate AI recommendation as a single sentence."""
     try:
-
         action_analysis = get_ai_action_recommendation(ticker)
         ensure_ollama()
-        response = _chat(model='huihui_ai/llama3.2-abliterate:3b', messages=[{
-            'role': 'user',
-            'content': f'You are an expert editor. Please summarize this article into a single sentence, including the most important information needed to make an actionable decions about buying, selling, or holding. {action_analysis}', }, ])
+        response = _CHAT(
+            model='huihui_ai/llama3.2-abliterate:3b',
+            messages=[{
+                'role': 'user',
+                'content': (
+                    'You are an expert editor. Please summarize this into a single '
+                    'sentence, including the most important information needed to '
+                    'make an actionable decision about buying, selling, or holding. '
+                    f'{action_analysis}'
+                ),
+            }]
+        )
 
-        action_recommendation_summary_sentence = getattr(response, 'message', response).content
+        action_recommendation_summary_sentence = getattr(
+            response, 'message', response
+        ).content  # pylint: disable=no-member
         return action_recommendation_summary_sentence
 
-    except Exception as e:
-        print(f"An error occurred while performing AI action recommendation: {e}")
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while performing AI action recommendation: {exc}")
         return None
 
 
 def get_ai_action_recommendation_single_word(ticker):
-    """ask AI to  recommendation to just a single sentenc given a recommendaton."""
+    """Generate AI recommendation as a single word (BUY, SELL, or HOLD)."""
     try:
-
         action_analysis = get_ai_action_recommendation(ticker)
         ensure_ollama()
-        response = _chat(model='huihui_ai/llama3.2-abliterate:3b', messages=[{
-            'role': 'user',
-            'content': f'You are produing input to a software program, Please summarize this article into a single word one of either BUY SELL or HOLD. Do not use any punctiation, use only upper case letters, and dont say anything other than the single word or you will cause software bugs {action_analysis}', }, ])
+        response = _CHAT(
+            model='huihui_ai/llama3.2-abliterate:3b',
+            messages=[{
+                'role': 'user',
+                'content': (
+                    'You are producing input to a software program. Please '
+                    'summarize this into a single word: either BUY, SELL, or HOLD. '
+                    'Do not use any punctuation, use only upper case letters, and '
+                    'do not say anything other than the single word or you will '
+                    f'cause software bugs. {action_analysis}'
+                ),
+            }]
+        )
 
-        action_recommendation_single_word = getattr(response, 'message', response).content
+        action_recommendation_single_word = getattr(
+            response, 'message', response
+        ).content  # pylint: disable=no-member
         return action_recommendation_single_word
 
-    except Exception as e:
-        print(f"An error occurred while performing AI action recommendation: {e}")
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while performing AI action recommendation: {exc}")
         return None
 
 
 def get_ai_full_report(ticker):
-    """ask AI to produce a full report based on all information"""
+    """Generate comprehensive AI report based on all available information."""
     try:
-
         fundamental_analysis = get_ai_fundamental_analysis(ticker)
         technical_analysis = get_ai_technical_analysis(ticker)
         action_analysis = get_ai_action_recommendation(ticker)
         analyst_price_targets = get_analyst_price_targets(ticker)
 
         ensure_ollama()
-        response = _chat(model='huihui_ai/llama3.2-abliterate:3b', messages=[{
+        response = _CHAT(
+            model='huihui_ai/llama3.2-abliterate:3b',
+            messages=[{
                 'role': 'user',
-                'content': f'I am seeking an expert-level analysis of my recent financial report, requiring a high degree of technical knowledge and experience in public company valuation. Please provide a detailed breakdown of revenue growth, profitability, cash flow, or balance sheet trends, along with recommendations for improvement. Ensure that your analysis is grounded in the latest industry research and best practices. {ticker} {fundamental_analysis} {technical_analysis} {action_analysis} {analyst_price_targets}', }, ])
+                'content': (
+                    'I am seeking an expert-level analysis of my recent financial '
+                    'report, requiring a high degree of technical knowledge and '
+                    'experience in public company valuation. Please provide a '
+                    'detailed breakdown of revenue growth, profitability, cash flow, '
+                    'or balance sheet trends, along with recommendations for '
+                    'improvement. Ensure that your analysis is grounded in the '
+                    'latest industry research and best practices. '
+                    f'{ticker} {fundamental_analysis} {technical_analysis} '
+                    f'{action_analysis} {analyst_price_targets}'
+                ),
+            }]
+        )
 
-        full_report = getattr(response, 'message', response).content
+        full_report = getattr(response, 'message', response).content  # pylint: disable=no-member
         return full_report
 
-    except Exception as e:
-        print(f"An error occurred while performing AI full report creation: {e}")
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while performing AI full report creation: {exc}")
         return None
 
 
@@ -620,16 +713,33 @@ def get_ai_full_report(ticker):
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Run oobir analysis functions on a ticker")
+    parser = argparse.ArgumentParser(
+        description="Run oobir analysis functions on a ticker"
+    )
     parser.add_argument("ticker", nargs="?", help="Ticker symbol (e.g. AAPL)")
-    parser.add_argument("func", nargs="?", help="Function to call (default: get_ai_fundamental_analysis)",
-                        default="get_ai_fundamental_analysis")
-    parser.add_argument("--host", help="Override OLLAMA host URL (e.g. http://192.168.1.248:11434)")
-    parser.add_argument("--list", action="store_true", help="List available 'get_' functions and exit")
+    parser.add_argument(
+        "func",
+        nargs="?",
+        help="Function to call (default: get_ai_fundamental_analysis)",
+        default="get_ai_fundamental_analysis"
+    )
+    parser.add_argument(
+        "--host",
+        help="Override OLLAMA host URL (e.g. http://192.168.1.248:11434)"
+    )
+    parser.add_argument(
+        "--list",
+        action="store_true",
+        help="List available 'get_' functions and exit"
+    )
     args = parser.parse_args()
 
     if args.list:
-        funcs = [name for name, obj in inspect.getmembers(module, inspect.isfunction) if name.startswith('get_')]
+        current_module = sys.modules[__name__]
+        funcs = [
+            name for name, obj in inspect.getmembers(current_module, inspect.isfunction)
+            if name.startswith('get_')
+        ]
         for f in sorted(funcs):
             print(f)
         sys.exit(0)
@@ -639,12 +749,12 @@ if __name__ == "__main__":
         sys.exit(1)
 
     func_name = args.func
-    module = sys.modules[__name__]
-    if not hasattr(module, func_name):
+    current_module = sys.modules[__name__]
+    if not hasattr(current_module, func_name):
         print(f"Function '{func_name}' not found in module")
         sys.exit(1)
 
-    func = getattr(module, func_name)
+    func = getattr(current_module, func_name)
     # initialize ollama client with optional CLI host override
     ensure_ollama(getattr(args, 'host', None))
     try:
@@ -655,8 +765,7 @@ if __name__ == "__main__":
         else:
             try:
                 print(json.dumps(result, default=str))
-            except Exception:
+            except Exception:  # pylint: disable=broad-except
                 print(repr(result))
-    except Exception as e:
-        print(f"Error running {func_name}: {e}")
-
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"Error running {func_name}: {exc}")
