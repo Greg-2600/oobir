@@ -12,10 +12,9 @@
 
 ## Test Configuration
 
-- **Curl Script:** `scripts/run_curl_tests.sh`
-- **Python Tester:** `test_apis.py`
-- **Timeout for Data Endpoints:** 30 seconds
-- **Timeout for AI Endpoints:** 480 seconds (8 minutes)
+- **Shell Scripts:** `test_data_endpoints.sh`, `test_ai_endpoints.sh`
+- **Timeout for Data Endpoints:** ~30 seconds typical
+- **Timeout for AI Endpoints:** Up to 480 seconds (8 minutes)
 
 ## Previous Test Run Results (Before Fixes)
 
@@ -89,37 +88,23 @@ ollama:
     - OLLAMA_CONTEXT_SIZE=32000  # New: increase model context window
 ```
 
-### 4. `/Users/greg/oobir/oobir/scripts/run_curl_tests.sh`
+### Shell Test Scripts
 
-Added longer timeout (480s) for AI endpoints:
+Use the provided shell scripts for quick verification of endpoints using `curl`:
 
-```bash
-if [[ "${p}" == /api/ai/* ]]; then
-  max_time=480
-else
-  max_time=30
-fi
-```
-
-### 5. `/Users/greg/oobir/oobir/test_apis.py`
-
-Added longer timeout (480s) for AI endpoints:
-
-```python
-timeout = 480 if path.startswith("/api/ai/") else 30
-response = self.session.get(url, timeout=timeout)
-```
+- `test_data_endpoints.sh` – checks metadata and data endpoints
+- `test_ai_endpoints.sh` – checks AI analysis/recommendation endpoints
 
 ## How to Run the Full Test Suite
 
 ### From Local Machine
 
 ```bash
-# Run curl tests (should complete in ~8 minutes due to AI endpoints)
-./scripts/run_curl_tests.sh http://192.168.1.248:8000
+# Fast data tests
+./test_data_endpoints.sh http://192.168.1.248:8000 AAPL
 
-# OR run Python test script
-python3 test_apis.py http://192.168.1.248:8000
+# AI tests (slower)
+./test_ai_endpoints.sh http://192.168.1.248:8000 AAPL
 ```
 
 ### On Remote Server
@@ -134,8 +119,9 @@ docker compose ps
 # View app logs
 docker compose logs app
 
-# Test from within container
-docker compose exec app python test_apis.py http://localhost:8000
+# Run tests from the repo directory on the server
+./test_data_endpoints.sh http://localhost:8000 AAPL
+./test_ai_endpoints.sh http://localhost:8000 AAPL
 ```
 
 ## Expected Test Duration
@@ -151,15 +137,7 @@ The AI endpoints use Ollama with the `huihui_ai/llama3.2-abliterate:3b` model, w
 - Generates responses based on complex financial data
 - Can take 2-8 minutes per request depending on data size and server load
 
-**Recommendation:** Run tests in the background or separate the AI tests from data tests if you need quick feedback:
-
-```bash
-# Fast data tests only
-./scripts/run_curl_tests.sh http://192.168.1.248:8000 2>&1 | grep -E "fundamentals|price-history|news|screen"
-
-# AI tests separately
-./scripts/run_curl_tests.sh http://192.168.1.248:8000 2>&1 | grep "/api/ai/"
-```
+**Recommendation:** Run data tests first for quick feedback, then run AI tests separately if needed.
 
 ## Troubleshooting
 

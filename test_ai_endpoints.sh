@@ -19,8 +19,8 @@ fi
 
 echo "Testing AI endpoints at: $BASE_URL"
 echo "Using symbol: $SYMBOL"
-
 echo
+
 request() {
   local path="$1"
   echo "=== GET $BASE_URL$path ==="
@@ -28,9 +28,12 @@ request() {
   echo
 }
 
-# AI Endpoints
+# AI Analysis Endpoints
+echo "Testing AI analysis endpoints for ${SYMBOL}..."
 request "/api/ai/fundamental-analysis/$SYMBOL"
 request "/api/ai/technical-analysis/$SYMBOL"
+
+echo "Testing AI recommendation endpoints for ${SYMBOL}..."
 request "/api/ai/action-recommendation/$SYMBOL"
 request "/api/ai/action-recommendation-sentence/$SYMBOL"
 request "/api/ai/action-recommendation-word/$SYMBOL"

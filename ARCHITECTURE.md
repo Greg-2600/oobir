@@ -312,7 +312,9 @@ def serialize_value(obj):
 tests/
 ├── test_flow.py           # Unit tests for flow.py (7 tests)
 ├── test_flow_api.py       # Integration tests for flow_api.py (16 tests)
-└── test_apis.py           # Live endpoint tests (23 endpoints)
+└── (manual) see root-level shell scripts for live endpoint tests:
+        - test_data_endpoints.sh  # Data endpoint smoke tests
+        - test_ai_endpoints.sh    # AI endpoint smoke tests
 ```
 
 **Testing Strategy**:

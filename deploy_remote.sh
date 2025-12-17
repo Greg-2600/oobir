@@ -8,11 +8,18 @@ REMOTE=${1:-greg@192.168.1.248}
 REMOTE_PATH=${2:-'~/oobir'}
 
 echo "Deploying workspace to ${REMOTE}:${REMOTE_PATH}"
+echo "=================================================="
 
 # Prepare remote path. If the user provided a path starting with '~', use $HOME on the remote host
 if [[ "${REMOTE_PATH}" == ~* ]]; then
   # keep a literal $HOME so it expands on the remote side
-  REMOTE_PATH_REMOTE="\$HOME${REMOTE_PATH#~}"
+  # Remove the ~ and append to $HOME
+  tail="${REMOTE_PATH#\~}"
+  if [ -z "$tail" ]; then
+    REMOTE_PATH_REMOTE="\$HOME"
+  else
+    REMOTE_PATH_REMOTE="\$HOME${tail}"
+  fi
 elif [[ "${REMOTE_PATH}" == /* ]]; then
   # User passed an absolute path (likely expanded locally). Map common local home paths
   # like /Users/<user>/... to remote $HOME/...
@@ -39,7 +46,7 @@ echo "Copying archive to ${REMOTE}:${TMP_ARCHIVE}"
 scp "${TMP_ARCHIVE}" "${REMOTE}:${TMP_ARCHIVE}"
 
 echo "Extracting on remote host into ${REMOTE_PATH_REMOTE}"
-ssh ${REMOTE} "mkdir -p ${REMOTE_PATH_REMOTE} && tar xzf '${TMP_ARCHIVE}' -C ${REMOTE_PATH_REMOTE} && rm -f '${TMP_ARCHIVE}' || true"
+ssh ${REMOTE} "mkdir -p '${REMOTE_PATH_REMOTE}' && tar xzf '${TMP_ARCHIVE}' -C '${REMOTE_PATH_REMOTE}' && rm -f '${TMP_ARCHIVE}' || true"
 
 # clean up local temporary archive
 rm -f "${TMP_ARCHIVE}"
@@ -72,12 +79,14 @@ if [ -f docker-compose.yml ]; then
   if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
     docker compose pull || true
     docker compose up -d || true
-      # attempt to pull required model inside Ollama
-      docker compose exec ollama ollama pull huihui_ai/llama3.2-abliterate:3b || true
+    # Pull both canonical and alias model names to satisfy runtime lookups
+    docker compose exec ollama ollama pull huihui_ai/llama3.2-abliterate:3b || true
+    docker compose exec ollama ollama pull llama3.2:1b || true
   elif command -v docker-compose >/dev/null 2>&1; then
     docker-compose pull || true
     docker-compose up -d || true
-      docker exec -i ollama ollama pull huihui_ai/llama3.2-abliterate:3b || true
+    docker exec -i ollama ollama pull huihui_ai/llama3.2-abliterate:3b || true
+    docker exec -i ollama ollama pull llama3.2:1b || true
   else
     echo 'No docker compose available; skipping container start'
   fi
@@ -103,4 +112,10 @@ python flow.py --host http://localhost:11435 AAPL get_ai_fundamental_analysis ||
 exit 0
 ENDSSH
 
-echo "Deployment finished. Check the remote logs or run the script again locally." 
+echo "Deployment finished. Check the remote logs or run the script again locally."
+echo "=================================================="
+echo "Next steps:"
+echo "  - SSH to remote: ssh ${REMOTE}"
+echo "  - Navigate to: ${REMOTE_PATH_REMOTE}"
+echo "  - Start API: docker compose up or python flow_api.py"
+echo "  - Check logs: docker compose logs -f or tail -f *.log" 

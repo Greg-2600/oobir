@@ -174,13 +174,27 @@ python -m unittest discover -v
 
 ### API Endpoint Tests
 
+**Using test scripts** (recommended for manual testing):
 ```bash
-# Test all 23 endpoints against running API
-python test_apis.py http://localhost:8000
+# Test all data endpoints against running API (default symbol: AAPL)
+./test_data_endpoints.sh http://localhost:8000
+
+# Test data endpoints for a specific symbol
+./test_data_endpoints.sh http://localhost:8000 MSFT
+
+# Test AI endpoints against running API (default symbol: CHTR)
+./test_ai_endpoints.sh http://localhost:8000
+
+# Test AI endpoints for a specific symbol
+./test_ai_endpoints.sh http://localhost:8000 AAPL
 
 # Test remote deployment
-python test_apis.py http://192.168.1.248:8000
+./test_data_endpoints.sh http://192.168.1.248:8000 AAPL
+./test_ai_endpoints.sh http://192.168.1.248:8000 AAPL
+```
 
+**Using pytest**:
+```bash
 # Run pytest API tests
 python -m pytest tests/test_flow_api.py -v
 ```

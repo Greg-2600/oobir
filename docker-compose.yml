@@ -26,7 +26,7 @@ services:
     environment:
       - OLLAMA_HOST=http://ollama:11434
       - OLLAMA_MODEL=llama3.2:1b
-    volumes: []
+      - OLLAMA_CONTEXT_SIZE=32000
     restart: unless-stopped
 
 volumes:
