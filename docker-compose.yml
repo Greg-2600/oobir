@@ -1,0 +1,32 @@
+version: '3.8'
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      # map container's 11434 to a different host port to avoid conflicts
+      - "11435:11434"
+    environment:
+      - OLLAMA_ALLOW_HTTP=true
+      # increase Ollama model context/window (requested by user)
+      - OLLAMA_CONTEXT_SIZE=32000
+    volumes:
+      - ollama_data:/var/lib/ollama
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oobir_app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    volumes: []
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
