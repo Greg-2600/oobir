@@ -52,7 +52,7 @@ app = FastAPI(
 )
 
 # Set Ollama host from environment or use default
-OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://192.168.1.248:11435")
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
 logger.info("Ollama host configured: %s", OLLAMA_HOST)
 
 
