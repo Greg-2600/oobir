@@ -1,122 +1,184 @@
-# Running a local Ollama container (for `flow.py`)
+# Docker & Ollama Setup Guide for OOBIR
 
-This document shows a minimal Docker Compose setup to run a local Ollama service and how to point `flow.py` at it.
+Complete instructions for running OOBIR with Docker Compose, including both local Ollama setup and full containerized deployment.
 
-Start the Ollama container:
+---
+
+## Table of Contents
+1. [Quick Start](#quick-start)
+2. [Local Ollama Setup](#local-ollama-setup)
+3. [Full Containerized Deployment](#full-containerized-deployment)
+4. [REST API via Docker](#rest-api-via-docker)
+5. [Testing](#testing)
+6. [Troubleshooting](#troubleshooting)
+
+---
+
+## Quick Start
+
+### Prerequisites
+- Docker and Docker Compose installed
+- Port 8000 available (API) and 11434/11435 (Ollama)
+
+### Start All Services (Recommended)
 
 ```bash
-docker-compose up -d
+# Build and start all services
+docker compose up -d --build
+
+# Pull the required AI model
+docker compose exec ollama ollama pull huihui_ai/llama3.2-abliterate:3b
+
+# Verify services are healthy
+curl http://localhost:8000/health
+curl http://localhost:8000/health/ollama
+
+# Access the API
+open http://localhost:8000/docs  # Interactive documentation
 ```
 
-Watch logs while it starts (optional):
+---
+
+## Local Ollama Setup
+
+### Running a Local Ollama Container (for `flow.py`)
+
+This section shows how to run a standalone Ollama service and point `flow.py` at it for AI analysis.
+
+### Start the Ollama Container Only
 
 ```bash
-docker-compose logs -f ollama
+docker compose up -d ollama
 ```
 
-When the container is healthy and listening on host port `11435` (container port 11434), activate your virtualenv and run `flow.py` pointing to the local host:
+### Watch Logs (Optional)
 
 ```bash
-. venv/bin/activate
+docker compose logs -f ollama
+```
+
+When the container is healthy and listening on host port `11435` (internal port 11434), you can use `flow.py`:
+
+```bash
+# Activate virtual environment
+source venv/bin/activate
+
+# Run flow.py with local Ollama
 python flow.py --host http://localhost:11435 AAPL get_ai_fundamental_analysis
 ```
 
-Notes:
-- The Compose file uses the image `ollama/ollama:latest`; if your environment requires a different image or tag, update `docker-compose.yml`.
-- Models and state are persisted to the `ollama_data` volume defined in `docker-compose.yml`.
-- If you previously hit the `librtmp` error when running `flow.py`, that only affected `yfinance`'s transport native libs. Running Ollama in Docker isolates the Ollama service; you may still need to ensure your Python environment can import required packages (install system deps or use mocked tests).
+### Install the Required Model
 
-Model installation
-------------------
-
-Ollama requires models to be installed before you can run AI calls. After the container is running, pull the model used by this project:
+Ollama requires models to be installed before AI calls work. After the container is running:
 
 ```bash
-# from the host where the container runs (uses compose plugin if available)
-docker compose exec ollama ollama pull huihui_ai/llama3.2-abliterate:3b || docker exec -i ollama ollama pull huihui_ai/llama3.2-abliterate:3b
+# Pull the required model
+docker compose exec ollama ollama pull huihui_ai/llama3.2-abliterate:3b
+
+# Verify installed models
+docker compose exec ollama ollama list
 ```
 
-You can verify installed models with:
+### Notes on Local Ollama Setup
+- The Compose file uses `ollama/ollama:latest`; update `docker-compose.yml` if you need a different tag
+- Models and state are persisted in the `ollama_data` volume (survives container restarts)
+- Ollama is CPU-only by default; enable GPU acceleration if available
+- If you previously hit the `librtmp` error when running `flow.py`, that only affected `yfinance`'s transport native libs
 
-```bash
-docker compose exec ollama ollama list || docker exec -i ollama ollama list
-```
+---
 
-Run everything inside container
-------------------------------
+## Full Containerized Deployment
 
-This repository includes an `app` service that builds a container image containing the project and its Python dependencies. The app container runs on the same docker network as the Ollama service so it can call `http://ollama:11434`.
+### Running Everything Inside Docker
 
-Build and start both services:
+This repository includes both `app` and `ollama` services that run on the same Docker network. The app container can call Ollama at `http://ollama:11434` internally.
+
+### Build and Start All Services
 
 ```bash
 docker compose up -d --build
 ```
 
-The app container now runs a FastAPI server by default on port 8000. It will be accessible at `http://localhost:8000`.
-
-Keep the containers running and then execute tests or interact with the app inside the `app` container:
+### Pull the AI Model
 
 ```bash
-# run tests inside the app container
-docker compose exec app /home/app/oobir/run-tests.sh
-
-# open a shell inside the app container
-docker compose exec app bash
-
-# run the CLI inside the container (example):
-python flow.py --host http://ollama:11434 AAPL get_ai_fundamental_analysis
-
-# access the FastAPI interactive documentation
-open http://localhost:8000/docs         # Swagger UI
-open http://localhost:8000/redoc        # ReDoc
+docker compose exec ollama ollama pull huihui_ai/llama3.2-abliterate:3b
 ```
 
-REST API via Docker
--------------------
+### Access the Application
 
-The `app` container exposes a FastAPI REST API on port 8000 with the following endpoints:
+```bash
+# View API documentation
+open http://localhost:8000/docs         # Swagger UI
+open http://localhost:8000/redoc        # ReDoc
 
-**Metadata Endpoints**:
+# Or use curl
+curl http://localhost:8000/health
+```
+
+### Run Commands Inside the Container
+
+```bash
+# Run tests
+docker compose exec app python -m pytest -v
+
+# Run the CLI
+docker compose exec app python flow.py --host http://ollama:11434 AAPL get_ai_fundamental_analysis
+
+# Open a shell in the container
+docker compose exec app bash
+
+# Run the custom test script
+docker compose exec app /home/app/oobir/run-tests.sh
+```
+
+---
+
+## REST API via Docker
+
+### API Endpoints Overview
+
+The `app` container exposes a FastAPI REST API on port 8000 with **23 endpoints** total:
+
+**Metadata Endpoints (4):**
 - `GET /` — API info and current Ollama host
 - `GET /docs` — Interactive Swagger UI documentation
 - `GET /redoc` — ReDoc alternative documentation
+- `GET /openapi.json` — OpenAPI schema
 
-**Health Check Endpoints**:
+**Health Check Endpoints (2):**
 - `GET /health` — Basic service health check
 - `GET /health/ollama` — Ollama connectivity test (returns 503 if unreachable)
 
-**Data Endpoints** (GET):
-- `/api/fundamentals/{symbol}` — Get fundamental data for a ticker
-- `/api/price-history/{symbol}` — Get price history for a ticker
-- `/api/analyst-targets/{symbol}` — Get analyst targets for a ticker
-- `/api/calendar/{symbol}` — Get earnings calendar for a ticker
-- `/api/income-stmt/{symbol}` — Get income statement for a ticker
-- `/api/balance-sheet/{symbol}` — Get balance sheet for a ticker
-- `/api/option-chain/{symbol}` — Get option chain for a ticker
-- `/api/news/{symbol}` — Get news for a ticker
-- `/api/screen-undervalued` — Screen for undervalued stocks
+**Data Endpoints (9):**
+- `GET /api/fundamentals/{symbol}` — Company fundamentals
+- `GET /api/price-history/{symbol}` — 121-day price history
+- `GET /api/analyst-targets/{symbol}` — Analyst price targets
+- `GET /api/calendar/{symbol}` — Earnings calendar
+- `GET /api/income-stmt/{symbol}` — Quarterly income statement
+- `GET /api/balance-sheet/{symbol}` — Balance sheet data
+- `GET /api/option-chain/{symbol}` — Option chain data
+- `GET /api/news/{symbol}` — Recent news articles
+- `GET /api/screen-undervalued` — Stock screener (undervalued stocks)
 
-**AI Analysis Endpoints** (GET):
-- `/api/ai/fundamental-analysis/{symbol}` — AI analysis of fundamentals
-- `/api/ai/balance-sheet-analysis/{symbol}` — AI analysis of balance sheet
-- `/api/ai/income-stmt-analysis/{symbol}` — AI analysis of income statement
-- `/api/ai/technical-analysis/{symbol}` — AI technical analysis
-- `/api/ai/action-recommendation/{symbol}` — AI action recommendation (JSON)
-- `/api/ai/action-recommendation-sentence/{symbol}` — AI recommendation (sentence)
-- `/api/ai/action-recommendation-word/{symbol}` — AI recommendation (one word)
-- `/api/ai/full-report/{symbol}` — Complete AI analysis report
+**AI Analysis Endpoints (8):**
+- `GET /api/ai/fundamental-analysis/{symbol}` — AI analysis of fundamentals
+- `GET /api/ai/balance-sheet-analysis/{symbol}` — AI analysis of balance sheet
+- `GET /api/ai/income-stmt-analysis/{symbol}` — AI analysis of income statement
+- `GET /api/ai/technical-analysis/{symbol}` — AI technical analysis
+- `GET /api/ai/action-recommendation/{symbol}` — AI recommendation (JSON)
+- `GET /api/ai/action-recommendation-sentence/{symbol}` — AI recommendation (sentence)
+- `GET /api/ai/action-recommendation-word/{symbol}` — AI recommendation (one word)
+- `GET /api/ai/full-report/{symbol}` — Complete AI report
 
-**Note:** All AI endpoints return HTTP 503 (Service Unavailable) if Ollama is unreachable or returns no response. Use `/health/ollama` to verify Ollama connectivity before making AI requests.
-
-Example API calls:
+### Example API Calls
 
 ```bash
 # Check API and Ollama health
 curl http://localhost:8000/health
 curl http://localhost:8000/health/ollama
 
-# Get fundamentals for AAPL via local Docker API
+# Get fundamentals for AAPL
 curl http://localhost:8000/api/fundamentals/AAPL
 
 # Get AI action recommendation for AAPL
@@ -126,19 +188,205 @@ curl http://localhost:8000/api/ai/action-recommendation/AAPL
 curl http://localhost:8000/
 ```
 
-Testing the API
----------------
+### Pretty-Print JSON Responses
 
-A standalone test script `test_apis.py` is included to verify all endpoints. Run it against a local or remote API:
+Use `jq` for better readability:
 
 ```bash
-# Test local Docker API
-python test_apis.py http://localhost:8000
-
-# Test remote API (after deploying to remote host)
-python test_apis.py http://192.168.1.248:8000
+curl -s http://localhost:8000/api/fundamentals/AAPL | jq
 ```
 
-The script tests all 23 endpoints (4 metadata + 2 health + 9 data including screener + 8 AI) and reports results with a summary.
+---
+
+## Testing
+
+### Run Tests Inside the Container
+
+```bash
+# Run all tests with pytest
+docker compose exec app python -m pytest -v
+
+# Run specific test file
+docker compose exec app python -m pytest tests/test_flow.py -v
+
+# Run with unittest discovery
+docker compose exec app python -m unittest discover -v
+```
+
+### Test All 23 API Endpoints
+
+```bash
+# Run the comprehensive endpoint test script
+docker compose exec app python test_apis.py http://localhost:8000
+
+# Or from your local machine (requires requests library)
+pip install requests
+python test_apis.py http://localhost:8000
+```
+
+### Verify Specific Endpoints
+
+```bash
+# Test health endpoints
+docker compose exec app curl http://localhost:8000/health
+docker compose exec app curl http://localhost:8000/health/ollama
+
+# Test data endpoints
+docker compose exec app curl http://localhost:8000/api/fundamentals/AAPL
+docker compose exec app curl http://localhost:8000/api/price-history/MSFT
+
+# Test AI endpoints
+docker compose exec app curl http://localhost:8000/api/ai/action-recommendation-word/TSLA
+```
+
+---
+
+## Troubleshooting
+
+### Container Status and Logs
+
+```bash
+# Check if all containers are running
+docker compose ps
+
+# View logs for all services
+docker compose logs
+
+# Follow logs in real-time
+docker compose logs -f
+
+# View logs for specific service
+docker compose logs app
+docker compose logs ollama
+```
+
+### API Server Not Responding
+
+```bash
+# Verify app container is running
+docker compose ps app
+
+# Check app logs for errors
+docker compose logs app
+
+# Restart the app container
+docker compose restart app
+
+# Rebuild and restart (if code changed)
+docker compose up -d --build app
+```
+
+### Ollama Not Responding
+
+```bash
+# Verify Ollama container is running
+docker compose ps ollama
+
+# Check Ollama logs
+docker compose logs ollama
+
+# Test Ollama directly
+curl http://localhost:11435/api/tags
+
+# Restart Ollama
+docker compose restart ollama
+
+# Verify model is installed
+docker compose exec ollama ollama list
+
+# Pull model if missing
+docker compose exec ollama ollama pull huihui_ai/llama3.2-abliterate:3b
+```
+
+### AI Endpoints Return 503 (Service Unavailable)
+
+**Symptoms:** AI analysis endpoints return HTTP 503 status code
+
+**Causes:**
+- Ollama service is not running
+- Model is not installed
+- Network connectivity issue between app and Ollama
+
+**Diagnostic Steps:**
+```bash
+# Check Ollama health from API
+curl http://localhost:8000/health/ollama
+
+# Test Ollama directly
+docker compose exec app curl http://ollama:11434/api/tags
+
+# Check if model is installed
+docker compose exec ollama ollama list
+```
+
+**Solutions:**
+```bash
+# Ensure Ollama is running
+docker compose start ollama
+
+# Pull the model
+docker compose exec ollama ollama pull huihui_ai/llama3.2-abliterate:3b
+
+# Restart both services
+docker compose restart app ollama
+```
+
+### Data Endpoints Return Errors
+
+**Common Issues:**
+- Invalid ticker symbol (e.g., typo or delisted stock)
+- Data not available for that ticker
+- yfinance API rate limiting
+
+**Debugging:**
+```bash
+# Check app logs for specific errors
+docker compose logs app | grep ERROR
+
+# Test a known good ticker
+curl http://localhost:8000/api/fundamentals/AAPL
+
+# Use interactive docs to see detailed error messages
+open http://localhost:8000/docs
+```
+
+### Port Already in Use
+
+```bash
+# If port 8000 is in use, find what's using it
+lsof -i :8000
+
+# Or use a different port (edit docker-compose.yml)
+# Change "8000:8000" to "9000:8000"
+
+# Then access API at http://localhost:9000
+```
+
+### Memory or CPU Issues
+
+```bash
+# Check container resource usage
+docker stats
+
+# If Ollama is running out of memory:
+# - Reduce Ollama model size in docker-compose.yml
+# - Allocate more memory to Docker Desktop
+
+# Monitor in real-time
+docker stats --no-stream
+```
+
+---
+
+## Next Steps
+
+- **Quick Start:** Follow [README.md](README.md) for usage examples
+- **API Reference:** See [DOCS.md](DOCS.md) for comprehensive API documentation
+- **Testing:** Run `test_apis.py` to verify all endpoints
+- **Deployment:** Use [deploy_remote.sh](deploy_remote.sh) for production deployment
+
+---
+
+**Last Updated:** December 17, 2025
 
 
