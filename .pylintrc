@@ -1,0 +1,52 @@
+[MASTER]
+# Use multiple processes to speed up Pylint
+jobs=0
+
+# Pickle collected data for later comparisons
+persistent=yes
+
+[MESSAGES CONTROL]
+# Disable messages that are too strict for initial setup
+# These can be enabled gradually as code quality improves
+disable=
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
+    too-few-public-methods,
+    too-many-instance-attributes,
+    too-many-arguments,
+    too-many-locals,
+    too-many-branches,
+    too-many-statements,
+    duplicate-code
+
+[REPORTS]
+# Set the output format
+output-format=text
+
+# Activate score evaluation
+score=yes
+
+[BASIC]
+# Good variable names which should always be accepted
+good-names=i,j,k,ex,Run,_,id,df,x,y,e
+
+[FORMAT]
+# Maximum number of characters on a single line
+max-line-length=120
+
+[DESIGN]
+# Maximum number of return statements (increased for complex API handlers)
+max-returns=10
+
+[TYPECHECK]
+# List of module names for which member attributes should not be checked
+ignored-modules=
+
+[SIMILARITIES]
+# Minimum lines number of a similarity
+min-similarity-lines=10
+
+[REFACTORING]
+# Maximum number of nested blocks for function / method body
+max-nested-blocks=5
