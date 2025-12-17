@@ -69,10 +69,6 @@ python flow.py --list
 
 ## REST API
 
----
-
-## REST API
-
 ### Starting the API Server
 
 **Production (Docker Compose):**

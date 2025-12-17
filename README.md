@@ -1,18 +1,3 @@
-Run everything in Docker (recommended for older macOS)
---------------------------------------------------
-
-If you prefer to run everything inside Docker (app + Ollama), build and start services with:
-Run tests inside the app container:
-
-```bash
-docker compose exec app /home/app/oobir/run-tests.sh
-```
-
-Run the CLI inside the container (CLI talks to Ollama at `http://ollama:11434` inside the compose network):
-
-```bash
-docker compose exec app python flow.py --host http://ollama:11434 AAPL get_ai_fundamental_analysis
-```
 # OOBIR — Stock Analysis & Recommendation Engine
 
 FastAPI-based REST API for fetching stock market data (via `yfinance`) and generating AI-powered analysis using Ollama. Includes both CLI and REST API interfaces with comprehensive health monitoring and error handling.
