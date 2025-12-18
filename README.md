@@ -8,13 +8,21 @@
 
 ## Overview
 
-**OOBIR** is a sophisticated, production-grade stock analysis platform that seamlessly integrates multi-source financial data with large language model (LLM) analysis. This novel approach combines real-time market data, fundamental analysis, and AI-powered sentiment analysis to deliver actionable investment insights.
+**OOBIR** is a sophisticated, production-grade **AI-driven stock analysis platform** that seamlessly integrates multi-source financial data with advanced **large language model (LLM) analysis**. Purpose-built for enterprise deployment with **cloud-native architecture** and containerized execution via Docker. This novel approach combines real-time market data, fundamental analysis, and AI-powered sentiment analysis to deliver actionable investment insights with institutional-grade reliability.
+
+**Core Capabilities:**
+- 🤖 **LLM-Powered Intelligence**: Ollama integration for local, privacy-preserving AI analysis
+- 🐳 **Cloud-Ready Containerization**: Docker/Docker Compose for seamless multi-environment deployment
+- 📊 **Intelligent Data Synthesis**: AI agents analyze multiple data sources simultaneously (fundamentals, technicals, sentiment)
+- 🚀 **Scalable REST API**: 24 endpoints with auto-generated documentation and health monitoring
 
 ### Key Innovation
 
 Unlike traditional stock analysis tools that separate data retrieval from analysis, OOBIR's unified architecture enables:
-- **Intelligent Data Synthesis**: AI agents analyze multiple data sources simultaneously (fundamentals, technicals, sentiment)
-- **Context-Aware Recommendations**: LLM-powered analysis considers news sentiment, balance sheet health, and technical patterns in a single recommendation
+- **LLM-Native Architecture**: Purpose-built for AI-powered recommendations, not bolted-on. Full integration of Ollama LLM throughout analysis pipeline
+- **Intelligent Data Synthesis**: AI agents analyze multiple data sources simultaneously (fundamentals, technicals, sentiment) with contextual reasoning
+- **Context-Aware Recommendations**: LLM-powered analysis synthesizes news sentiment, balance sheet health, and technical patterns in single recommendations
+- **Cloud-Native Deployment**: Containerized with Docker Compose—deploy locally, on-premises, or cloud (AWS/Azure/GCP) with identical reproducibility
 - **Dual Interface**: Seamlessly operate via CLI or REST API without code duplication—single business logic, multiple access patterns
 - **Production-Ready Testing**: Comprehensive 51-test suite with 100% endpoint coverage including mocked external dependencies
 
@@ -41,9 +49,10 @@ Unlike traditional stock analysis tools that separate data retrieval from analys
 
 ### Production Quality
 - **51 Comprehensive Tests** covering all 24 API endpoints with success/failure paths and external dependency mocking
-- **Health Monitoring**: Built-in health checks for application and Ollama service with graceful degradation
+- **Health Monitoring**: Built-in health checks for application and Ollama LLM service with graceful degradation
 - **Enterprise Error Handling**: Meaningful HTTP status codes and error messages for production systems
-- **Docker-Ready**: Single command deployment with reproducible environments
+- **Cloud-Native Ready**: Single command deployment with Docker Compose—reproducible across development, staging, and production environments
+- **AI Service Integration**: Seamless Ollama integration with automatic model management and health verification
 
 ## Quick Start
 
@@ -83,24 +92,33 @@ open http://localhost:8000/docs
 
 ## Features
 
-### Data Intelligence Layer
+### 🤖 Advanced AI & LLM Capabilities
+- **LLM-Powered Intelligence**: Integrated Ollama LLM (huihui_ai/llama3.2-abliterate:3b) for sophisticated AI analysis
+- **9 Specialized AI Analysis Functions**: Fundamental, technical, balance sheet, income statement, and full report generation
+- **AI News Sentiment Analysis**: LLM-powered sentiment analysis of recent news articles for market context
+- **Intelligent Recommendations**: AI-generated buy/sell/hold recommendations available in detailed, sentence, or single-word formats
+- **Context-Aware Reasoning**: LLM synthesizes multiple data sources to provide nuanced, multi-perspective analysis
+
+### 📊 Data Intelligence Layer
 - **Multi-Source Financial Data**: Real-time and historical data across fundamentals, technicals, options, and analyst consensus
 - **Earnings Intelligence**: Calendar events, quarterly financials, and historical trends
 - **Market Sentiment**: Real-time news aggregation with AI-powered sentiment analysis
 - **Stock Screening**: Algorithmic screening for undervalued large-cap stocks
 
-### AI Analysis Layer
-- **Comprehensive LLM Analysis**: 9 specialized analysis functions leveraging Ollama (huihui_ai/llama3.2-abliterate:3b)
-- **Multi-Perspective Recommendations**: Technical, fundamental, balance sheet, and sentiment-aware analysis
-- **Flexible Output Formats**: From detailed reports to single-word recommendations for different use cases
-- **News Sentiment Integration**: AI analysis of recent news articles for sentiment-based insights
+### 🐳 Cloud & Container Deployment
+- **Docker-First Architecture**: Containerized application with Docker Compose orchestration
+- **Cloud-Native Ready**: Deploy to AWS, Azure, GCP, or on-premises with identical reproducibility
+- **Service Mesh Integration**: Multi-container setup (app + Ollama) with automatic health checks
+- **Environment Parity**: Guaranteed consistency across development, staging, and production
+- **Scalability**: Stateless design supports horizontal scaling, load balancing, and orchestration (Kubernetes-compatible)
 
-### Platform Features
-- **Dual Interface Architecture**: Identical functionality via CLI (`flow.py`) or REST API (`flow_api.py`)
-- **REST API with AutoDocs**: Full OpenAPI/Swagger documentation auto-generated by FastAPI
-- **Health Monitoring**: Service health checks for app and Ollama with status indicators
-- **Production Error Handling**: Comprehensive error responses with actionable messages and HTTP status codes
-- **Enterprise Scalability**: Stateless design supports horizontal scaling via Docker orchestration
+### 🚀 REST API & Platform Features
+- **24 Comprehensive Endpoints**: 2 health checks, 13 data endpoints, 9 AI analysis endpoints
+- **REST API with AutoDocs**: Full OpenAPI 3.0/Swagger documentation auto-generated by FastAPI
+- **Dual Interface Architecture**: Identical functionality via CLI (`flow.py`) or REST API (`flow_api.py`) without code duplication
+- **Health Monitoring**: Real-time service health checks for app and Ollama LLM with graceful fallbacks
+- **Production Error Handling**: Comprehensive error responses with actionable messages and proper HTTP status codes
+- **Enterprise Scalability**: Stateless design supports horizontal scaling via Docker and Kubernetes orchestration
 
 ## Installation
 
