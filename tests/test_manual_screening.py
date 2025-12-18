@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Screen undervalued stocks and get AI action recommendations.
+Manual test script: Screen undervalued stocks and get AI action recommendations.
 
-Usage: python test_ai_screening.py [BASE_URL]
-Example: python test_ai_screening.py http://192.168.1.248:8000
+Usage: python test_manual_screening.py [BASE_URL]
+Example: python test_manual_screening.py http://192.168.1.248:8000
 """
 
 import sys
