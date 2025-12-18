@@ -123,6 +123,52 @@ python -m uvicorn flow_api:app --host 0.0.0.0 --port 8000 --reload
 - `GET /api/ai/news-sentiment/{symbol}` — AI analysis of recent news sentiment
 - `GET /api/ai/full-report/{symbol}`
 
+#### News Sentiment Analysis
+
+**Endpoint**: `GET /api/ai/news-sentiment/{symbol}`
+
+Analyzes recent news articles for a stock and uses AI to determine sentiment (positive/negative/neutral).
+
+**Returns**: Single-sentence sentiment assessment as JSON string
+
+**Examples**:
+```bash
+curl http://localhost:8000/api/ai/news-sentiment/AAPL
+# Returns: "The sentiment is positive with strong product announcements and earnings growth."
+
+curl http://localhost:8000/api/ai/news-sentiment/MSFT
+# Returns: "Recent news shows mixed sentiment with AI investments offset by workforce reductions."
+```
+
+**How it works**:
+1. Fetches recent news articles using yfinance
+2. Extracts summaries from top 5 articles
+3. Sends to Ollama LLM with sentiment analysis prompt
+4. Returns single-sentence summary
+
+**Python API**:
+```python
+import flow
+
+# Analyze sentiment for a ticker
+result = flow.get_ai_news_sentiment("AAPL")
+print(result)
+# Output: "The sentiment is positive with strong earnings and market expansion."
+
+# Returns None if error occurs
+result = flow.get_ai_news_sentiment("INVALID")
+# Returns: None
+```
+
+**Error Handling**:
+- `200 OK`: Successful analysis (returns sentiment string)
+- `503 Service Unavailable`: Ollama not available
+- `500 Internal Error`: Other exceptions
+
+**Model**: Uses `huihui_ai/llama3.2-abliterate:3b`
+
+**Tests**: 15 comprehensive tests cover valid data, edge cases (no news, no summaries), error handling, and various sentiment types.
+
 ### API Examples
 
 ```bash
