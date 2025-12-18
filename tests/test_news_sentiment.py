@@ -49,6 +49,109 @@ class TestGetNewsSentiment(unittest.TestCase):
         mock_chat.assert_called_once()
 
     @patch('flow.get_news')
+    def test_news_sentiment_no_news_available(self, mock_get_news):
+        """Test sentiment analysis when no news is available."""
+        mock_get_news.return_value = []
+        result = flow.get_ai_news_sentiment('XYZ')
+        self.assertEqual(result, "No news available for analysis.")
+
+    @patch('flow.get_news')
+    def test_news_sentiment_no_summaries(self, mock_get_news):
+        """Test sentiment analysis when articles have no summaries."""
+        mock_get_news.return_value = [
+            {'content': {}},
+            {'content': {}}
+        ]
+        result = flow.get_ai_news_sentiment('XYZ')
+        self.assertEqual(result, "No news summaries available for analysis.")
+
+    @patch('flow.get_news')
+    def test_news_sentiment_exception_handling(self, mock_get_news):
+        """Test that exceptions are handled gracefully."""
+        mock_get_news.side_effect = Exception("Network error")
+        result = flow.get_ai_news_sentiment('AAPL')
+        self.assertIsNone(result)
+
+    @patch('flow.get_news')
+    @patch('flow.ensure_ollama')
+    @patch('flow._CHAT')
+    def test_news_sentiment_uses_top_5_articles(self, mock_chat, mock_ensure_ollama, mock_get_news):
+        """Test that only top 5 articles are used for analysis."""
+        # Create 10 news items
+        mock_get_news.return_value = [
+            {'content': {'summary': f'News item {i}'}}
+            for i in range(10)
+        ]
+
+        mock_response = MagicMock()
+        mock_response.message.content = 'Analysis of sentiment'
+        mock_chat.return_value = mock_response
+
+        result = flow.get_ai_news_sentiment('AAPL')
+
+        # Verify _CHAT was called with correct parameters
+        mock_chat.assert_called_once()
+        call_kwargs = mock_chat.call_args[1]
+        self.assertEqual(call_kwargs['model'], 'huihui_ai/llama3.2-abliterate:3b')
+        
+        # Verify message structure
+        messages = call_kwargs['messages']
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0]['role'], 'user')
+        content = messages[0]['content']
+        self.assertIn('sentiment', content.lower())
+
+    @patch('flow.get_news')
+    @patch('flow.ensure_ollama')
+    @patch('flow._CHAT')
+    def test_news_sentiment_positive_response(self, mock_chat, mock_ensure_ollama, mock_get_news):
+        """Test sentiment analysis with positive news."""
+        mock_get_news.return_value = [
+            {'content': {'summary': 'Stock surges on positive guidance'}},
+            {'content': {'summary': 'New product launch successful'}},
+        ]
+
+        mock_response = MagicMock()
+        mock_response.message.content = 'The news is very positive for investors.'
+        mock_chat.return_value = mock_response
+
+        result = flow.get_ai_news_sentiment('TECH')
+        self.assertIn('positive', result.lower())
+
+    @patch('flow.get_news')
+    @patch('flow.ensure_ollama')
+    @patch('flow._CHAT')
+    def test_news_sentiment_negative_response(self, mock_chat, mock_ensure_ollama, mock_get_news):
+        """Test sentiment analysis with negative news."""
+        mock_get_news.return_value = [
+            {'content': {'summary': 'Company reports declining earnings'}},
+            {'content': {'summary': 'Market share loss to competitors'}},
+        ]
+
+        mock_response = MagicMock()
+        mock_response.message.content = 'The news is negative for investors.'
+        mock_chat.return_value = mock_response
+
+        result = flow.get_ai_news_sentiment('DECLINE')
+        self.assertIn('negative', result.lower())
+
+    @patch('flow.get_news')
+    @patch('flow.ensure_ollama')
+    @patch('flow._CHAT')
+    def test_news_sentiment_mixed_response(self, mock_chat, mock_ensure_ollama, mock_get_news):
+        """Test sentiment analysis with mixed news."""
+        mock_get_news.return_value = [
+            {'content': {'summary': 'Strong earnings but weak guidance'}},
+        ]
+
+        mock_response = MagicMock()
+        mock_response.message.content = 'The sentiment is mixed with both positive and negative factors.'
+        mock_chat.return_value = mock_response
+
+        result = flow.get_ai_news_sentiment('MIXED')
+        self.assertIsNotNone(result)
+
+    @patch('flow.get_news')
     def test_news_sentiment_with_no_news(self, mock_get_news):
         """Test news sentiment when no news is available."""
         mock_get_news.return_value = []

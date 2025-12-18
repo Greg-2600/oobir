@@ -15,7 +15,7 @@ Complete reference for using OOBIR's stock analysis and AI recommendation featur
 - `get_news(ticker)` — Recent news articles
 - `get_screen_undervalued_large_caps()` — Stock screener for undervalued stocks
 
-### AI Analysis Functions (8)
+### AI Analysis Functions (9)
 Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model:
 - `get_ai_fundamental_analysis(ticker)` — AI analysis of fundamentals
 - `get_ai_balance_sheet_analysis(ticker)` — AI balance sheet insights
@@ -24,6 +24,7 @@ Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model:
 - `get_ai_action_recommendation(ticker)` — Detailed buy/sell/hold recommendation
 - `get_ai_action_recommendation_sentence(ticker)` — One-sentence recommendation
 - `get_ai_action_recommendation_single_word(ticker)` — Single word: BUY/SELL/HOLD
+- `get_ai_news_sentiment(ticker)` — AI sentiment analysis of recent news
 - `get_ai_full_report(ticker)` — Comprehensive multi-section AI report
 
 ---
@@ -90,7 +91,7 @@ python -m uvicorn flow_api:app --host 0.0.0.0 --port 8000 --reload
 # API: http://192.168.1.248:8000
 ```
 
-### API Endpoints (23 Total)
+### API Endpoints (24 Total)
 
 **Health & Metadata (6):**
 - `GET /` — API info and configuration
