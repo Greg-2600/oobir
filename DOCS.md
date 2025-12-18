@@ -167,7 +167,7 @@ result = flow.get_ai_news_sentiment("INVALID")
 
 **Model**: Uses `huihui_ai/llama3.2-abliterate:3b`
 
-**Tests**: 15 comprehensive tests cover valid data, edge cases (no news, no summaries), error handling, and various sentiment types.
+**Tests**: Comprehensive tests cover valid data, edge cases (no news, no summaries), error handling, and various sentiment types.
 
 ### API Examples
 
