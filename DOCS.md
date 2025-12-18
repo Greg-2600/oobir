@@ -15,7 +15,7 @@ Complete reference for using OOBIR's stock analysis and AI recommendation featur
 - `get_news(ticker)` — Recent news articles
 - `get_screen_undervalued_large_caps()` — Stock screener for undervalued stocks
 
-### AI Analysis Functions (8)
+### AI Analysis Functions (9)
 Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model:
 - `get_ai_fundamental_analysis(ticker)` — AI analysis of fundamentals
 - `get_ai_balance_sheet_analysis(ticker)` — AI balance sheet insights
@@ -24,6 +24,7 @@ Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model:
 - `get_ai_action_recommendation(ticker)` — Detailed buy/sell/hold recommendation
 - `get_ai_action_recommendation_sentence(ticker)` — One-sentence recommendation
 - `get_ai_action_recommendation_single_word(ticker)` — Single word: BUY/SELL/HOLD
+- `get_ai_news_sentiment(ticker)` — AI sentiment analysis of recent news
 - `get_ai_full_report(ticker)` — Comprehensive multi-section AI report
 
 ---
@@ -90,7 +91,7 @@ python -m uvicorn flow_api:app --host 0.0.0.0 --port 8000 --reload
 # API: http://192.168.1.248:8000
 ```
 
-### API Endpoints (23 Total)
+### API Endpoints (24 Total)
 
 **Health & Metadata (6):**
 - `GET /` — API info and configuration
@@ -111,7 +112,7 @@ python -m uvicorn flow_api:app --host 0.0.0.0 --port 8000 --reload
 - `GET /api/news/{symbol}`
 - `GET /api/screen-undervalued`
 
-**AI Analysis Endpoints (8):**
+**AI Analysis Endpoints (9):**
 - `GET /api/ai/fundamental-analysis/{symbol}`
 - `GET /api/ai/balance-sheet-analysis/{symbol}`
 - `GET /api/ai/income-stmt-analysis/{symbol}`
@@ -119,7 +120,54 @@ python -m uvicorn flow_api:app --host 0.0.0.0 --port 8000 --reload
 - `GET /api/ai/action-recommendation/{symbol}`
 - `GET /api/ai/action-recommendation-sentence/{symbol}`
 - `GET /api/ai/action-recommendation-word/{symbol}`
+- `GET /api/ai/news-sentiment/{symbol}` — AI analysis of recent news sentiment
 - `GET /api/ai/full-report/{symbol}`
+
+#### News Sentiment Analysis
+
+**Endpoint**: `GET /api/ai/news-sentiment/{symbol}`
+
+Analyzes recent news articles for a stock and uses AI to determine sentiment (positive/negative/neutral).
+
+**Returns**: Single-sentence sentiment assessment as JSON string
+
+**Examples**:
+```bash
+curl http://localhost:8000/api/ai/news-sentiment/AAPL
+# Returns: "The sentiment is positive with strong product announcements and earnings growth."
+
+curl http://localhost:8000/api/ai/news-sentiment/MSFT
+# Returns: "Recent news shows mixed sentiment with AI investments offset by workforce reductions."
+```
+
+**How it works**:
+1. Fetches recent news articles using yfinance
+2. Extracts summaries from top 5 articles
+3. Sends to Ollama LLM with sentiment analysis prompt
+4. Returns single-sentence summary
+
+**Python API**:
+```python
+import flow
+
+# Analyze sentiment for a ticker
+result = flow.get_ai_news_sentiment("AAPL")
+print(result)
+# Output: "The sentiment is positive with strong earnings and market expansion."
+
+# Returns None if error occurs
+result = flow.get_ai_news_sentiment("INVALID")
+# Returns: None
+```
+
+**Error Handling**:
+- `200 OK`: Successful analysis (returns sentiment string)
+- `503 Service Unavailable`: Ollama not available
+- `500 Internal Error`: Other exceptions
+
+**Model**: Uses `huihui_ai/llama3.2-abliterate:3b`
+
+**Tests**: Comprehensive tests cover valid data, edge cases (no news, no summaries), error handling, and various sentiment types.
 
 ### API Examples
 
@@ -135,6 +183,7 @@ curl http://localhost:8000/api/price-history/MSFT
 # AI endpoints
 curl http://localhost:8000/api/ai/fundamental-analysis/AAPL
 curl http://localhost:8000/api/ai/action-recommendation-word/TSLA
+curl http://localhost:8000/api/ai/news-sentiment/CHTR
 
 # Pretty print with jq
 curl -s http://localhost:8000/api/fundamentals/AAPL | jq

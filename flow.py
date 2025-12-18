@@ -674,6 +674,49 @@ def get_ai_action_recommendation_single_word(ticker):
         return None
 
 
+def get_ai_news_sentiment(ticker):
+    """Analyze news sentiment for a ticker using AI."""
+    try:
+        news = get_news(ticker)
+        if not news:
+            return "No news available for analysis."
+        
+        # Extract summaries from news articles
+        summaries = []
+        for article in news:
+            content = article.get('content', {})
+            summary = content.get('summary', '')
+            if summary:
+                summaries.append(summary)
+        
+        if not summaries:
+            return "No news summaries available for analysis."
+        
+        # Combine summaries for AI analysis
+        combined_news = "\n".join(summaries[:5])  # Use top 5 articles
+        
+        ensure_ollama()
+        response = _CHAT(
+            model='huihui_ai/llama3.2-abliterate:3b',
+            messages=[{
+                'role': 'user',
+                'content': (
+                    'Based on the following recent news summaries, determine if the overall '
+                    'sentiment is good or bad for investors. Respond in a single sentence '
+                    'summarizing whether the news is positive, negative, or neutral for the stock. '
+                    f'News summaries:\n{combined_news}'
+                ),
+            }]
+        )
+
+        sentiment = getattr(response, 'message', response).content
+        return sentiment
+
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while analyzing news sentiment: {exc}")
+        return None
+
+
 def get_ai_full_report(ticker):
     """Generate comprehensive AI report based on all available information."""
     try:
