@@ -399,6 +399,28 @@ def get_ai_action_recommendation_single_word(symbol: str):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+@app.get("/api/ai/news-sentiment/{symbol}")
+def get_ai_news_sentiment(symbol: str):
+    """Get AI analysis of news sentiment for a stock."""
+    logger.info("AI news sentiment requested for %s", symbol)
+    try:
+        flow.ensure_ollama(OLLAMA_HOST)
+        result = flow.get_ai_news_sentiment(symbol)
+        if result is None:
+            logger.error("AI news sentiment returned None for %s", symbol)
+            raise HTTPException(
+                status_code=503,
+                detail="AI service unavailable - Ollama connection failed or returned no response"
+            ) from None
+        logger.info("Successfully generated AI news sentiment for %s", symbol)
+        return JSONResponse(content=result)
+    except HTTPException:
+        raise
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.error("Error in AI news sentiment for %s: %s", symbol, str(exc))
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 @app.get("/api/ai/full-report/{symbol}")
 def get_ai_full_report(symbol: str):
     """Get comprehensive AI report for a stock."""

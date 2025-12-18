@@ -111,7 +111,7 @@ python -m uvicorn flow_api:app --host 0.0.0.0 --port 8000 --reload
 - `GET /api/news/{symbol}`
 - `GET /api/screen-undervalued`
 
-**AI Analysis Endpoints (8):**
+**AI Analysis Endpoints (9):**
 - `GET /api/ai/fundamental-analysis/{symbol}`
 - `GET /api/ai/balance-sheet-analysis/{symbol}`
 - `GET /api/ai/income-stmt-analysis/{symbol}`
@@ -119,6 +119,7 @@ python -m uvicorn flow_api:app --host 0.0.0.0 --port 8000 --reload
 - `GET /api/ai/action-recommendation/{symbol}`
 - `GET /api/ai/action-recommendation-sentence/{symbol}`
 - `GET /api/ai/action-recommendation-word/{symbol}`
+- `GET /api/ai/news-sentiment/{symbol}` — AI analysis of recent news sentiment
 - `GET /api/ai/full-report/{symbol}`
 
 ### API Examples
@@ -135,6 +136,7 @@ curl http://localhost:8000/api/price-history/MSFT
 # AI endpoints
 curl http://localhost:8000/api/ai/fundamental-analysis/AAPL
 curl http://localhost:8000/api/ai/action-recommendation-word/TSLA
+curl http://localhost:8000/api/ai/news-sentiment/CHTR
 
 # Pretty print with jq
 curl -s http://localhost:8000/api/fundamentals/AAPL | jq
