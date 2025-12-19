@@ -83,6 +83,9 @@ async function loadStockData(ticker) {
     // Update stock header
     document.getElementById('stock-symbol').textContent = ticker;
     
+    // Initialize AI recommendation with a button
+    initializeAIRecommendation(ticker);
+    
     // Load all data concurrently
     const dataPromises = {
         fundamentals: fetchData(`/api/fundamentals/${ticker}`, 'fundamentals-data', renderFundamentals),
@@ -90,11 +93,7 @@ async function loadStockData(ticker) {
         analystTargets: fetchData(`/api/analyst-targets/${ticker}`, 'analyst-targets-data', renderAnalystTargets),
         calendar: fetchData(`/api/calendar/${ticker}`, 'calendar-data', renderCalendar),
         incomeStmt: fetchData(`/api/income-stmt/${ticker}`, 'income-stmt-data', renderIncomeStatement),
-        balanceSheet: fetchData(`/api/balance-sheet/${ticker}`, 'balance-sheet-data', renderBalanceSheet),
-        // AI endpoints disabled for faster loads
-        // aiRecommendation: fetchData(`/api/ai/action-recommendation/${ticker}`, 'ai-recommendation', renderAIRecommendation),
-        // technicalAnalysis: fetchData(`/api/ai/technical-analysis/${ticker}`, 'technical-analysis-data', renderTechnicalAnalysis),
-        // newsSentiment: fetchData(`/api/ai/news-sentiment/${ticker}`, 'news-sentiment-data', renderNewsSentiment)
+        balanceSheet: fetchData(`/api/balance-sheet/${ticker}`, 'balance-sheet-data', renderBalanceSheet)
     };
     
     // Wait for all data to load
@@ -103,6 +102,41 @@ async function loadStockData(ticker) {
     // Show results
     loadingSpinner.classList.add('hidden');
     resultsContainer.classList.remove('hidden');
+}
+
+// Initialize AI recommendation with button
+function initializeAIRecommendation(ticker) {
+    const container = document.getElementById('ai-recommendation');
+    container.innerHTML = `
+        <button class="ai-button" onclick="loadAIRecommendation('${ticker}')">
+            🤖 Get AI Recommendation
+        </button>
+    `;
+}
+
+// Load AI recommendation on demand
+async function loadAIRecommendation(ticker) {
+    const container = document.getElementById('ai-recommendation');
+    container.innerHTML = '<p class="text-muted">🔄 Loading AI recommendation...</p>';
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/ai/action-recommendation/${ticker}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        renderAIRecommendation(data, container);
+    } catch (error) {
+        console.error(`Error fetching AI recommendation:`, error);
+        container.innerHTML = `
+            <p class="text-danger">❌ Failed to load AI recommendation</p>
+            <button class="ai-button" onclick="loadAIRecommendation('${ticker}')" style="margin-top: 10px;">
+                🔄 Retry
+            </button>
+        `;
+    }
 }
 
 // Generic fetch function
@@ -266,8 +300,7 @@ function renderAIRecommendation(data, container) {
         className = 'hold';
     }
     
-    container.className = `recommendation-box ${className}`;
-    container.textContent = text;
+    container.innerHTML = `<div class="recommendation-box ${className}">${escapeHtml(text)}</div>`;
 }
 
 function renderTechnicalAnalysis(data, container) {

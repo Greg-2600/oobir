@@ -403,3 +403,30 @@ body {
 .text-danger { color: var(--danger-color); }
 .text-warning { color: var(--warning-color); }
 .text-muted { color: var(--text-secondary); }
+
+/* AI Button */
+.ai-button {
+    background: linear-gradient(135deg, var(--primary-color), #4285f4);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 24px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3);
+    display: block;
+    margin: 20px auto;
+    min-width: 200px;
+}
+
+.ai-button:hover {
+    background: linear-gradient(135deg, var(--primary-hover), #3367d6);
+    box-shadow: 0 4px 12px rgba(26, 115, 232, 0.4);
+    transform: translateY(-2px);
+}
+
+.ai-button:active {
+    transform: translateY(0);
+}
