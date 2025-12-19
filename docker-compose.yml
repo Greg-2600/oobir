@@ -36,7 +36,7 @@ services:
     volumes:
       - ./web:/usr/share/nginx/html:ro
     ports:
-      - "8080:80"
+      - "8081:80"
     restart: unless-stopped
 
 volumes:
