@@ -128,10 +128,9 @@ test_health_endpoints() {
     echo "HEALTH CHECKS"
     echo "========================================================================="
     
-    # Main API health
-    local response
-    response=$(curl -s -w "\n%{http_code}" "$API/health" 2>/dev/null || echo "000")
-    local http_code=$(echo "$response" | tail -n1)
+    # Main API health - use temp file to avoid curl issues
+    curl -s -o /tmp/health.json -w "%{http_code}" "$API/health" > /tmp/http_code.txt 2>/dev/null || true
+    local http_code=$(cat /tmp/http_code.txt 2>/dev/null || echo "000")
     
     if [[ "$http_code" == "200" ]]; then
         print_status "pass" "Main API Health Check"
@@ -140,13 +139,12 @@ test_health_endpoints() {
     fi
     
     # Ollama health
-    response=$(curl -s -w "\n%{http_code}" "$API/health/ollama" 2>/dev/null || echo "000")
-    http_code=$(echo "$response" | tail -n1)
-    response=$(echo "$response" | sed '$d')
+    curl -s -o /tmp/ollama.json -w "%{http_code}" "$API/health/ollama" > /tmp/http_code.txt 2>/dev/null || true
+    http_code=$(cat /tmp/http_code.txt 2>/dev/null || echo "000")
     
     if [[ "$http_code" == "200" ]]; then
         if [[ "$RAW_OUTPUT" == true ]]; then
-            echo "$response" | head -c 200
+            cat /tmp/ollama.json 2>/dev/null | head -c 200
         fi
         print_status "pass" "Ollama Health Check"
     else
