@@ -213,11 +213,14 @@ def with_cache(endpoint: str, symbol: str, flow_function, *args, **kwargs):
 
 def with_ai_cache(endpoint: str, symbol: str, flow_function, *args, **kwargs):
     """Wrapper to cache AI responses while ensuring Ollama is available."""
+    logger.debug(f"with_ai_cache called for {endpoint}/{symbol}")
     cached_data = db.get_cached_data(endpoint, symbol)
     if cached_data is not None:
         logger.info("Returning cached AI data for %s/%s", endpoint, symbol)
         return cached_data
 
+    logger.info("Cache MISS for %s/%s, calling flow function", endpoint, symbol)
+    
     # Ensure Ollama is reachable before invoking
     flow.ensure_ollama(OLLAMA_HOST)
 
@@ -229,6 +232,8 @@ def with_ai_cache(endpoint: str, symbol: str, flow_function, *args, **kwargs):
             detail="AI service unavailable - Ollama connection failed or returned no response"
         ) from None
 
+    logger.debug(f"AI function returned: {type(result).__name__} with length {len(str(result)) if result else 0}")
+    
     # AI functions return plain strings, not JSON strings
     # Only attempt JSON parsing if it looks like JSON (starts with { or [)
     if isinstance(result, str) and result.strip().startswith(('{', '[')):
@@ -239,8 +244,9 @@ def with_ai_cache(endpoint: str, symbol: str, flow_function, *args, **kwargs):
             pass
 
     serialized_result = serialize_value(result)
-    logger.info("Caching AI data for %s/%s", endpoint, symbol)
-    db.set_cached_data(endpoint, serialized_result, symbol)
+    logger.info("Caching AI data for %s/%s (size: %d bytes)", endpoint, symbol, len(str(serialized_result)))
+    cache_success = db.set_cached_data(endpoint, serialized_result, symbol)
+    logger.info("Cache write result: %s", cache_success)
     return serialized_result
 
 
