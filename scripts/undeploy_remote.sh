@@ -60,14 +60,30 @@ else
 fi
 
 echo ""
-echo "Step 3: Removing Docker volumes"
+echo "Step 3: Removing Docker volumes (preserving Ollama model)"
 if command -v docker >/dev/null 2>&1; then
-  # Find volumes associated with this project (oobir prefix)
-  VOLUMES=$(docker volume ls -q | grep -E '^oobir' || true)
-  if [ -n "$VOLUMES" ]; then
-    echo "  - Found volumes to remove:"
-    echo "$VOLUMES" | sed 's/^/    /'
-    echo "$VOLUMES" | xargs docker volume rm || echo "Warning: Some volumes could not be removed"
+  # Identify project-scoped volumes
+  ALL_VOLUMES=$(docker volume ls --format '{{.Name}}' | grep -E '^oobir' || true)
+  if [ -n "$ALL_VOLUMES" ]; then
+    echo "  - Project volumes detected:"
+    echo "$ALL_VOLUMES" | sed 's/^/    /'
+
+    # Preserve ollama_data to keep downloaded models; remove postgres_data only
+    POSTGRES_VOLUMES=$(echo "$ALL_VOLUMES" | grep -E 'postgres_data$' || true)
+    OLLAMA_VOLUMES=$(echo "$ALL_VOLUMES" | grep -E 'ollama_data$' || true)
+
+    if [ -n "$OLLAMA_VOLUMES" ]; then
+      echo "  - Preserving Ollama volumes (model cache):"
+      echo "$OLLAMA_VOLUMES" | sed 's/^/    /'
+    fi
+
+    if [ -n "$POSTGRES_VOLUMES" ]; then
+      echo "  - Removing PostgreSQL volumes:"
+      echo "$POSTGRES_VOLUMES" | sed 's/^/    /'
+      echo "$POSTGRES_VOLUMES" | xargs docker volume rm || echo "Warning: Some postgres volumes could not be removed"
+    else
+      echo "  - No postgres volumes found to remove"
+    fi
   else
     echo "  - No oobir volumes found"
   fi
@@ -126,9 +142,9 @@ echo "✅ Undeployment complete!"
 echo ""
 echo "Summary:"
 echo "  - Containers: stopped and removed"
-echo "  - Volumes: removed (oobir_*)"
+echo "  - Volumes: postgres removed; ollama preserved"
 echo "  - Images: oobir images removed"
-echo "  - Ollama image: preserved (contains model data)"
+echo "  - Ollama volumes: preserved (model data intact)"
 echo ""
 echo "To redeploy, run: ./deploy_remote.sh <user@host> <remote_path>"
 

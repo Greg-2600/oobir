@@ -533,6 +533,11 @@ Notes:
 - If `docker compose` is unavailable, use `docker-compose` with the same flags.
 - First-time model download can take time; the model is cached in the `ollama_data` volume.
 
+**Undeploy Behavior:**
+- The undeploy script preserves the Ollama model volume (`ollama_data`) so you don't re-download the model each time.
+- PostgreSQL cache volume (`postgres_data`) is removed to clear cached entries safely.
+- To completely remove Ollama models, manually remove the `ollama_data` volume after undeploy.
+
 ### Undeploy
 
 ```bash
