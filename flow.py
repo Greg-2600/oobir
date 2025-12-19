@@ -564,22 +564,160 @@ def get_ai_quarterly_income_stm_analysis(ticker):
         return None
 
 
+def _calculate_technical_indicators(price_df):
+    """Calculate technical indicators from price data for analysis."""
+    try:
+        if price_df is None or len(price_df) < 30:
+            return ""
+        
+        df = price_df.copy()
+        
+        # Ensure we have the required columns
+        if 'Close' not in df.columns or 'Volume' not in df.columns:
+            return ""
+        
+        indicators = []
+        
+        # Simple Moving Averages
+        df['SMA_20'] = df['Close'].rolling(window=20).mean()
+        df['SMA_50'] = df['Close'].rolling(window=50).mean()
+        
+        sma_20_latest = df['SMA_20'].iloc[-1]
+        sma_50_latest = df['SMA_50'].iloc[-1]
+        close_latest = df['Close'].iloc[-1]
+        
+        if not (pd.isna(sma_20_latest) or pd.isna(sma_50_latest)):
+            indicators.append(f"- 20-day SMA: ${sma_20_latest:.2f}")
+            indicators.append(f"- 50-day SMA: ${sma_50_latest:.2f}")
+            
+            if close_latest > sma_20_latest:
+                indicators.append(f"- Price is ABOVE 20-day SMA by ${close_latest - sma_20_latest:.2f}")
+            else:
+                indicators.append(f"- Price is BELOW 20-day SMA by ${sma_20_latest - close_latest:.2f}")
+            
+            if sma_20_latest > sma_50_latest:
+                indicators.append("- 20-day SMA > 50-day SMA (bullish)")
+            else:
+                indicators.append("- 20-day SMA < 50-day SMA (bearish)")
+        
+        # RSI (Relative Strength Index)
+        delta = df['Close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / loss
+        df['RSI'] = 100 - (100 / (1 + rs))
+        
+        rsi_latest = df['RSI'].iloc[-1]
+        if not pd.isna(rsi_latest):
+            indicators.append(f"- RSI (14): {rsi_latest:.2f}")
+            if rsi_latest > 70:
+                indicators.append("  → Overbought (RSI > 70)")
+            elif rsi_latest < 30:
+                indicators.append("  → Oversold (RSI < 30)")
+            else:
+                indicators.append("  → Neutral")
+        
+        # MACD (Moving Average Convergence Divergence)
+        ema_12 = df['Close'].ewm(span=12).mean()
+        ema_26 = df['Close'].ewm(span=26).mean()
+        df['MACD'] = ema_12 - ema_26
+        df['MACD_Signal'] = df['MACD'].ewm(span=9).mean()
+        
+        macd_latest = df['MACD'].iloc[-1]
+        signal_latest = df['MACD_Signal'].iloc[-1]
+        if not (pd.isna(macd_latest) or pd.isna(signal_latest)):
+            indicators.append(f"- MACD: {macd_latest:.4f}")
+            if macd_latest > signal_latest:
+                indicators.append("  → MACD > Signal (bullish)")
+            else:
+                indicators.append("  → MACD < Signal (bearish)")
+        
+        # Bollinger Bands
+        df['BB_SMA'] = df['Close'].rolling(window=20).mean()
+        df['BB_STD'] = df['Close'].rolling(window=20).std()
+        df['BB_Upper'] = df['BB_SMA'] + (df['BB_STD'] * 2)
+        df['BB_Lower'] = df['BB_SMA'] - (df['BB_STD'] * 2)
+        
+        bb_upper = df['BB_Upper'].iloc[-1]
+        bb_lower = df['BB_Lower'].iloc[-1]
+        bb_mid = df['BB_SMA'].iloc[-1]
+        if not (pd.isna(bb_upper) or pd.isna(bb_lower)):
+            indicators.append(f"- Bollinger Bands (20,2): Upper=${bb_upper:.2f}, Mid=${bb_mid:.2f}, Lower=${bb_lower:.2f}")
+            if close_latest > bb_upper:
+                indicators.append("  → Price above upper band (potential overbought)")
+            elif close_latest < bb_lower:
+                indicators.append("  → Price below lower band (potential oversold)")
+            else:
+                pct = (close_latest - bb_lower) / (bb_upper - bb_lower) * 100
+                indicators.append(f"  → Price {pct:.1f}% within bands")
+        
+        # Volume analysis
+        volume_avg = df['Volume'].rolling(window=20).mean()
+        volume_latest = df['Volume'].iloc[-1]
+        if not (pd.isna(volume_latest) or pd.isna(volume_avg.iloc[-1])):
+            vol_ratio = volume_latest / volume_avg.iloc[-1]
+            indicators.append(f"- Current Volume: {volume_latest:,.0f}")
+            indicators.append(f"- 20-day Avg Volume: {volume_avg.iloc[-1]:,.0f}")
+            if vol_ratio > 1.5:
+                indicators.append(f"  → Volume {vol_ratio:.1f}x average (HIGH)")
+            elif vol_ratio < 0.7:
+                indicators.append(f"  → Volume {vol_ratio:.1f}x average (LOW)")
+        
+        # Trend strength - compare recent closes
+        recent_closes = df['Close'].tail(5)
+        if len(recent_closes) > 0:
+            recent_high = recent_closes.max()
+            recent_low = recent_closes.min()
+            indicators.append(f"- 5-day High: ${recent_high:.2f}, Low: ${recent_low:.2f}")
+        
+        return "\n".join(indicators)
+        
+    except Exception as e:  # pylint: disable=broad-except
+        print(f"Error calculating technical indicators: {e}")
+        return ""
+
+
 def get_ai_technical_analysis(ticker):
     """Perform AI-driven technical analysis on price data."""
     try:
-        price_history = get_price_history(ticker)
+        price_data = get_price_history(ticker)
+        
+        # Parse the price data to get the DataFrame for indicator calculation
+        if price_data is None:
+            return None
+        
+        price_dict = json.loads(price_data)
+        price_df = pd.DataFrame(price_dict['data'])
+        price_df['Date'] = pd.to_datetime(price_df['Date'])
+        price_df = price_df.sort_values('Date')
+        
+        # Calculate technical indicators
+        technical_indicators = _calculate_technical_indicators(price_df)
 
         ensure_ollama()
         response = _CHAT(
             model='huihui_ai/llama3.2-abliterate:3b',
-            messages=[{
+                messages=[
+                    {
+                        'role': 'system',
+                        'content': 'You are a professional technical analyst. Analyze the provided technical indicators and price data to identify trends, support/resistance, momentum shifts, and actionable signals. Be specific and data-driven.'
+                    },
+                    {
                 'role': 'user',
                 'content': (
-                    'You are John Murphy, a renowned technical analyst. '
-                    'Please conduct a technical analysis on this price data: '
-                    f'{price_history}'
-                ),
-            }]
+                    f'Analyze {ticker} technical setup based on these calculated indicators:\n\n'
+                    f'{technical_indicators}\n\n'
+                    'Based on these technical indicators, provide analysis of:\n'
+                    '1. Current trend direction and strength\n'
+                    '2. Key support and resistance levels\n'
+                    '3. Momentum signals from RSI and MACD\n'
+                    '4. Volume confirmation of price moves\n'
+                    '5. Specific technical entry and exit levels\n'
+                    '6. Risk/reward setup for trades\n'
+                    '\nBe specific. Use the indicator values provided.'
+                    ),
+                    }
+                ]
         )
 
         technical_analysis = getattr(response, 'message', response).content  # pylint: disable=no-member

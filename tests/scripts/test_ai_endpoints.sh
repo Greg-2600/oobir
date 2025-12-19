@@ -31,7 +31,14 @@ request() {
 # AI Analysis Endpoints
 echo "Testing AI analysis endpoints for ${SYMBOL}..."
 request "/api/ai/fundamental-analysis/$SYMBOL"
-request "/api/ai/technical-analysis/$SYMBOL"
+# Capture technical analysis to check for indicator hints (non-fatal)
+echo "=== GET $BASE_URL/api/ai/technical-analysis/$SYMBOL ==="
+TA_RES=$(curl -sS -w "\nHTTP_STATUS:%{http_code}\n" "$BASE_URL/api/ai/technical-analysis/$SYMBOL" || true)
+echo "$TA_RES"
+if ! echo "$TA_RES" | grep -E -qi 'SMA|RSI|MACD|Bollinger|Volume'; then
+  echo "[Note] Indicator keywords not detected in response (may vary by model response)."
+fi
+echo
 
 echo "Testing AI recommendation endpoints for ${SYMBOL}..."
 request "/api/ai/action-recommendation/$SYMBOL"

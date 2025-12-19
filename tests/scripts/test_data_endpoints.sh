@@ -5,11 +5,11 @@ set -euo pipefail
 # Usage: ./test_data_endpoints.sh [BASE_URL] [SYMBOL]
 # Example: ./test_data_endpoints.sh http://localhost:8000 AAPL
 
-BASE_URL="${1:-http://192.168.1.248:8000}"
-SYMBOL="${2:-AAPL}"
+BASE_URL="${1-http://192.168.1.248:8000}"
+SYMBOL="${2-AAPL}"
 
 # If default URL fails and no arg provided, try localhost
-if [[ -z "$1" ]]; then
+if [[ -z "${1-}" ]]; then
   if ! curl -sS --max-time 3 "$BASE_URL/" >/dev/null 2>&1; then
     ALT="http://localhost:8000"
     if curl -sS --max-time 3 "$ALT/" >/dev/null 2>&1; then
