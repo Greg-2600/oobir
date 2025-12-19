@@ -72,8 +72,8 @@ function handleSearch(e) {
         return;
     }
     
-    if (!/^[A-Z]{1,5}$/.test(ticker)) {
-        showError('Please enter a valid stock ticker (1-5 letters)');
+    if (!/^[A-Z0-9\-\^]{1,10}$/.test(ticker)) {
+        showError('Please enter a valid stock ticker (1-10 characters, letters, numbers, -, ^)');
         return;
     }
     
