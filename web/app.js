@@ -358,7 +358,6 @@ async function fetchData(endpoint, containerId, renderFunction) {
         }
         
         const data = await response.json();
-        console.log(`Fetched ${endpoint}:`, data); // Debug logging
         renderFunction(data, container);
     } catch (error) {
         console.error(`Error fetching ${endpoint}:`, error);

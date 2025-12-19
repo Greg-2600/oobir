@@ -230,9 +230,7 @@ def with_ai_cache(endpoint: str, symbol: str, flow_function, *args, **kwargs):
             status_code=503,
             detail="AI service unavailable - Ollama connection failed or returned no response"
         ) from None
-    # AI functions return plain strings, not JSON strings
-    # Only attempt JSON parsing if it looks like JSON (starts with { or [)
-
+    
     # AI functions return plain strings, not JSON strings
     # Only attempt JSON parsing if it looks like JSON (starts with { or [)
     if isinstance(result, str) and result.strip().startswith(('{', '[')):

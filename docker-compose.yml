@@ -46,7 +46,7 @@ services:
         condition: service_started
     environment:
       - OLLAMA_HOST=http://ollama:11434
-      - OLLAMA_MODEL=llama3.2:1b
+      - OLLAMA_MODEL=huihui_ai/llama3.2-abliterate:3b
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_DB=oobir
