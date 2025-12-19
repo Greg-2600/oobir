@@ -211,6 +211,32 @@ def with_cache(endpoint: str, symbol: str, flow_function, *args, **kwargs):
     return serialized_result
 
 
+def with_ai_cache(endpoint: str, symbol: str, flow_function, *args, **kwargs):
+    """Wrapper to cache AI responses while ensuring Ollama is available."""
+    cached_data = db.get_cached_data(endpoint, symbol)
+    if cached_data is not None:
+        logger.info("Returning cached AI data for %s/%s", endpoint, symbol)
+        return cached_data
+
+    # Ensure Ollama is reachable before invoking
+    flow.ensure_ollama(OLLAMA_HOST)
+
+    result = flow_function(symbol, *args, **kwargs)
+    if result is None:
+        logger.error("AI endpoint %s returned None for %s", endpoint, symbol)
+        raise HTTPException(
+            status_code=503,
+            detail="AI service unavailable - Ollama connection failed or returned no response"
+        ) from None
+
+    if isinstance(result, str):
+        result = json.loads(result)
+
+    serialized_result = serialize_value(result)
+    db.set_cached_data(endpoint, serialized_result, symbol)
+    return serialized_result
+
+
 # ============================================================================
 # Data Endpoints
 # ============================================================================
@@ -380,14 +406,7 @@ def get_ai_fundamental_analysis(symbol: str):
     """Get AI analysis of fundamentals for a stock."""
     logger.info("AI fundamental analysis requested for %s", symbol)
     try:
-        flow.ensure_ollama(OLLAMA_HOST)
-        result = flow.get_ai_fundamental_analysis(symbol)
-        if result is None:
-            logger.error("AI analysis returned None for %s - Ollama may be unreachable", symbol)
-            raise HTTPException(
-                status_code=503,
-                detail="AI service unavailable - Ollama connection failed or returned no response"
-            ) from None
+        result = with_ai_cache("ai-fundamental-analysis", symbol, flow.get_ai_fundamental_analysis)
         logger.info("Successfully generated AI fundamental analysis for %s", symbol)
         return JSONResponse(content=result)
     except HTTPException:
@@ -402,14 +421,7 @@ def get_ai_balance_sheet_analysis(symbol: str):
     """Get AI analysis of balance sheet for a stock."""
     logger.info("AI balance sheet analysis requested for %s", symbol)
     try:
-        flow.ensure_ollama(OLLAMA_HOST)
-        result = flow.get_ai_balance_sheet_analysis(symbol)
-        if result is None:
-            logger.error("AI balance sheet analysis returned None for %s", symbol)
-            raise HTTPException(
-                status_code=503,
-                detail="AI service unavailable - Ollama connection failed or returned no response"
-            ) from None
+        result = with_ai_cache("ai-balance-sheet-analysis", symbol, flow.get_ai_balance_sheet_analysis)
         logger.info("Successfully generated AI balance sheet analysis for %s", symbol)
         return JSONResponse(content=result)
     except HTTPException:
@@ -424,14 +436,7 @@ def get_ai_quarterly_income_stm_analysis(symbol: str):
     """Get AI analysis of income statement for a stock."""
     logger.info("AI income statement analysis requested for %s", symbol)
     try:
-        flow.ensure_ollama(OLLAMA_HOST)
-        result = flow.get_ai_quarterly_income_stm_analysis(symbol)
-        if result is None:
-            logger.error("AI income statement analysis returned None for %s", symbol)
-            raise HTTPException(
-                status_code=503,
-                detail="AI service unavailable - Ollama connection failed or returned no response"
-            ) from None
+        result = with_ai_cache("ai-income-stmt-analysis", symbol, flow.get_ai_quarterly_income_stm_analysis)
         logger.info("Successfully generated AI income statement analysis for %s", symbol)
         return JSONResponse(content=result)
     except HTTPException:
@@ -446,14 +451,7 @@ def get_ai_technical_analysis(symbol: str):
     """Get AI technical analysis for a stock."""
     logger.info("AI technical analysis requested for %s", symbol)
     try:
-        flow.ensure_ollama(OLLAMA_HOST)
-        result = flow.get_ai_technical_analysis(symbol)
-        if result is None:
-            logger.error("AI technical analysis returned None for %s", symbol)
-            raise HTTPException(
-                status_code=503,
-                detail="AI service unavailable - Ollama connection failed or returned no response"
-            ) from None
+        result = with_ai_cache("ai-technical-analysis", symbol, flow.get_ai_technical_analysis)
         logger.info("Successfully generated AI technical analysis for %s", symbol)
         return JSONResponse(content=result)
     except HTTPException:
@@ -468,14 +466,7 @@ def get_ai_action_recommendation(symbol: str):
     """Get AI action recommendation (buy/sell/hold) for a stock."""
     logger.info("AI action recommendation requested for %s", symbol)
     try:
-        flow.ensure_ollama(OLLAMA_HOST)
-        result = flow.get_ai_action_recommendation(symbol)
-        if result is None:
-            logger.error("AI action recommendation returned None for %s", symbol)
-            raise HTTPException(
-                status_code=503,
-                detail="AI service unavailable - Ollama connection failed or returned no response"
-            ) from None
+        result = with_ai_cache("ai-action-recommendation", symbol, flow.get_ai_action_recommendation)
         logger.info("Successfully generated AI action recommendation for %s", symbol)
         return JSONResponse(content=result)
     except HTTPException:
@@ -490,14 +481,7 @@ def get_ai_action_recommendation_sentence(symbol: str):
     """Get AI action recommendation with reasoning for a stock."""
     logger.info("AI action recommendation sentence requested for %s", symbol)
     try:
-        flow.ensure_ollama(OLLAMA_HOST)
-        result = flow.get_ai_action_recommendation_sentence(symbol)
-        if result is None:
-            logger.error("AI action recommendation sentence returned None for %s", symbol)
-            raise HTTPException(
-                status_code=503,
-                detail="AI service unavailable - Ollama connection failed or returned no response"
-            ) from None
+        result = with_ai_cache("ai-action-recommendation-sentence", symbol, flow.get_ai_action_recommendation_sentence)
         logger.info("Successfully generated AI action recommendation sentence for %s", symbol)
         return JSONResponse(content=result)
     except HTTPException:
@@ -512,14 +496,7 @@ def get_ai_action_recommendation_single_word(symbol: str):
     """Get AI action recommendation as a single word for a stock."""
     logger.info("AI action recommendation word requested for %s", symbol)
     try:
-        flow.ensure_ollama(OLLAMA_HOST)
-        result = flow.get_ai_action_recommendation_single_word(symbol)
-        if result is None:
-            logger.error("AI action recommendation word returned None for %s", symbol)
-            raise HTTPException(
-                status_code=503,
-                detail="AI service unavailable - Ollama connection failed or returned no response"
-            ) from None
+        result = with_ai_cache("ai-action-recommendation-word", symbol, flow.get_ai_action_recommendation_single_word)
         logger.info("Successfully generated AI action recommendation word for %s", symbol)
         return JSONResponse(content=result)
     except HTTPException:
@@ -534,14 +511,7 @@ def get_ai_news_sentiment(symbol: str):
     """Get AI analysis of news sentiment for a stock."""
     logger.info("AI news sentiment requested for %s", symbol)
     try:
-        flow.ensure_ollama(OLLAMA_HOST)
-        result = flow.get_ai_news_sentiment(symbol)
-        if result is None:
-            logger.error("AI news sentiment returned None for %s", symbol)
-            raise HTTPException(
-                status_code=503,
-                detail="AI service unavailable - Ollama connection failed or returned no response"
-            ) from None
+        result = with_ai_cache("ai-news-sentiment", symbol, flow.get_ai_news_sentiment)
         logger.info("Successfully generated AI news sentiment for %s", symbol)
         return JSONResponse(content=result)
     except HTTPException:
@@ -556,14 +526,7 @@ def get_ai_full_report(symbol: str):
     """Get comprehensive AI report for a stock."""
     logger.info("AI full report requested for %s", symbol)
     try:
-        flow.ensure_ollama(OLLAMA_HOST)
-        result = flow.get_ai_full_report(symbol)
-        if result is None:
-            logger.error("AI full report returned None for %s", symbol)
-            raise HTTPException(
-                status_code=503,
-                detail="AI service unavailable - Ollama connection failed or returned no response"
-            ) from None
+        result = with_ai_cache("ai-full-report", symbol, flow.get_ai_full_report)
         logger.info("Successfully generated AI full report for %s", symbol)
         return JSONResponse(content=result)
     except HTTPException:
