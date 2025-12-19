@@ -575,17 +575,16 @@ def get_ai_technical_analysis(ticker):
             messages=[{
                 'role': 'user',
                 'content': (
-                    'You are John Murphy, a renowned technical analyst. '
-                    'Analyze the following price data for technical patterns and signals. '
-                    'Focus on: '
-                    '1. Trend direction (uptrend, downtrend, consolidation) '
-                    '2. Support and resistance levels '
-                    '3. Moving average analysis and crossovers '
-                    '4. Momentum indicators (RSI, MACD patterns) '
-                    '5. Volume trends and patterns '
-                    '6. Price action patterns (higher highs/lows, reversals) '
-                    '7. Key levels for entry/exit points '
-                    'Provide specific technical insights, not generic commentary. '
+                    f'You are a professional technical analyst reviewing {ticker}. '
+                    'Do NOT describe data. Perform TECHNICAL ANALYSIS on: '
+                    '1. TREND: Uptrend/downtrend/consolidation? '
+                    '2. SUPPORT/RESISTANCE: Key price levels '
+                    '3. MOVING AVERAGES: 50 vs 200 day '
+                    '4. MOMENTUM: RSI extremes, MACD crossovers '
+                    '5. VOLUME: Is volume backing moves? '
+                    '6. PATTERNS: Higher highs/lows, reversals '
+                    '7. SIGNALS: Buy/sell levels, risk '
+                    'Be a technical analyst, not a data describer. '
                     f'Price data:\n{price_history}'
                 ),
             }]
