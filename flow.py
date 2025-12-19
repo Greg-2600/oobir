@@ -572,22 +572,28 @@ def get_ai_technical_analysis(ticker):
         ensure_ollama()
         response = _CHAT(
             model='huihui_ai/llama3.2-abliterate:3b',
-            messages=[{
+                messages=[
+                    {
+                        'role': 'system',
+                        'content': 'You are a professional technical analyst. Your role is to analyze stock price data and provide technical insights. Focus on patterns, trends, and support/resistance levels. Do NOT provide generic data descriptions or investing advice. Provide technical analysis only.'
+                    },
+                    {
                 'role': 'user',
                 'content': (
                     f'You are a professional technical analyst reviewing {ticker}. '
                     'Do NOT describe data. Perform TECHNICAL ANALYSIS on: '
-                    '1. TREND: Uptrend/downtrend/consolidation? '
-                    '2. SUPPORT/RESISTANCE: Key price levels '
-                    '3. MOVING AVERAGES: 50 vs 200 day '
-                    '4. MOMENTUM: RSI extremes, MACD crossovers '
-                    '5. VOLUME: Is volume backing moves? '
-                    '6. PATTERNS: Higher highs/lows, reversals '
-                    '7. SIGNALS: Buy/sell levels, risk '
-                    'Be a technical analyst, not a data describer. '
+                        '\n1. TREND analysis: Is price trending up, down, or consolidating? '
+                        '\n2. SUPPORT & RESISTANCE: Where are the key price levels? '
+                        '\n3. MOVING AVERAGES: How does price relate to 50/200 MA? '
+                        '\n4. MOMENTUM: What do RSI and MACD patterns show? '
+                        '\n5. VOLUME: Are moves backed by volume? '
+                        '\n6. CHART PATTERNS: What patterns (reversals, triangles) appear? '
+                        '\n7. TECHNICAL SIGNALS: What are key technical entry/exit levels? '
+                        '\nIMPORTANT: Provide detailed technical analysis, NOT generic comments. '
                     f'Price data:\n{price_history}'
-                ),
-            }]
+                    ),
+                    }
+                ]
         )
 
         technical_analysis = getattr(response, 'message', response).content  # pylint: disable=no-member
