@@ -78,15 +78,23 @@ echo '3) Start Ollama container (docker compose)'
 if [ -f docker-compose.yml ]; then
   if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
     docker compose pull || true
-    docker compose up -d --build || true
+    docker compose up -d --build --force-recreate || true
     # Pull both canonical and alias model names to satisfy runtime lookups
     docker compose exec ollama ollama pull huihui_ai/llama3.2-abliterate:3b || true
     docker compose exec ollama ollama pull llama3.2:1b || true
+    # Ensure web assets are present inside nginx docroot (handles root-owned host dir)
+    if docker compose ps web >/dev/null 2>&1; then
+      docker compose cp web/. web:/usr/share/nginx/html/ || true
+    fi
   elif command -v docker-compose >/dev/null 2>&1; then
     docker-compose pull || true
-    docker-compose up -d --build || true
+    docker-compose up -d --build --force-recreate || true
     docker exec -i ollama ollama pull huihui_ai/llama3.2-abliterate:3b || true
     docker exec -i ollama ollama pull llama3.2:1b || true
+    # Ensure web assets are present inside nginx docroot (handles root-owned host dir)
+    if docker ps --format '{{.Names}}' | grep -q '^oobir_web$'; then
+      docker cp web/. oobir_web:/usr/share/nginx/html/ || true
+    fi
   else
     echo 'No docker compose available; skipping container start'
   fi

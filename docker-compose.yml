@@ -34,7 +34,7 @@ services:
     depends_on:
       - app
     volumes:
-      - ./web:/usr/share/nginx/html:ro
+      - ./web:/usr/share/nginx/html
     ports:
       - "8081:80"
     restart: unless-stopped

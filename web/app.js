@@ -91,9 +91,10 @@ async function loadStockData(ticker) {
         calendar: fetchData(`/api/calendar/${ticker}`, 'calendar-data', renderCalendar),
         incomeStmt: fetchData(`/api/income-stmt/${ticker}`, 'income-stmt-data', renderIncomeStatement),
         balanceSheet: fetchData(`/api/balance-sheet/${ticker}`, 'balance-sheet-data', renderBalanceSheet),
-        aiRecommendation: fetchData(`/api/ai/action-recommendation/${ticker}`, 'ai-recommendation', renderAIRecommendation),
-        technicalAnalysis: fetchData(`/api/ai/technical-analysis/${ticker}`, 'technical-analysis-data', renderTechnicalAnalysis),
-        newsSentiment: fetchData(`/api/ai/news-sentiment/${ticker}`, 'news-sentiment-data', renderNewsSentiment)
+        // AI endpoints disabled for faster loads
+        // aiRecommendation: fetchData(`/api/ai/action-recommendation/${ticker}`, 'ai-recommendation', renderAIRecommendation),
+        // technicalAnalysis: fetchData(`/api/ai/technical-analysis/${ticker}`, 'technical-analysis-data', renderTechnicalAnalysis),
+        // newsSentiment: fetchData(`/api/ai/news-sentiment/${ticker}`, 'news-sentiment-data', renderNewsSentiment)
     };
     
     // Wait for all data to load
