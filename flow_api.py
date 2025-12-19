@@ -8,6 +8,7 @@ import logging
 from datetime import date, datetime
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import pandas as pd
 import numpy as np
@@ -49,6 +50,24 @@ app = FastAPI(
     title="OOBIR Stock Analysis API",
     description="REST API for stock analysis and AI recommendations",
     version="1.0.0"
+)
+
+# CORS for web UI (allow local and LAN UI origins)
+allowed_origins = [
+    "http://localhost",
+    "http://localhost:8080",
+    "http://127.0.0.1",
+    "http://127.0.0.1:8080",
+    "http://192.168.1.248",
+    "http://192.168.1.248:8080",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins + ["*"],  # permissive during development
+    allow_credentials=False,
+    allow_methods=["GET"],
+    allow_headers=["*"]
 )
 
 # Set Ollama host from environment or use default
