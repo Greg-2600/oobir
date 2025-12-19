@@ -9,6 +9,7 @@ const API_BASE_URL = (typeof window !== 'undefined' && window.OOBIR_API_BASE)
 
 // State
 let currentTicker = '';
+let fundamentalsData = {};
 
 // DOM Elements
 const landingPage = document.getElementById('landing-page');
@@ -60,6 +61,99 @@ function calculateBollingerBands(prices, period, stdDevMultiplier) {
     }
     
     return { upper, lower, middle };
+}
+
+// Technical indicators
+function calculateRSI(prices, period = 14) {
+    const rsi = new Array(prices.length).fill(null);
+    for (let i = period; i < prices.length; i++) {
+        let gains = 0;
+        let losses = 0;
+        for (let j = i - period + 1; j <= i; j++) {
+            const change = prices[j].Close - prices[j - 1].Close;
+            if (change > 0) gains += change;
+            else losses += Math.abs(change);
+        }
+        const avgGain = gains / period;
+        const avgLoss = losses / period;
+        if (avgLoss === 0) {
+            rsi[i] = 100;
+        } else {
+            const rs = avgGain / avgLoss;
+            rsi[i] = 100 - (100 / (1 + rs));
+        }
+    }
+    return rsi;
+}
+
+function calculateEMA(values, period) {
+    const ema = new Array(values.length).fill(null);
+    const multiplier = 2 / (period + 1);
+    for (let i = 0; i < values.length; i++) {
+        if (values[i] === null || values[i] === undefined) {
+            ema[i] = null;
+            continue;
+        }
+        if (i === 0 || ema[i - 1] === null) {
+            ema[i] = values[i];
+        } else {
+            ema[i] = (values[i] - ema[i - 1]) * multiplier + ema[i - 1];
+        }
+    }
+    return ema;
+}
+
+function calculateMACD(prices, fast = 12, slow = 26, signal = 9) {
+    const closes = prices.map(p => p.Close);
+    const emaFast = calculateEMA(closes, fast);
+    const emaSlow = calculateEMA(closes, slow);
+    const macdLine = emaFast.map((val, idx) => {
+        if (val === null || emaSlow[idx] === null) return null;
+        return val - emaSlow[idx];
+    });
+    const signalLine = calculateEMA(macdLine, signal);
+    const histogram = macdLine.map((val, idx) => {
+        if (val === null || signalLine[idx] === null) return null;
+        return val - signalLine[idx];
+    });
+    return { macdLine, signalLine, histogram };
+}
+
+function calculateStochastic(prices, period = 14) {
+    const stoch = new Array(prices.length).fill(null);
+    for (let i = period - 1; i < prices.length; i++) {
+        const window = prices.slice(i - period + 1, i + 1);
+        const high = Math.max(...window.map(p => p.High));
+        const low = Math.min(...window.map(p => p.Low));
+        const close = prices[i].Close;
+        stoch[i] = ((close - low) / Math.max(high - low, 1e-9)) * 100;
+    }
+    return stoch;
+}
+
+function calculateADX(prices, period = 14) {
+    const tr = [];
+    const plusDM = [];
+    const minusDM = [];
+    for (let i = 1; i < prices.length; i++) {
+        const highDiff = prices[i].High - prices[i - 1].High;
+        const lowDiff = prices[i - 1].Low - prices[i].Low;
+        plusDM.push(highDiff > lowDiff && highDiff > 0 ? highDiff : 0);
+        minusDM.push(lowDiff > highDiff && lowDiff > 0 ? lowDiff : 0);
+        tr.push(Math.max(
+            prices[i].High - prices[i].Low,
+            Math.abs(prices[i].High - prices[i - 1].Close),
+            Math.abs(prices[i].Low - prices[i - 1].Close)
+        ));
+    }
+    const atr = calculateEMA(tr, period).map(v => v === null ? null : v);
+    const plusDI = atr.map((v, idx) => v ? (calculateEMA(plusDM, period)[idx] / v) * 100 : null);
+    const minusDI = atr.map((v, idx) => v ? (calculateEMA(minusDM, period)[idx] / v) * 100 : null);
+    const dx = plusDI.map((p, idx) => {
+        if (p === null || minusDI[idx] === null) return null;
+        return Math.abs(p - minusDI[idx]) / Math.max(p + minusDI[idx], 1e-9) * 100;
+    });
+    return calculateEMA(dx, period);
 }
 
 // Handle search submission
@@ -129,11 +223,17 @@ async function loadStockData(ticker) {
         analystTargets: fetchData(`/api/analyst-targets/${ticker}`, 'analyst-targets-data', renderAnalystTargets),
         calendar: fetchData(`/api/calendar/${ticker}`, 'calendar-data', renderCalendar),
         incomeStmt: fetchData(`/api/income-stmt/${ticker}`, 'income-stmt-data', renderIncomeStatement),
-        balanceSheet: fetchData(`/api/balance-sheet/${ticker}`, 'balance-sheet-data', renderBalanceSheet)
+        balanceSheet: fetchData(`/api/balance-sheet/${ticker}`, 'balance-sheet-data', renderBalanceSheet),
+        news: fetchData(`/api/news/${ticker}`, 'news-data', renderNews),
+        optionChain: fetchData(`/api/option-chain/${ticker}`, 'option-chain-data', renderOptionChain)
     };
     
     // Wait for all data to load
     await Promise.allSettled(Object.values(dataPromises));
+    const techContainer = document.getElementById('technical-signals-data');
+    if (techContainer) {
+        renderTechnicalSignals(null, techContainer);
+    }
     
     // Show results
     loadingSpinner.classList.add('hidden');
@@ -175,6 +275,7 @@ async function loadAIRecommendation(ticker) {
     }
 }
 
+// Load AI selected stocks card on results page
 // Initialize news sentiment with button
 function initializeNewsSentiment(ticker) {
     const container = document.getElementById('news-sentiment-data');
@@ -265,12 +366,84 @@ async function fetchData(endpoint, containerId, renderFunction) {
     }
 }
 
+// Utility to hide card if no data
+function hideCardIfEmpty(container) {
+    const card = container.closest('.card');
+    if (card) {
+        card.style.display = 'none';
+    }
+}
+
 // Render functions
 function renderFundamentals(data, container) {
     console.log('renderFundamentals called with:', data);
     if (!data || typeof data !== 'object') {
-        container.innerHTML = '<p class="text-muted">No data available</p>';
+        hideCardIfEmpty(container);
         return;
+    }
+    
+    // Store fundamentals globally for use in other renderers
+    fundamentalsData = data;
+    
+    // Set company name and industry/sector in header if available
+    const companyName = data.longName || data.shortName || data.long_name || data.short_name || '';
+    const sector = data.sector || data.Sector || '';
+    const industry = data.industry || data.Industry || '';
+    
+    const nameEl = document.getElementById('company-name');
+    if (nameEl) {
+        nameEl.textContent = companyName;
+    }
+    
+    // Add sector/industry info in header
+    const summaryEl = document.getElementById('company-summary');
+    if (summaryEl) {
+        let summary = '';
+        if (sector || industry) {
+            summary = [sector, industry].filter(s => s).join(' • ');
+        }
+        summaryEl.textContent = summary;
+    }
+    
+    // Populate company summary box
+    const summaryBox = document.getElementById('summary-content');
+    if (summaryBox) {
+        const description = data.longBusinessSummary || data.businessSummary || '';
+        const website = data.website || '';
+        const employees = data.fullTimeEmployees || data.employees || '';
+        const ceo = data.companyOfficers?.[0]?.name || '';
+        const headquarters = data.city || '';
+        const state = data.state || '';
+        const country = data.country || '';
+        
+        const locationStr = [headquarters, state, country].filter(s => s).join(', ');
+        
+        let html = '';
+        if (description) {
+            html += `<p style="margin-bottom: 12px;">${escapeHtml(description)}</p>`;
+        }
+        
+        const infoItems = [];
+        if (website) {
+            infoItems.push(`<strong>Website:</strong> <a href="${escapeHtml(website)}" target="_blank" style="color: #3b82f6;">${escapeHtml(website)}</a>`);
+        }
+        if (employees) {
+            infoItems.push(`<strong>Employees:</strong> ${Number(employees).toLocaleString()}`);
+        }
+        if (ceo) {
+            infoItems.push(`<strong>CEO:</strong> ${escapeHtml(ceo)}`);
+        }
+        if (locationStr) {
+            infoItems.push(`<strong>Location:</strong> ${escapeHtml(locationStr)}`);
+        }
+        
+        if (infoItems.length > 0) {
+            html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px;">' +
+                infoItems.map(item => `<div>${item}</div>`).join('') +
+                '</div>';
+        }
+        
+        summaryBox.innerHTML = html || '<p class="text-muted">No company information available</p>';
     }
     
     const fields = {
@@ -298,6 +471,49 @@ function renderPriceHistory(data, container) {
     const prices = data.data;
     const latest = prices[prices.length - 1];
     const oldest = prices[0];
+    window.currentPrice = latest.Close;
+    
+    // Calculate trend metrics
+    const calcPctChange = (periodDays) => {
+        if (prices.length < periodDays) return null;
+        const periodStart = prices[prices.length - periodDays];
+        return ((latest.Close - periodStart.Close) / periodStart.Close) * 100;
+    };
+    
+    const change1D = prices.length >= 2 ? ((latest.Close - prices[prices.length - 2].Close) / prices[prices.length - 2].Close) * 100 : null;
+    const change1W = calcPctChange(5);
+    const change1M = calcPctChange(21);
+    
+    const avgVolume = prices.reduce((sum, p) => sum + (p.Volume || 0), 0) / prices.length;
+    const currentVolume = latest.Volume || 0;
+    const volumeChange = ((currentVolume - avgVolume) / avgVolume) * 100;
+    
+    const trendHtml = `
+        <div style="display: flex; gap: 20px; line-height: 1.6;">
+            <div>
+                <strong>Price Change</strong><br>
+                ${change1D !== null ? `<span style="color: ${change1D >= 0 ? '#22c55e' : '#ef4444'};">1D: ${change1D >= 0 ? '▲' : '▼'} ${Math.abs(change1D).toFixed(2)}%</span><br>` : ''}
+                ${change1W !== null ? `<span style="color: ${change1W >= 0 ? '#22c55e' : '#ef4444'};">1W: ${change1W >= 0 ? '▲' : '▼'} ${Math.abs(change1W).toFixed(2)}%</span><br>` : ''}
+                ${change1M !== null ? `<span style="color: ${change1M >= 0 ? '#22c55e' : '#ef4444'};">1M: ${change1M >= 0 ? '▲' : '▼'} ${Math.abs(change1M).toFixed(2)}%</span>` : ''}
+            </div>
+            <div style="border-left: 1px solid #ddd; padding-left: 20px;">
+                <strong>52W Range</strong><br>
+                <span style="font-size: 0.85em;">High: ${fundamentalsData.fiftyTwoWeekHigh ? formatCurrency(fundamentalsData.fiftyTwoWeekHigh) : 'N/A'}</span><br>
+                <span style="font-size: 0.85em;">Low: ${fundamentalsData.fiftyTwoWeekLow ? formatCurrency(fundamentalsData.fiftyTwoWeekLow) : 'N/A'}</span>
+            </div>
+            <div style="border-left: 1px solid #ddd; padding-left: 20px;">
+                <strong>Volume</strong><br>
+                <span style="font-size: 0.85em; color: ${volumeChange >= 0 ? '#22c55e' : '#ef4444'};">
+                    ${volumeChange >= 0 ? '▲' : '▼'} ${Math.abs(volumeChange).toFixed(0)}% vs avg
+                </span>
+            </div>
+        </div>
+    `;
+    
+    const trendEl = document.getElementById('price-trend-summary');
+    if (trendEl) {
+        trendEl.innerHTML = trendHtml;
+    }
     
     // Show latest price prominently
     document.getElementById('stock-price').innerHTML = `
@@ -313,10 +529,30 @@ function renderPriceHistory(data, container) {
     const maxPrice = Math.max(...prices.map(p => p.High));
     const range = maxPrice - minPrice;
     
+    // Calculate volume range for scaling
+    const maxVolume = Math.max(...prices.map(p => p.Volume || 0));
+    
     // Calculate technical indicators
     const sma20 = calculateSMA(prices, 20);
     const sma50 = calculateSMA(prices, 50);
     const { upper: bbUpper, lower: bbLower } = calculateBollingerBands(prices, 20, 2);
+    const rsi = calculateRSI(prices, 14);
+    const { macdLine, signalLine, histogram } = calculateMACD(prices, 12, 26, 9);
+    const stoch = calculateStochastic(prices, 14);
+    const adx = calculateADX(prices, 14);
+    
+    window.technicalIndicators = {
+        rsi: rsi[rsi.length - 1],
+        macd: macdLine[macdLine.length - 1],
+        macdSignal: signalLine[signalLine.length - 1],
+        macdHistogram: histogram[histogram.length - 1],
+        stochastic: stoch[stoch.length - 1],
+        adx: adx[adx.length - 1],
+        sma20: sma20[sma20.length - 1],
+        sma50: sma50[sma50.length - 1],
+        bbUpper: bbUpper[bbUpper.length - 1],
+        bbLower: bbLower[bbLower.length - 1]
+    };
     
     // Create candlestick chart with technical indicators
     const chartHtml = `
@@ -380,6 +616,71 @@ function renderPriceHistory(data, container) {
                 }).join('')}
             </div>
             
+            <!-- Volume Chart -->
+            <div style="display: flex; align-items: flex-end; justify-content: space-around; gap: 2px; height: 80px; padding: 10px; background: #f9f9f9; border-radius: 4px; margin-top: 4px;">
+                ${prices.map((day) => {
+                    const volume = day.Volume || 0;
+                    const volumePercent = maxVolume > 0 ? (volume / maxVolume) * 100 : 0;
+                    const isUp = day.Close >= day.Open;
+                    const color = isUp ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)';
+                    
+                    return '<div style="flex: 1; position: relative; height: 100%;" title="' + day.Date + ': Volume ' + volume.toLocaleString() + '">' +
+                        '<div style="position: absolute; bottom: 0; width: 100%; height: ' + volumePercent + '%; background: ' + color + ';"></div>' +
+                        '</div>';
+                }).join('')}
+            </div>
+            
+            <!-- RSI Oscillator -->
+            <div style="padding: 10px; background: #f9f9f9; border-radius: 4px;">
+                <div style="font-size: 0.9em; margin-bottom: 4px; font-weight: 600;">RSI (14)</div>
+                <div style="position: relative; height: 70px; border-left: 1px solid #ccc; border-bottom: 1px solid #ccc;">
+                    <div style="position: absolute; top: 20%; width: 100%; height: 1px; background: rgba(239, 68, 68, 0.3);"></div>
+                    <div style="position: absolute; bottom: 20%; width: 100%; height: 1px; background: rgba(34, 197, 94, 0.3);"></div>
+                    <div style="display: flex; align-items: flex-end; height: 100%; gap: 1px;">
+                        ${rsi.map((val, idx) => {
+                            if (val === null) return '<div style="flex: 1;"></div>';
+                            const color = val > 70 ? '#ef4444' : val < 30 ? '#22c55e' : '#6b7280';
+                            return '<div style="flex: 1; height: ' + val + '%; background: ' + color + '; opacity: 0.7;" title="' + prices[idx].Date + ': RSI ' + val.toFixed(1) + '"></div>';
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- MACD Histogram -->
+            <div style="padding: 10px; background: #f9f9f9; border-radius: 4px;">
+                <div style="font-size: 0.9em; margin-bottom: 4px; font-weight: 600;">MACD Histogram</div>
+                <div style="position: relative; height: 70px; border-left: 1px solid #ccc; border-bottom: 1px solid #ccc; display: flex; align-items: center;">
+                    <div style="position: absolute; top: 50%; width: 100%; height: 1px; background: #bbb;"></div>
+                    <div style="display: flex; align-items: center; width: 100%; gap: 1px;">
+                        ${(() => {
+                            const maxHist = Math.max(...histogram.filter(v => v !== null).map(v => Math.abs(v)), 0.0001);
+                            return histogram.map((val, idx) => {
+                                if (val === null) return '<div style="flex: 1;"></div>';
+                                const h = (Math.abs(val) / maxHist) * 50;
+                                const color = val >= 0 ? '#22c55e' : '#ef4444';
+                                return '<div style="flex: 1; display: flex; align-items: flex-end; justify-content: center; height: 100%;"><div style="width: 100%; height: ' + h + '%; background: ' + color + '; opacity: 0.75;" title="' + prices[idx].Date + ': ' + val.toFixed(3) + '"></div></div>';
+                            }).join('');
+                        })()}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Stochastic Oscillator -->
+            <div style="padding: 10px; background: #f9f9f9; border-radius: 4px;">
+                <div style="font-size: 0.9em; margin-bottom: 4px; font-weight: 600;">Stochastic (14)</div>
+                <div style="position: relative; height: 70px; border-left: 1px solid #ccc; border-bottom: 1px solid #ccc;">
+                    <div style="position: absolute; top: 20%; width: 100%; height: 1px; background: rgba(239, 68, 68, 0.3);"></div>
+                    <div style="position: absolute; bottom: 20%; width: 100%; height: 1px; background: rgba(34, 197, 94, 0.3);"></div>
+                    <div style="display: flex; align-items: flex-end; height: 100%; gap: 1px;">
+                        ${stoch.map((val, idx) => {
+                            if (val === null) return '<div style="flex: 1;"></div>';
+                            const color = val > 80 ? '#ef4444' : val < 20 ? '#22c55e' : '#6b7280';
+                            return '<div style="flex: 1; height: ' + val + '%; background: ' + color + '; opacity: 0.7;" title="' + prices[idx].Date + ': ' + val.toFixed(1) + '"></div>';
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+            
             <!-- Stats -->
             <div style="text-align: center; margin-top: 16px; font-size: 0.9em; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
                 <div><strong>Latest Close:</strong> ${formatCurrency(latest.Close)}</div>
@@ -387,6 +688,10 @@ function renderPriceHistory(data, container) {
                 <div><strong>Low:</strong> ${formatCurrency(minPrice)}</div>
                 <div><strong>SMA 20:</strong> ${formatCurrency(sma20[sma20.length - 1] || 0)}</div>
                 <div><strong>SMA 50:</strong> ${formatCurrency(sma50[sma50.length - 1] || 0)}</div>
+                <div><strong>RSI:</strong> ${rsi[rsi.length - 1] ? rsi[rsi.length - 1].toFixed(1) : 'N/A'}</div>
+                <div><strong>MACD Hist:</strong> ${histogram[histogram.length - 1] ? histogram[histogram.length - 1].toFixed(3) : 'N/A'}</div>
+                <div><strong>Stoch:</strong> ${stoch[stoch.length - 1] ? stoch[stoch.length - 1].toFixed(1) : 'N/A'}</div>
+                <div><strong>ADX:</strong> ${adx[adx.length - 1] ? adx[adx.length - 1].toFixed(1) : 'N/A'}</div>
             </div>
         </div>
     `;
@@ -396,7 +701,7 @@ function renderPriceHistory(data, container) {
 
 function renderAnalystTargets(data, container) {
     if (!data || typeof data !== 'object') {
-        container.innerHTML = '<p class="text-muted">No analyst data available</p>';
+        hideCardIfEmpty(container);
         return;
     }
     
@@ -430,7 +735,7 @@ function renderCalendar(data, container) {
     }
     
     if (events.length === 0) {
-        container.innerHTML = '<p class="text-muted">No upcoming events</p>';
+        hideCardIfEmpty(container);
         return;
     }
     
@@ -446,7 +751,7 @@ function renderCalendar(data, container) {
 
 function renderIncomeStatement(data, container) {
     if (!data || typeof data !== 'object') {
-        container.innerHTML = '<p class="text-muted">No income statement available</p>';
+        hideCardIfEmpty(container);
         return;
     }
     
@@ -472,7 +777,7 @@ function renderIncomeStatement(data, container) {
 
 function renderBalanceSheet(data, container) {
     if (!data || typeof data !== 'object') {
-        container.innerHTML = '<p class="text-muted">No balance sheet available</p>';
+        hideCardIfEmpty(container);
         return;
     }
     
@@ -493,6 +798,178 @@ function renderBalanceSheet(data, container) {
     };
     
     renderTable(fields, container);
+}
+
+function renderNews(data, container) {
+    const items = Array.isArray(data) ? data : (data?.result || data?.news || []);
+    if (!items || items.length === 0) {
+        hideCardIfEmpty(container);
+        return;
+    }
+    
+    const html = items.slice(0, 5).map(item => {
+        const content = item.content || item; // Yahoo sometimes nests under content
+        const title = content.title || content.headline || item.title || item.headline || 'No title';
+        const source = (content.provider?.displayName || content.provider || item.publisher || item.source || 'Unknown source');
+        const link = (content.canonicalUrl?.url || content.clickThroughUrl?.url || content.link || item.link || item.url || '#');
+        
+        let dateStr = '';
+        const ts = content.pubDate || content.publish_time || item.pubDate || item.providerPublishTime;
+        if (ts) {
+            const d = new Date(ts);
+            if (!isNaN(d.getTime())) {
+                dateStr = d.toLocaleDateString();
+            }
+        }
+        
+        return `<div class="news-item">
+            <a href="${escapeHtml(link)}" target="_blank" class="news-title">${escapeHtml(title)}</a>
+            <div class="news-meta">${escapeHtml(source)}${dateStr ? ' • ' + escapeHtml(dateStr) : ''}</div>
+        </div>`;
+    }).join('');
+    
+    container.innerHTML = html;
+}
+
+function renderOptionChain(data, container) {
+    const toRowsFromColumns = (columns, side) => {
+        if (!columns || typeof columns !== 'object') return [];
+        const indices = new Set();
+        Object.values(columns).forEach(col => {
+            if (col && typeof col === 'object') {
+                Object.keys(col).forEach(idx => indices.add(idx));
+            }
+        });
+        return Array.from(indices)
+            .sort((a, b) => Number(a) - Number(b))
+            .map(idx => {
+                const row = {};
+                Object.entries(columns).forEach(([key, values]) => {
+                    if (values && typeof values === 'object' && idx in values) {
+                        row[key] = values[idx];
+                    }
+                });
+                if (side) row.side = side;
+                return row;
+            });
+    };
+    const normalize = (raw) => {
+        if (!raw) return [];
+        const rows = [];
+        const pushRows = (obj, side) => {
+            if (!obj) return;
+            if (Array.isArray(obj)) {
+                obj.forEach(r => rows.push(side ? { ...r, side } : r));
+            } else {
+                rows.push(...toRowsFromColumns(obj, side));
+            }
+        };
+        if (raw.calls || raw.puts) {
+            pushRows(raw.calls, 'Call');
+            pushRows(raw.puts, 'Put');
+        } else {
+            pushRows(raw, null);
+        }
+        return rows;
+    };
+    const pick = (row, keys) => {
+        for (const key of keys) {
+            if (row[key] !== undefined && row[key] !== null) return row[key];
+        }
+        return null;
+    };
+    const formatNum = (val, decimals = 2) => (val === null || val === undefined || isNaN(val) ? '—' : Number(val).toFixed(decimals));
+    const formatPct = (val) => (val === null || val === undefined || isNaN(val) ? '—' : `${Number(val).toFixed(2)}%`);
+    const formatInt = (val) => (val === null || val === undefined || isNaN(val) ? '—' : Number(val).toLocaleString());
+    const formatIV = (val) => {
+        if (val === null || val === undefined || isNaN(val)) return '—';
+        const num = Number(val);
+        return num > 5 ? `${num.toFixed(2)}` : `${(num * 100).toFixed(1)}%`;
+    };
+    const formatDate = (val) => {
+        if (!val) return '—';
+        const d = new Date(val);
+        return isNaN(d.getTime()) ? val : d.toLocaleDateString();
+    };
+    const formatBool = (val) => {
+        if (val === true || val === 1) return 'Yes';
+        if (val === false || val === 0) return 'No';
+        return '—';
+    };
+    const rows = normalize(data)
+        .map(r => ({
+            side: pick(r, ['side']),
+            contract: pick(r, ['contractSymbol', 'symbol']),
+            strike: pick(r, ['strike', 'Strike']),
+            last: pick(r, ['lastPrice', 'LastPrice', 'last']),
+            bid: pick(r, ['bid', 'Bid']),
+            ask: pick(r, ['ask', 'Ask']),
+            change: pick(r, ['change', 'Change']),
+            percentChange: pick(r, ['percentChange', 'PercentChange']),
+            volume: pick(r, ['volume', 'Volume']),
+            openInterest: pick(r, ['openInterest', 'OpenInterest']),
+            impliedVol: pick(r, ['impliedVolatility', 'ImpliedVolatility', 'impliedVol']),
+            inTheMoney: pick(r, ['inTheMoney', 'inTheMoneyFlag', 'ITM']),
+            lastTrade: pick(r, ['lastTradeDate', 'lastTrade', 'lastTradeDateTime'])
+        }))
+        .filter(r => r.contract || r.strike !== undefined)
+        .sort((a, b) => (Number(a.strike) || 0) - (Number(b.strike) || 0))
+        .slice(0, 30);
+    if (!rows.length) {
+        hideCardIfEmpty(container);
+        return;
+    }
+    const tableRows = rows.map(r => {
+        const itm = formatBool(r.inTheMoney);
+        const itmClass = itm === 'Yes' ? ' style="background: rgba(34,197,94,0.08);"' : '';
+        return `
+            <tr${itmClass}>
+                <td>${escapeHtml(r.side || 'Call')}</td>
+                <td>${escapeHtml(r.contract || '—')}</td>
+                <td>${formatNum(r.strike)}</td>
+                <td>${formatNum(r.last)}</td>
+                <td>${formatNum(r.bid)}</td>
+                <td>${formatNum(r.ask)}</td>
+                <td>${formatNum(r.change)}</td>
+                <td>${formatPct(r.percentChange)}</td>
+                <td>${formatInt(r.volume)}</td>
+                <td>${formatInt(r.openInterest)}</td>
+                <td>${formatIV(r.impliedVol)}</td>
+                <td>${itm}</td>
+                <td>${escapeHtml(formatDate(r.lastTrade))}</td>
+            </tr>
+        `;
+    }).join('');
+    container.innerHTML = `
+        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; color: var(--text-secondary, #555);">
+            <div>First expiration shown • Sorted by strike • Top ${rows.length} rows</div>
+            <div>ITM rows highlighted</div>
+        </div>
+        <div style="overflow-x: auto; max-height: 340px; border: 1px solid #e5e7eb; border-radius: 4px; box-shadow: inset 0 1px 0 rgba(0,0,0,0.02);">
+            <table style="min-width: 760px;">
+                <thead>
+                    <tr>
+                        <th>Side</th>
+                        <th>Contract</th>
+                        <th>Strike</th>
+                        <th>Last</th>
+                        <th>Bid</th>
+                        <th>Ask</th>
+                        <th>Change</th>
+                        <th>% Chg</th>
+                        <th>Vol</th>
+                        <th>OI</th>
+                        <th>IV</th>
+                        <th>ITM</th>
+                        <th>Last Trade</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableRows}
+                </tbody>
+            </table>
+        </div>
+    `;
 }
 
 function renderAIRecommendation(data, container) {
@@ -522,6 +999,42 @@ function renderNewsSentiment(data, container) {
     container.innerHTML = `<div style="white-space: pre-wrap; line-height: 1.8;">${escapeHtml(text)}</div>`;
 }
 
+function renderTechnicalSignals(_data, container) {
+    const ind = window.technicalIndicators || {};
+    if (!ind || (!ind.rsi && !ind.macd && !ind.stochastic)) {
+        container.innerHTML = '<p class="text-muted">Load price history to see signals</p>';
+        return;
+    }
+    const rsiSignal = ind.rsi > 70 ? 'Overbought' : ind.rsi < 30 ? 'Oversold' : 'Neutral';
+    const macdSignal = ind.macdHistogram && ind.macdHistogram !== null ? (ind.macdHistogram > 0 ? 'Bullish' : 'Bearish') : 'Neutral';
+    const stochSignal = ind.stochastic > 80 ? 'Overbought' : ind.stochastic < 20 ? 'Oversold' : 'Neutral';
+    const adxSignal = ind.adx && ind.adx > 25 ? 'Trending' : 'Weak Trend';
+    const smaSignal = (window.currentPrice || 0) > (ind.sma20 || 0) && (ind.sma20 || 0) > (ind.sma50 || 0) ? 'Bullish' : (window.currentPrice || 0) < (ind.sma20 || 0) && (ind.sma20 || 0) < (ind.sma50 || 0) ? 'Bearish' : 'Mixed';
+    
+    const row = (label, value, signal) => `
+        <tr>
+            <td>${label}</td>
+            <td class="value">${value}</td>
+            <td class="value">${signal}</td>
+        </tr>
+    `;
+    
+    const html = `
+        <table>
+            ${row('RSI (14)', ind.rsi ? ind.rsi.toFixed(1) : 'N/A', rsiSignal)}
+            ${row('MACD', ind.macd ? ind.macd.toFixed(3) : 'N/A', macdSignal)}
+            ${row('MACD Hist', ind.macdHistogram ? ind.macdHistogram.toFixed(3) : 'N/A', macdSignal)}
+            ${row('Stochastic', ind.stochastic ? ind.stochastic.toFixed(1) : 'N/A', stochSignal)}
+            ${row('ADX', ind.adx ? ind.adx.toFixed(1) : 'N/A', adxSignal)}
+            ${row('SMA 20', ind.sma20 ? formatCurrency(ind.sma20) : 'N/A', smaSignal)}
+            ${row('SMA 50', ind.sma50 ? formatCurrency(ind.sma50) : 'N/A', smaSignal)}
+            ${row('BB Upper', ind.bbUpper ? formatCurrency(ind.bbUpper) : 'N/A', '-')}
+            ${row('BB Lower', ind.bbLower ? formatCurrency(ind.bbLower) : 'N/A', '-')}
+        </table>
+    `;
+    container.innerHTML = html;
+}
+
 // Utility functions
 function renderTable(fields, container) {
     const rows = Object.entries(fields)
@@ -536,7 +1049,7 @@ function renderTable(fields, container) {
     if (rows) {
         container.innerHTML = `<table>${rows}</table>`;
     } else {
-        container.innerHTML = '<p class="text-muted">No data available</p>';
+        hideCardIfEmpty(container);
     }
 }
 
@@ -570,7 +1083,82 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Load AI Selected BUYs on landing page
+async function loadAIBuys() {
+    const container = document.getElementById('ai-buys-container');
+    if (!container) return;
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/screen-undervalued`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        
+        let stocks = [];
+        if (Array.isArray(data)) {
+            stocks = data;
+        } else if (data.stocks && Array.isArray(data.stocks)) {
+            stocks = data.stocks;
+        } else if (data.data && Array.isArray(data.data)) {
+            stocks = data.data;
+        } else if (typeof data === 'object' && data !== null) {
+            stocks = Object.keys(data).slice(0, 10);
+        }
+        
+        if (!stocks || stocks.length === 0) {
+            container.innerHTML = '<div style="color: var(--text-secondary); font-size: 13px;">No recommendations available</div>';
+            return;
+        }
+        
+        const tickers = stocks.slice(0, 10).map(item => {
+            if (typeof item === 'string') return item.toUpperCase();
+            if (item.ticker) return item.ticker.toUpperCase();
+            if (item.symbol) return item.symbol.toUpperCase();
+            return null;
+        }).filter(Boolean);
+        
+        container.innerHTML = tickers.map(ticker => `
+            <div class="ai-buy-ticker" onclick="handleTickerClick('${escapeHtml(ticker)}')" title="Analyze ${escapeHtml(ticker)}">
+                <span class="ticker-symbol">${escapeHtml(ticker)}</span>
+                <span class="ticker-price" id="price-${escapeHtml(ticker)}">...</span>
+            </div>
+        `).join('');
+        
+        // Fetch prices for each ticker
+        tickers.forEach(async (ticker) => {
+            try {
+                const priceResponse = await fetch(`${API_BASE_URL}/api/fundamentals/${ticker}`);
+                if (priceResponse.ok) {
+                    const priceData = await priceResponse.json();
+                    const price = priceData.currentPrice || priceData.current_price || priceData.regularMarketPrice;
+                    const priceEl = document.getElementById(`price-${ticker}`);
+                    if (priceEl && price) {
+                        priceEl.textContent = formatCurrency(price);
+                    } else if (priceEl) {
+                        priceEl.textContent = '';
+                    }
+                }
+            } catch (err) {
+                const priceEl = document.getElementById(`price-${ticker}`);
+                if (priceEl) priceEl.textContent = '';
+            }
+        });
+    } catch (error) {
+        console.error('Error loading AI buys:', error);
+        container.innerHTML = '<div style="color: var(--text-secondary); font-size: 13px;">Unable to load recommendations</div>';
+    }
+}
+
+// Handle clicking a ticker in AI Buys section
+function handleTickerClick(ticker) {
+    if (!ticker) return;
+    hideError();
+    currentTicker = ticker;
+    tickerInput.value = ticker;
+    loadStockData(ticker);
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     tickerInput.focus();
+    loadAIBuys();
 });

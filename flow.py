@@ -272,7 +272,8 @@ def get_quarterly_income_stmt(ticker):
         try:
             # Convert Timestamp index to string to make it JSON-serializable
             quarterly_income_stmt.index = quarterly_income_stmt.index.astype(str)
-            return quarterly_income_stmt.to_dict()
+            # Orient by index so top-level keys are dates as the UI expects
+            return quarterly_income_stmt.to_dict(orient='index')
         except Exception:  # pylint: disable=broad-except
             return quarterly_income_stmt
 
@@ -374,7 +375,8 @@ def get_balance_sheet(ticker):
         try:
             # Convert Timestamp index to string to make it JSON-serializable
             balance_sheet.index = balance_sheet.index.astype(str)
-            return balance_sheet.to_dict()
+            # Orient by index so top-level keys are dates as the UI expects
+            return balance_sheet.to_dict(orient='index')
         except Exception:  # pylint: disable=broad-except
             return balance_sheet
 
@@ -393,7 +395,6 @@ def get_screen_undervalued_large_caps():
     except Exception as exc:  # pylint: disable=broad-except
         print(f"An error occurred while fetching undervalued_large_caps: {exc}")
         return None
-
 
 
 def get_ai_balance_sheet_analysis(ticker):

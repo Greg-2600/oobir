@@ -99,14 +99,21 @@ cd web && python -m http.server 8081
 - **News sentiment**: AI-powered sentiment from recent articles
 - **Action recommendations**: Buy/sell/hold with detailed reasoning
 
-### 4. Cloud-Native Architecture
+### 4. Database Caching Layer
+- **PostgreSQL-backed caching** for all data and AI endpoints
+- **24-hour cache expiration** with automatic cleanup
+- **Cache management APIs** for stats, clearing, and monitoring
+- **Performance optimization** reducing external API calls and LLM inference
+- **Transparent caching** with automatic cache hit/miss handling
+
+### 5. Cloud-Native Architecture
 - **Docker containerization** for consistent deployment
 - **Multi-container orchestration** with Docker Compose
-- **Service mesh** (app + web + AI) with automatic health checks
+- **Service mesh** (app + web + postgres + AI) with automatic health checks
 - **Horizontal scalability** via stateless design
 - **Environment parity** across dev, staging, production
 
-### 5. Dual Analysis Approach
+### 6. Dual Analysis Approach
 
 **Fundamental Analysis:**
 - P/E ratio, market cap, EPS, dividend yield
@@ -185,6 +192,26 @@ cd web && python -m http.server 8081
 │  │        Docker Network (oobir_default)         │   │
 │  └──────────────────────────────────────────────┘   │
 └──────────────────────────────────────────────────────┘
+
+### Caching Infrastructure (PostgreSQL)
+
+OOBIR includes a robust caching layer backed by PostgreSQL to improve performance and reduce external API calls.
+
+- **Cache Store**: `api_cache` table (JSONB payloads)
+- **Expiry**: 24 hours by default
+- **Keying**: `endpoint:symbol` plus additional parameters when present
+- **Initialization**: Schema auto-created at app startup
+- **Connection**: Managed via a pooled connection in `db.py`
+
+Docker Compose provisions a `postgres` service and wires environment variables into the `app` service:
+
+- `POSTGRES_HOST=postgres`
+- `POSTGRES_PORT=5432`
+- `POSTGRES_DB=oobir`
+- `POSTGRES_USER=oobir`
+- `POSTGRES_PASSWORD=oobir_password`
+
+See `docker-compose.yml` for the full setup, including a persistent `postgres_data` volume and healthcheck.
 ```
 
 ### Technology Principles
@@ -207,11 +234,17 @@ cd web && python -m http.server 8081
 
 ### 🎨 Interactive Web Dashboard
 - **Real-Time Stock Search**: Search any ticker symbol with instant data loading
+- **Enhanced Stock Header**: 
+  - Company name with sector/industry display
+  - Horizontal price trend summary (1D/1W/1M % change, 52W range, volume vs avg)
+  - Clickable OOBIR logo for quick return to landing page
+- **Company Summary Box**: Full business description with key details (website, employees, CEO, location)
 - **Candlestick Chart with Technical Indicators**: Professional price history visualization with:
   - SMA 20 (blue line) - 20-period moving average
   - SMA 50 (orange line) - 50-period moving average
   - Bollinger Bands (purple shaded area) - 20-period with 2 standard deviations
   - Hover tooltips showing OHLC data
+- **Smart Card Display**: Automatically hides empty data cards when no information available
 - **Comprehensive Financial Data**: 
   - Fundamentals (P/E ratio, market cap, earnings, etc.)
   - Price history (120+ days of OHLCV data)
@@ -452,6 +485,13 @@ docker compose up -d
 - `GET /api/ai/news-sentiment/{symbol}` - AI sentiment analysis of news
 - `GET /api/ai/full-report/{symbol}` - Comprehensive AI report
 
+**Cache Management Endpoints:**
+- `GET /api/cache/stats` — Aggregate cache statistics (total, valid, expired, by endpoint)
+- `DELETE /api/cache/{symbol}` — Clear all cache entries for a symbol
+- `DELETE /api/cache/expired` — Purge all expired cache entries
+
+Caching applies to both data endpoints and AI endpoints. AI caching includes an Ollama availability check before inference; plain-string AI responses are cached safely.
+
 ### Example API Calls
 
 ```bash
@@ -505,6 +545,11 @@ Notes:
 - The deploy script forces rebuild (`up -d --build`) to ensure new code is included in the app image.
 - If `docker compose` is unavailable, use `docker-compose` with the same flags.
 - First-time model download can take time; the model is cached in the `ollama_data` volume.
+
+**Undeploy Behavior:**
+- The undeploy script preserves the Ollama model volume (`ollama_data`) so you don't re-download the model each time.
+- PostgreSQL cache volume (`postgres_data`) is removed to clear cached entries safely.
+- To completely remove Ollama models, manually remove the `ollama_data` volume after undeploy.
 
 ### Undeploy
 
@@ -642,7 +687,8 @@ OOBIR employs a rigorous testing strategy with **66 passing tests** achieving 10
 - **Integration Tests**: End-to-end API endpoint testing with proper response validation
 - **Web UI Integration**: Comprehensive testing of frontend-backend communication
 - **Error Path Testing**: Verified error handling for invalid inputs and service failures
-- **Dependency Mocking**: External services (Ollama, yfinance) properly mocked to ensure test isolation and reliability
+- **Dependency Mocking**: External services (Ollama, yfinance, PostgreSQL) properly mocked to ensure test isolation and reliability
+- **Database Cache Mocking**: All endpoints test both cache miss and cache write paths using `@patch('db.get_cached_data')` and `@patch('db.set_cached_data')`
 
 #### Test Breakdown
 | Category | Tests | Coverage |
@@ -673,7 +719,8 @@ docker compose exec app pytest tests/ -v
 - ✅ **100% Endpoint Coverage**: All 24 REST API endpoints tested
 - ✅ **Success Path Validation**: Verified correct responses for valid inputs
 - ✅ **Error Path Validation**: Tested error handling for edge cases and failures
-- ✅ **External Dependency Isolation**: Ollama and yfinance calls mocked to ensure tests run reliably without services
+- ✅ **External Dependency Isolation**: Ollama, yfinance, and PostgreSQL mocked to ensure tests run reliably without services
+- ✅ **Cache Behavior Verification**: Every endpoint test verifies cache writes with `mock_set_cache.assert_called_once()`
 - ✅ **Production-Ready**: Tests serve as executable documentation of expected behavior
 
 #### Test Files
@@ -687,6 +734,8 @@ docker compose exec app pytest tests/ -v
 - Options chain data
 - News retrieval functionality
 - Stock screening logic
+- **All tests mock database caching**: `@patch('db.get_cached_data', return_value=None)` and `@patch('db.set_cached_data')`
+- **Cache write verification**: Each test asserts `mock_set_cache.assert_called_once()`
 
 **tests/test_ai_analysis_endpoints.py** (38 tests)
 - Fundamental analysis accuracy
@@ -697,6 +746,7 @@ docker compose exec app pytest tests/ -v
 - Full report generation
 - **News Sentiment Analysis** (multi-test coverage for this novel feature)
 - Error handling and fallback behavior
+- **All AI tests mock database caching**: Cache mocks simulate cache misses and verify AI response caching
 
 ### Run All Tests
 
@@ -723,7 +773,10 @@ docker compose exec app pytest tests/ -v
 - ✅ All 24 API endpoints tested
 - ✅ Web UI integration validated
 - ✅ Success and error paths verified
-- ✅ Proper mocking of external dependencies (Ollama, yfinance)
+- ✅ Proper mocking of external dependencies (Ollama, yfinance, PostgreSQL)
+- ✅ Database caching behavior verified in all endpoint tests
+- ✅ Cache mocks return `None` to simulate cache misses and test full data flow
+- ✅ Tests verify `set_cached_data()` is called exactly once per successful request
 
 ## Contributing
 
@@ -831,6 +884,6 @@ For issues, questions, or contributions, please open an issue on GitHub.
 
 ---
 
-**Last Updated**: December 19, 2025  
-**Version**: 1.1.0  
-**Status**: Production Ready with Interactive Web UI
+**Last Updated**: January 2025  
+**Version**: 1.2.0  
+**Status**: Production Ready with Database Caching & Enhanced UI

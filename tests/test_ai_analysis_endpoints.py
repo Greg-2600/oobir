@@ -20,9 +20,11 @@ class TestAIAnalysisEndpoints(unittest.TestCase):
         """Set up test client."""
         self.client = TestClient(flow_api.app)
 
+    @patch('db.get_cached_data', return_value=None)
+    @patch('db.set_cached_data')
     @patch('flow.ensure_ollama')
     @patch('flow.get_ai_fundamental_analysis')
-    def test_fundamental_analysis_endpoint(self, mock_analysis, mock_ensure_ollama):
+    def test_fundamental_analysis_endpoint(self, mock_analysis, mock_ensure_ollama, mock_set_cache, mock_get_cache):
         """Test fundamental analysis endpoint."""
         mock_analysis.return_value = 'Strong fundamentals with solid revenue growth.'
 
@@ -32,10 +34,13 @@ class TestAIAnalysisEndpoints(unittest.TestCase):
         data = response.json()
         self.assertIsInstance(data, str)
         self.assertGreater(len(data), 0)
+        mock_set_cache.assert_called_once()
 
+    @patch('db.get_cached_data', return_value=None)
+    @patch('db.set_cached_data')
     @patch('flow.ensure_ollama')
     @patch('flow.get_ai_fundamental_analysis')
-    def test_fundamental_analysis_endpoint_error(self, mock_analysis, mock_ensure_ollama):
+    def test_fundamental_analysis_endpoint_error(self, mock_analysis, mock_ensure_ollama, mock_set_cache, mock_get_cache):
         """Test fundamental analysis endpoint error handling."""
         mock_analysis.return_value = None
 
@@ -43,9 +48,11 @@ class TestAIAnalysisEndpoints(unittest.TestCase):
 
         self.assertEqual(response.status_code, 503)
 
+    @patch('db.get_cached_data', return_value=None)
+    @patch('db.set_cached_data')
     @patch('flow.ensure_ollama')
     @patch('flow.get_ai_balance_sheet_analysis')
-    def test_balance_sheet_analysis_endpoint(self, mock_analysis, mock_ensure_ollama):
+    def test_balance_sheet_analysis_endpoint(self, mock_analysis, mock_ensure_ollama, mock_set_cache, mock_get_cache):
         """Test balance sheet analysis endpoint."""
         mock_analysis.return_value = 'Balance sheet shows healthy debt levels.'
 
@@ -54,10 +61,13 @@ class TestAIAnalysisEndpoints(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertIsInstance(data, str)
+        mock_set_cache.assert_called_once()
 
+    @patch('db.get_cached_data', return_value=None)
+    @patch('db.set_cached_data')
     @patch('flow.ensure_ollama')
     @patch('flow.get_ai_balance_sheet_analysis')
-    def test_balance_sheet_analysis_endpoint_error(self, mock_analysis, mock_ensure_ollama):
+    def test_balance_sheet_analysis_endpoint_error(self, mock_analysis, mock_ensure_ollama, mock_set_cache, mock_get_cache):
         """Test balance sheet analysis endpoint error handling."""
         mock_analysis.return_value = None
 
@@ -65,9 +75,11 @@ class TestAIAnalysisEndpoints(unittest.TestCase):
 
         self.assertEqual(response.status_code, 503)
 
+    @patch('db.get_cached_data', return_value=None)
+    @patch('db.set_cached_data')
     @patch('flow.ensure_ollama')
     @patch('flow.get_ai_quarterly_income_stm_analysis')
-    def test_income_stmt_analysis_endpoint(self, mock_analysis, mock_ensure_ollama):
+    def test_income_stmt_analysis_endpoint(self, mock_analysis, mock_ensure_ollama, mock_set_cache, mock_get_cache):
         """Test income statement analysis endpoint."""
         mock_analysis.return_value = 'Revenue growth is impressive with expanding margins.'
 
@@ -76,10 +88,13 @@ class TestAIAnalysisEndpoints(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertIsInstance(data, str)
+        mock_set_cache.assert_called_once()
 
+    @patch('db.get_cached_data', return_value=None)
+    @patch('db.set_cached_data')
     @patch('flow.ensure_ollama')
     @patch('flow.get_ai_quarterly_income_stm_analysis')
-    def test_income_stmt_analysis_endpoint_error(self, mock_analysis, mock_ensure_ollama):
+    def test_income_stmt_analysis_endpoint_error(self, mock_analysis, mock_ensure_ollama, mock_set_cache, mock_get_cache):
         """Test income statement analysis endpoint error handling."""
         mock_analysis.return_value = None
 
@@ -87,9 +102,11 @@ class TestAIAnalysisEndpoints(unittest.TestCase):
 
         self.assertEqual(response.status_code, 503)
 
+    @patch('db.get_cached_data', return_value=None)
+    @patch('db.set_cached_data')
     @patch('flow.ensure_ollama')
     @patch('flow.get_ai_technical_analysis')
-    def test_technical_analysis_endpoint(self, mock_analysis, mock_ensure_ollama):
+    def test_technical_analysis_endpoint(self, mock_analysis, mock_ensure_ollama, mock_set_cache, mock_get_cache):
         """Test technical analysis endpoint."""
         mock_analysis.return_value = 'Strong uptrend with support at $150.'
 
@@ -98,10 +115,13 @@ class TestAIAnalysisEndpoints(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertIsInstance(data, str)
+        mock_set_cache.assert_called_once()
 
+    @patch('db.get_cached_data', return_value=None)
+    @patch('db.set_cached_data')
     @patch('flow.ensure_ollama')
     @patch('flow.get_ai_technical_analysis')
-    def test_technical_analysis_endpoint_error(self, mock_analysis, mock_ensure_ollama):
+    def test_technical_analysis_endpoint_error(self, mock_analysis, mock_ensure_ollama, mock_set_cache, mock_get_cache):
         """Test technical analysis endpoint error handling."""
         mock_analysis.return_value = None
 
@@ -109,9 +129,11 @@ class TestAIAnalysisEndpoints(unittest.TestCase):
 
         self.assertEqual(response.status_code, 503)
 
+    @patch('db.get_cached_data', return_value=None)
+    @patch('db.set_cached_data')
     @patch('flow.ensure_ollama')
     @patch('flow.get_ai_action_recommendation')
-    def test_action_recommendation_endpoint(self, mock_recommendation, mock_ensure_ollama):
+    def test_action_recommendation_endpoint(self, mock_recommendation, mock_ensure_ollama, mock_set_cache, mock_get_cache):
         """Test action recommendation endpoint."""
         mock_recommendation.return_value = 'BUY - Strong fundamentals with positive momentum.'
 
@@ -121,10 +143,13 @@ class TestAIAnalysisEndpoints(unittest.TestCase):
         data = response.json()
         self.assertIsInstance(data, str)
         self.assertIn('BUY', data)
+        mock_set_cache.assert_called_once()
 
+    @patch('db.get_cached_data', return_value=None)
+    @patch('db.set_cached_data')
     @patch('flow.ensure_ollama')
     @patch('flow.get_ai_action_recommendation')
-    def test_action_recommendation_endpoint_error(self, mock_recommendation, mock_ensure_ollama):
+    def test_action_recommendation_endpoint_error(self, mock_recommendation, mock_ensure_ollama, mock_set_cache, mock_get_cache):
         """Test action recommendation endpoint error handling."""
         mock_recommendation.return_value = None
 
@@ -132,9 +157,11 @@ class TestAIAnalysisEndpoints(unittest.TestCase):
 
         self.assertEqual(response.status_code, 503)
 
+    @patch('db.get_cached_data', return_value=None)
+    @patch('db.set_cached_data')
     @patch('flow.ensure_ollama')
     @patch('flow.get_ai_action_recommendation_sentence')
-    def test_action_recommendation_sentence_endpoint(self, mock_rec_sentence, mock_ensure_ollama):
+    def test_action_recommendation_sentence_endpoint(self, mock_rec_sentence, mock_ensure_ollama, mock_set_cache, mock_get_cache):
         """Test action recommendation sentence endpoint."""
         mock_rec_sentence.return_value = 'Buy AAPL for long-term value.'
 
@@ -143,10 +170,13 @@ class TestAIAnalysisEndpoints(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertIsInstance(data, str)
+        mock_set_cache.assert_called_once()
 
+    @patch('db.get_cached_data', return_value=None)
+    @patch('db.set_cached_data')
     @patch('flow.ensure_ollama')
     @patch('flow.get_ai_action_recommendation_sentence')
-    def test_action_recommendation_sentence_endpoint_error(self, mock_rec_sentence, mock_ensure_ollama):
+    def test_action_recommendation_sentence_endpoint_error(self, mock_rec_sentence, mock_ensure_ollama, mock_set_cache, mock_get_cache):
         """Test action recommendation sentence endpoint error handling."""
         mock_rec_sentence.return_value = None
 
