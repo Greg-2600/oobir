@@ -397,7 +397,6 @@ def get_screen_undervalued_large_caps():
         return None
 
 
-
 def get_ai_balance_sheet_analysis(ticker):
     """
     Generate an AI-driven analysis of a company's balance sheet.

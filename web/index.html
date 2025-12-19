@@ -33,6 +33,14 @@
                     </button>
                 </form>
                 <div id="error-message" class="error-message"></div>
+
+                <!-- AI Selected BUYs -->
+                <div class="ai-buys-section">
+                    <h3>AI Selected Undervalued Stocks</h3>
+                    <div id="ai-buys-container">
+                        <div style="color: var(--text-secondary); font-size: 13px;">Loading...</div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -40,7 +48,7 @@
         <div id="results-page" class="results-page hidden">
             <header class="results-header">
                 <div class="header-left">
-                    <h2 class="logo-small">OOBIR</h2>
+                    <h2 class="logo-small" onclick="location.reload()" style="cursor: pointer;">OOBIR</h2>
                 </div>
                 <div class="header-center">
                     <form id="search-form-compact" class="search-form-compact">
@@ -71,9 +79,23 @@
 
                 <div id="results-container" class="hidden">
                     <!-- Stock Header -->
-                    <div class="stock-header">
-                        <h1 id="stock-symbol"></h1>
-                        <div id="stock-price" class="stock-price"></div>
+                    <div class="stock-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div>
+                            <div style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;">
+                                <h1 id="stock-symbol"></h1>
+                                <span id="company-name" style="font-size: 1.1em; color: #666;"></span>
+                            </div>
+                            <div id="company-summary" style="font-size: 0.9em; color: #999; margin-top: 4px;"></div>
+                            <div id="stock-price" class="stock-price"></div>
+                        </div>
+                        <div id="price-trend-summary" style="text-align: right; font-size: 0.9em; color: #666; min-width: 200px;"></div>
+                    </div>
+
+                    <!-- Company Summary Box -->
+                    <div class="card" id="company-summary-box" style="background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%); border-left: 4px solid #3b82f6;">
+                        <div id="summary-content" style="line-height: 1.6; color: #333;">
+                            <div class="loading-placeholder"></div>
+                        </div>
                     </div>
 
                     <!-- Price History Chart - FEATURED -->
@@ -122,6 +144,30 @@
                         <div class="card">
                             <h3>📅 Calendar Events</h3>
                             <div id="calendar-data" class="data-content">
+                                <div class="loading-placeholder"></div>
+                            </div>
+                        </div>
+
+                        <!-- News -->
+                        <div class="card">
+                            <h3>📰 News</h3>
+                            <div id="news-data" class="data-content">
+                                <div class="loading-placeholder"></div>
+                            </div>
+                        </div>
+
+                        <!-- Option Chain -->
+                        <div class="card">
+                            <h3>📊 Option Chain</h3>
+                            <div id="option-chain-data" class="data-content">
+                                <div class="loading-placeholder"></div>
+                            </div>
+                        </div>
+
+                        <!-- Technical Signals -->
+                        <div class="card">
+                            <h3>📈 Technical Signals</h3>
+                            <div id="technical-signals-data" class="data-content">
                                 <div class="loading-placeholder"></div>
                             </div>
                         </div>

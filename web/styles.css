@@ -63,6 +63,54 @@ body {
     max-width: 584px;
 }
 
+.ai-buys-section {
+    margin-top: 24px;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: var(--shadow);
+}
+
+.ai-buys-section h3 {
+    margin-bottom: 12px;
+    font-size: 16px;
+    color: var(--text-primary);
+}
+
+.ai-buys-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.ai-buy-ticker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-gray);
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s;
+    font-weight: 600;
+}
+
+.ai-buy-ticker:hover {
+    background: white;
+    box-shadow: var(--shadow-hover);
+}
+
+.ai-buy-ticker .ticker-symbol {
+    color: var(--text-primary);
+}
+
+.ai-buy-ticker .ticker-price {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
 .search-form {
     display: flex;
     align-items: center;

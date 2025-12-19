@@ -258,6 +258,9 @@ def get_fundamentals(symbol: str):
     logger.info("Fetching fundamentals for %s", symbol)
     try:
         result = with_cache("fundamentals", symbol, flow.get_fundamentals)
+        # get_fundamentals returns a JSON string, so parse it first
+        if isinstance(result, str):
+            result = json.loads(result)
         return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error fetching fundamentals for %s: %s", symbol, str(exc))
@@ -341,7 +344,7 @@ def get_option_chain(symbol: str):
     """Get option chain for a stock."""
     logger.info("Fetching option chain for %s", symbol)
     try:
-        result = flow.get_option_chain(symbol)
+        result = with_cache("option-chain", symbol, flow.get_option_chain)
         result = serialize_value(result)
         return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except
@@ -354,7 +357,19 @@ def get_screen_undervalued_large_caps():
     """Get screen of undervalued large cap stocks."""
     logger.info("Fetching undervalued large caps screen")
     try:
+        # Check cache first
+        cached_data = db.get_cached_data("screen-undervalued", "ALL")
+        if cached_data is not None:
+            logger.info("Returning cached data for screen-undervalued")
+            return JSONResponse(content=cached_data)
+        
+        # Cache miss - fetch fresh data
+        logger.info("Cache miss for screen-undervalued, fetching fresh data")
         result = flow.get_screen_undervalued_large_caps()
+        
+        # Cache the result
+        db.set_cached_data("screen-undervalued", result, "ALL")
+        
         return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error fetching undervalued screen: %s", str(exc))
