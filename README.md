@@ -3,7 +3,7 @@
 ![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green?logo=fastapi)
 ![Docker](https://img.shields.io/badge/Docker-Supported-blue?logo=docker)
-![Tests](https://img.shields.io/badge/Tests-51_Passing-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-53_Passing-brightgreen)
 ![Status](https://img.shields.io/badge/Status-Production_Ready-success)
 
 ## Overview
@@ -24,7 +24,7 @@ Unlike traditional stock analysis tools that separate data retrieval from analys
 - **Context-Aware Recommendations**: LLM-powered analysis synthesizes news sentiment, balance sheet health, and technical patterns in single recommendations
 - **Cloud-Native Deployment**: Containerized with Docker Compose—deploy locally, on-premises, or cloud (AWS/Azure/GCP) with identical reproducibility
 - **Dual Interface**: Seamlessly operate via CLI or REST API without code duplication—single business logic, multiple access patterns
-- **Production-Ready Testing**: Comprehensive 51-test suite with 100% endpoint coverage including mocked external dependencies
+- **Production-Ready Testing**: Comprehensive 53-test suite with 100% endpoint coverage including mocked external dependencies
 
 ## Table of Contents
 
@@ -48,7 +48,7 @@ Unlike traditional stock analysis tools that separate data retrieval from analys
 - **Comprehensive Multi-Source Intelligence**: Synthesizes fundamentals, technicals, sentiment, and analyst consensus through AI reasoning
 
 ### Production Quality
-- **51 Comprehensive Tests** covering all 24 API endpoints with success/failure paths and external dependency mocking
+- **53 Comprehensive Tests** covering all 24 API endpoints with success/failure paths and external dependency mocking
 - **Health Monitoring**: Built-in health checks for application and Ollama LLM service with graceful degradation
 - **Enterprise Error Handling**: Meaningful HTTP status codes and error messages for production systems
 - **Cloud-Native Ready**: Single command deployment with Docker Compose—reproducible across development, staging, and production environments
@@ -277,6 +277,11 @@ Automated deployment script for remote servers:
 4. Pull model: `docker compose exec ollama ollama pull huihui_ai/llama3.2-abliterate:3b`
 5. Verify: `curl http://localhost:8000/health`
 
+Notes:
+- The deploy script forces rebuild (`up -d --build`) to ensure new code is included in the app image.
+- If `docker compose` is unavailable, use `docker-compose` with the same flags.
+- First-time model download can take time; the model is cached in the `ollama_data` volume.
+
 ### Undeploy
 
 ```bash
@@ -310,7 +315,7 @@ Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model installed.
 | `get_ai_fundamental_analysis(ticker)` | AI analysis of fundamental metrics |
 | `get_ai_balance_sheet_analysis(ticker)` | AI insights on balance sheet health |
 | `get_ai_quarterly_income_stm_analysis(ticker)` | AI analysis of income trends |
-| `get_ai_technical_analysis(ticker)` | AI technical pattern recognition |
+| `get_ai_technical_analysis(ticker)` | AI technical pattern recognition (uses precomputed SMA(20/50), RSI(14), MACD, Bollinger Bands, volume) |
 | `get_ai_action_recommendation(ticker)` | Detailed buy/sell/hold recommendation |
 | `get_ai_action_recommendation_sentence(ticker)` | One-sentence recommendation with reasoning |
 | `get_ai_action_recommendation_single_word(ticker)` | Single word: BUY/SELL/HOLD |
@@ -368,7 +373,7 @@ Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model installed.
 - **Containerization**: Docker & Docker Compose (reproducible deployments)
 
 **Testing & Quality**
-- **Test Framework**: pytest (51 comprehensive tests)
+- **Test Framework**: pytest (53 comprehensive tests)
 - **Mocking**: unittest.mock (external dependency isolation)
 - **Code Quality**: Type hints, docstrings, PEP 8 compliance
 
@@ -381,7 +386,7 @@ Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model installed.
 
 ### Comprehensive Test Coverage
 
-OOBIR employs a rigorous testing strategy with **51 passing tests** achieving 100% endpoint coverage:
+OOBIR employs a rigorous testing strategy with **53 passing tests** achieving 100% endpoint coverage:
 
 #### Test Architecture
 - **Unit Tests**: Individual function testing with mocked external dependencies
@@ -394,7 +399,8 @@ OOBIR employs a rigorous testing strategy with **51 passing tests** achieving 10
 |----------|-------|----------|
 | Data Endpoints | 13 | All data retrieval functions |
 | AI Analysis Endpoints | 38 | All AI analysis functions + news sentiment |
-| **Total** | **51** | **100% of 24 API endpoints** |
+| Technical Indicators | 2 | Indicator calculations + AI prompt integration |
+| **Total** | **53** | **100% of 24 API endpoints** |
 
 #### Test Execution
 
@@ -460,7 +466,7 @@ docker compose exec app pytest tests/ -v
 
 ### Test Coverage
 
-- ✅ 51 tests total
+- ✅ 53 tests total
 - ✅ All 24 API endpoints tested
 - ✅ Success and error paths verified
 - ✅ Proper mocking of external dependencies (Ollama, yfinance)

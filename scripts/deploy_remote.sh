@@ -78,13 +78,13 @@ echo '3) Start Ollama container (docker compose)'
 if [ -f docker-compose.yml ]; then
   if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
     docker compose pull || true
-    docker compose up -d || true
+    docker compose up -d --build || true
     # Pull both canonical and alias model names to satisfy runtime lookups
     docker compose exec ollama ollama pull huihui_ai/llama3.2-abliterate:3b || true
     docker compose exec ollama ollama pull llama3.2:1b || true
   elif command -v docker-compose >/dev/null 2>&1; then
     docker-compose pull || true
-    docker-compose up -d || true
+    docker-compose up -d --build || true
     docker exec -i ollama ollama pull huihui_ai/llama3.2-abliterate:3b || true
     docker exec -i ollama ollama pull llama3.2:1b || true
   else
