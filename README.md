@@ -185,6 +185,26 @@ cd web && python -m http.server 8081
 │  │        Docker Network (oobir_default)         │   │
 │  └──────────────────────────────────────────────┘   │
 └──────────────────────────────────────────────────────┘
+
+### Caching Infrastructure (PostgreSQL)
+
+OOBIR includes a robust caching layer backed by PostgreSQL to improve performance and reduce external API calls.
+
+- **Cache Store**: `api_cache` table (JSONB payloads)
+- **Expiry**: 24 hours by default
+- **Keying**: `endpoint:symbol` plus additional parameters when present
+- **Initialization**: Schema auto-created at app startup
+- **Connection**: Managed via a pooled connection in `db.py`
+
+Docker Compose provisions a `postgres` service and wires environment variables into the `app` service:
+
+- `POSTGRES_HOST=postgres`
+- `POSTGRES_PORT=5432`
+- `POSTGRES_DB=oobir`
+- `POSTGRES_USER=oobir`
+- `POSTGRES_PASSWORD=oobir_password`
+
+See `docker-compose.yml` for the full setup, including a persistent `postgres_data` volume and healthcheck.
 ```
 
 ### Technology Principles
@@ -451,6 +471,13 @@ docker compose up -d
 - `GET /api/ai/action-recommendation-word/{symbol}` - Single word recommendation
 - `GET /api/ai/news-sentiment/{symbol}` - AI sentiment analysis of news
 - `GET /api/ai/full-report/{symbol}` - Comprehensive AI report
+
+**Cache Management Endpoints:**
+- `GET /api/cache/stats` — Aggregate cache statistics (total, valid, expired, by endpoint)
+- `DELETE /api/cache/{symbol}` — Clear all cache entries for a symbol
+- `DELETE /api/cache/expired` — Purge all expired cache entries
+
+Caching applies to both data endpoints and AI endpoints. AI caching includes an Ollama availability check before inference; plain-string AI responses are cached safely.
 
 ### Example API Calls
 
