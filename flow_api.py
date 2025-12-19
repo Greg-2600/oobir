@@ -229,10 +229,17 @@ def with_ai_cache(endpoint: str, symbol: str, flow_function, *args, **kwargs):
             detail="AI service unavailable - Ollama connection failed or returned no response"
         ) from None
 
-    if isinstance(result, str):
-        result = json.loads(result)
+    # AI functions return plain strings, not JSON strings
+    # Only attempt JSON parsing if it looks like JSON (starts with { or [)
+    if isinstance(result, str) and result.strip().startswith(('{', '[')):
+        try:
+            result = json.loads(result)
+        except json.JSONDecodeError:
+            # If JSON parsing fails, keep as plain string
+            pass
 
     serialized_result = serialize_value(result)
+    logger.info("Caching AI data for %s/%s", endpoint, symbol)
     db.set_cached_data(endpoint, serialized_result, symbol)
     return serialized_result
 
