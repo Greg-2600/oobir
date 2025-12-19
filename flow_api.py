@@ -4,10 +4,12 @@ No authentication; suitable for internal networks only.
 """
 
 import os
+import json
 import logging
 from datetime import date, datetime
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import pandas as pd
 import numpy as np
@@ -49,6 +51,27 @@ app = FastAPI(
     title="OOBIR Stock Analysis API",
     description="REST API for stock analysis and AI recommendations",
     version="1.0.0"
+)
+
+# CORS for web UI (allow local and LAN UI origins)
+allowed_origins = [
+    "http://localhost",
+    "http://localhost:8080",
+    "http://localhost:8081",
+    "http://127.0.0.1",
+    "http://127.0.0.1:8080",
+    "http://127.0.0.1:8081",
+    "http://192.168.1.248",
+    "http://192.168.1.248:8080",
+    "http://192.168.1.248:8081",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins + ["*"],  # permissive during development
+    allow_credentials=False,
+    allow_methods=["GET"],
+    allow_headers=["*"]
 )
 
 # Set Ollama host from environment or use default
@@ -148,6 +171,9 @@ def get_fundamentals(symbol: str):
     logger.info("Fetching fundamentals for %s", symbol)
     try:
         result = flow.get_fundamentals(symbol)
+        # Parse JSON string to dict
+        if isinstance(result, str):
+            result = json.loads(result)
         logger.info("Successfully fetched fundamentals for %s", symbol)
         return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except
@@ -160,6 +186,9 @@ def get_price_history(symbol: str):
     """Get historical price data for a stock."""
     try:
         result = flow.get_price_history(symbol)
+        # Parse JSON string to dict
+        if isinstance(result, str):
+            result = json.loads(result)
         return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -172,6 +201,9 @@ def get_analyst_price_targets(symbol: str):
         # `flow` exposes `get_analyst_price_targets`; call that and return
         # serializable data
         result = flow.get_analyst_price_targets(symbol)
+        # Parse JSON string to dict
+        if isinstance(result, str):
+            result = json.loads(result)
         return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -182,6 +214,9 @@ def get_calendar(symbol: str):
     """Get events calendar for a stock."""
     try:
         result = flow.get_calendar(symbol)
+        # Parse JSON string to dict
+        if isinstance(result, str):
+            result = json.loads(result)
         result = serialize_value(result)
         return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except
@@ -193,6 +228,9 @@ def get_quarterly_income_stmt(symbol: str):
     """Get quarterly income statement for a stock."""
     try:
         result = flow.get_quarterly_income_stmt(symbol)
+        # Parse JSON string to dict
+        if isinstance(result, str):
+            result = json.loads(result)
         result = serialize_value(result)
         return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except
@@ -204,6 +242,9 @@ def get_balance_sheet(symbol: str):
     """Get balance sheet for a stock."""
     try:
         result = flow.get_balance_sheet(symbol)
+        # Parse JSON string to dict
+        if isinstance(result, str):
+            result = json.loads(result)
         result = serialize_value(result)
         return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except

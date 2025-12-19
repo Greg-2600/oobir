@@ -28,5 +28,16 @@ services:
       - OLLAMA_MODEL=llama3.2:1b
     restart: unless-stopped
 
+  web:
+    image: nginx:alpine
+    container_name: oobir_web
+    depends_on:
+      - app
+    volumes:
+      - ./web:/usr/share/nginx/html
+    ports:
+      - "8081:80"
+    restart: unless-stopped
+
 volumes:
   ollama_data:

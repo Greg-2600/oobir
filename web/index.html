@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OOBIR - Stock Analysis Platform</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Landing Page -->
+        <div id="landing-page" class="landing-page">
+            <div class="logo-section">
+                <h1 class="logo">OOBIR</h1>
+                <p class="tagline">AI-Powered Stock Analysis</p>
+            </div>
+            
+            <div class="search-section">
+                <form id="search-form" class="search-form">
+                    <input 
+                        type="text" 
+                        id="ticker-input" 
+                        class="search-input" 
+                        placeholder="Enter stock ticker (e.g., AAPL, MSFT, TSLA)"
+                        autocomplete="off"
+                        autofocus
+                    >
+                    <button type="submit" class="search-button">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="m21 21-4.35-4.35"></path>
+                        </svg>
+                    </button>
+                </form>
+                <div id="error-message" class="error-message"></div>
+            </div>
+        </div>
+
+        <!-- Results Page -->
+        <div id="results-page" class="results-page hidden">
+            <header class="results-header">
+                <div class="header-left">
+                    <h2 class="logo-small">OOBIR</h2>
+                </div>
+                <div class="header-center">
+                    <form id="search-form-compact" class="search-form-compact">
+                        <input 
+                            type="text" 
+                            id="ticker-input-compact" 
+                            class="search-input-compact" 
+                            placeholder="Search ticker..."
+                        >
+                        <button type="submit" class="search-button-compact">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <path d="m21 21-4.35-4.35"></path>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+                <div class="header-right">
+                    <button id="back-button" class="back-button">← Back</button>
+                </div>
+            </header>
+
+            <div class="results-content">
+                <div id="loading-spinner" class="loading-spinner">
+                    <div class="spinner"></div>
+                    <p>Loading data for <span id="loading-ticker"></span>...</p>
+                </div>
+
+                <div id="results-container" class="hidden">
+                    <!-- Stock Header -->
+                    <div class="stock-header">
+                        <h1 id="stock-symbol"></h1>
+                        <div id="stock-price" class="stock-price"></div>
+                    </div>
+
+                    <!-- Price History Chart - FEATURED -->
+                    <div class="card highlight-card">
+                        <h2>📈 Price History (121 Days)</h2>
+                        <div id="price-history-data" class="data-content">
+                            <div class="loading-placeholder"></div>
+                        </div>
+                    </div>
+
+                    <!-- Data Grid -->
+                    <div class="data-grid">
+                        <!-- Fundamentals -->
+                        <div class="card">
+                            <h3>📊 Fundamentals</h3>
+                            <div id="fundamentals-data" class="data-content">
+                                <div class="loading-placeholder"></div>
+                            </div>
+                        </div>
+
+                        <!-- Analyst Targets -->
+                        <div class="card">
+                            <h3>🎯 Analyst Targets</h3>
+                            <div id="analyst-targets-data" class="data-content">
+                                <div class="loading-placeholder"></div>
+                            </div>
+                        </div>
+
+                        <!-- Balance Sheet -->
+                        <div class="card">
+                            <h3>💰 Balance Sheet</h3>
+                            <div id="balance-sheet-data" class="data-content">
+                                <div class="loading-placeholder"></div>
+                            </div>
+                        </div>
+
+                        <!-- Income Statement -->
+                        <div class="card">
+                            <h3>💵 Income Statement</h3>
+                            <div id="income-stmt-data" class="data-content">
+                                <div class="loading-placeholder"></div>
+                            </div>
+                        </div>
+
+                        <!-- Calendar Events -->
+                        <div class="card">
+                            <h3>📅 Calendar Events</h3>
+                            <div id="calendar-data" class="data-content">
+                                <div class="loading-placeholder"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Analysis Section (Bottom) -->
+                    <div style="margin-top: 32px;">
+                        <h2 style="font-size: 1.5em; margin-bottom: 16px;">🧠 AI Analysis</h2>
+                        <div class="data-grid">
+                            <!-- AI Recommendation -->
+                            <div class="card">
+                                <h3>🤖 AI Recommendation</h3>
+                                <div id="ai-recommendation" class="recommendation-box">
+                                    <div class="loading-placeholder"></div>
+                                </div>
+                            </div>
+
+                            <!-- Technical Analysis -->
+                            <div class="card">
+                                <h3>🔧 Technical Analysis</h3>
+                                <div id="technical-analysis-data" class="data-content">
+                                    <div class="loading-placeholder"></div>
+                                </div>
+                            </div>
+
+                            <!-- News & Sentiment -->
+                            <div class="card">
+                                <h3>📰 News & Sentiment</h3>
+                                <div id="news-sentiment-data" class="data-content">
+                                    <div class="loading-placeholder"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js?v=5"></script>
+    <script src="app.js?v=7"></script>
+</body>
+</html>
