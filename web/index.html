@@ -76,10 +76,10 @@
                         <div id="stock-price" class="stock-price"></div>
                     </div>
 
-                    <!-- AI Recommendation Card -->
+                    <!-- Price History Chart - FEATURED -->
                     <div class="card highlight-card">
-                        <h2>🤖 AI Recommendation</h2>
-                        <div id="ai-recommendation" class="recommendation-box">
+                        <h2>📈 Price History (121 Days)</h2>
+                        <div id="price-history-data" class="data-content">
                             <div class="loading-placeholder"></div>
                         </div>
                     </div>
@@ -94,34 +94,10 @@
                             </div>
                         </div>
 
-                        <!-- Price History Chart -->
-                        <div class="card">
-                            <h3>📈 Price History (121 Days)</h3>
-                            <div id="price-history-data" class="data-content">
-                                <div class="loading-placeholder"></div>
-                            </div>
-                        </div>
-
-                        <!-- Technical Analysis -->
-                        <div class="card">
-                            <h3>🔧 Technical Analysis</h3>
-                            <div id="technical-analysis-data" class="data-content">
-                                <div class="loading-placeholder"></div>
-                            </div>
-                        </div>
-
                         <!-- Analyst Targets -->
                         <div class="card">
                             <h3>🎯 Analyst Targets</h3>
                             <div id="analyst-targets-data" class="data-content">
-                                <div class="loading-placeholder"></div>
-                            </div>
-                        </div>
-
-                        <!-- News & Sentiment -->
-                        <div class="card">
-                            <h3>📰 News & Sentiment</h3>
-                            <div id="news-sentiment-data" class="data-content">
                                 <div class="loading-placeholder"></div>
                             </div>
                         </div>
@@ -150,12 +126,42 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- AI Analysis Section (Bottom) -->
+                    <div style="margin-top: 32px;">
+                        <h2 style="font-size: 1.5em; margin-bottom: 16px;">🧠 AI Analysis</h2>
+                        <div class="data-grid">
+                            <!-- AI Recommendation -->
+                            <div class="card">
+                                <h3>🤖 AI Recommendation</h3>
+                                <div id="ai-recommendation" class="recommendation-box">
+                                    <div class="loading-placeholder"></div>
+                                </div>
+                            </div>
+
+                            <!-- Technical Analysis -->
+                            <div class="card">
+                                <h3>🔧 Technical Analysis</h3>
+                                <div id="technical-analysis-data" class="data-content">
+                                    <div class="loading-placeholder"></div>
+                                </div>
+                            </div>
+
+                            <!-- News & Sentiment -->
+                            <div class="card">
+                                <h3>📰 News & Sentiment</h3>
+                                <div id="news-sentiment-data" class="data-content">
+                                    <div class="loading-placeholder"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="config.js"></script>
-    <script src="app.js"></script>
+    <script src="config.js?v=5"></script>
+    <script src="app.js?v=7"></script>
 </body>
 </html>

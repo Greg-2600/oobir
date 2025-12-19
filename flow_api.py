@@ -4,6 +4,7 @@ No authentication; suitable for internal networks only.
 """
 
 import os
+import json
 import logging
 from datetime import date, datetime
 
@@ -170,6 +171,9 @@ def get_fundamentals(symbol: str):
     logger.info("Fetching fundamentals for %s", symbol)
     try:
         result = flow.get_fundamentals(symbol)
+        # Parse JSON string to dict
+        if isinstance(result, str):
+            result = json.loads(result)
         logger.info("Successfully fetched fundamentals for %s", symbol)
         return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except
@@ -182,6 +186,9 @@ def get_price_history(symbol: str):
     """Get historical price data for a stock."""
     try:
         result = flow.get_price_history(symbol)
+        # Parse JSON string to dict
+        if isinstance(result, str):
+            result = json.loads(result)
         return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -194,6 +201,9 @@ def get_analyst_price_targets(symbol: str):
         # `flow` exposes `get_analyst_price_targets`; call that and return
         # serializable data
         result = flow.get_analyst_price_targets(symbol)
+        # Parse JSON string to dict
+        if isinstance(result, str):
+            result = json.loads(result)
         return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -204,6 +214,9 @@ def get_calendar(symbol: str):
     """Get events calendar for a stock."""
     try:
         result = flow.get_calendar(symbol)
+        # Parse JSON string to dict
+        if isinstance(result, str):
+            result = json.loads(result)
         result = serialize_value(result)
         return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except
@@ -215,6 +228,9 @@ def get_quarterly_income_stmt(symbol: str):
     """Get quarterly income statement for a stock."""
     try:
         result = flow.get_quarterly_income_stmt(symbol)
+        # Parse JSON string to dict
+        if isinstance(result, str):
+            result = json.loads(result)
         result = serialize_value(result)
         return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except
@@ -226,6 +242,9 @@ def get_balance_sheet(symbol: str):
     """Get balance sheet for a stock."""
     try:
         result = flow.get_balance_sheet(symbol)
+        # Parse JSON string to dict
+        if isinstance(result, str):
+            result = json.loads(result)
         result = serialize_value(result)
         return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except

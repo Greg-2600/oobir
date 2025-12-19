@@ -3,15 +3,17 @@
 ![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green?logo=fastapi)
 ![Docker](https://img.shields.io/badge/Docker-Supported-blue?logo=docker)
+![HTML5](https://img.shields.io/badge/Frontend-HTML5--CSS3--JS-orange?logo=html5)
 ![Tests](https://img.shields.io/badge/Tests-53_Passing-brightgreen)
 ![Status](https://img.shields.io/badge/Status-Production_Ready-success)
 
 ## Overview
 
-**OOBIR** is a sophisticated, production-grade **AI-driven stock analysis platform** that seamlessly integrates multi-source financial data with advanced **large language model (LLM) analysis**. Purpose-built for enterprise deployment with **cloud-native architecture** and containerized execution via Docker. This novel approach combines real-time market data, fundamental analysis, and AI-powered sentiment analysis to deliver actionable investment insights with institutional-grade reliability.
+**OOBIR** is a sophisticated, production-grade **AI-driven stock analysis platform** that seamlessly integrates multi-source financial data with advanced **large language model (LLM) analysis**. Purpose-built for enterprise deployment with **cloud-native architecture** and containerized execution via Docker. This novel approach combines real-time market data, fundamental analysis, technical indicators, and AI-powered sentiment analysis to deliver actionable investment insights with institutional-grade reliability.
 
 **Core Capabilities:**
 - 🤖 **LLM-Powered Intelligence**: Ollama integration for local, privacy-preserving AI analysis
+- 🎨 **Interactive Web UI**: Beautiful real-time stock analysis dashboard with candlestick charts and technical indicators
 - 🐳 **Cloud-Ready Containerization**: Docker/Docker Compose for seamless multi-environment deployment
 - 📊 **Intelligent Data Synthesis**: AI agents analyze multiple data sources simultaneously (fundamentals, technicals, sentiment)
 - 🚀 **Scalable REST API**: 24 endpoints with auto-generated documentation and health monitoring
@@ -23,8 +25,9 @@ Unlike traditional stock analysis tools that separate data retrieval from analys
 - **Intelligent Data Synthesis**: AI agents analyze multiple data sources simultaneously (fundamentals, technicals, sentiment) with contextual reasoning
 - **Context-Aware Recommendations**: LLM-powered analysis synthesizes news sentiment, balance sheet health, and technical patterns in single recommendations
 - **Cloud-Native Deployment**: Containerized with Docker Compose—deploy locally, on-premises, or cloud (AWS/Azure/GCP) with identical reproducibility
-- **Dual Interface**: Seamlessly operate via CLI or REST API without code duplication—single business logic, multiple access patterns
+- **Dual Interface**: Seamlessly operate via CLI, REST API, or interactive Web UI without code duplication—single business logic, multiple access patterns
 - **Production-Ready Testing**: Comprehensive 53-test suite with 100% endpoint coverage including mocked external dependencies
+- **Professional Web Dashboard**: Real-time candlestick charts with technical indicators (SMA 20, SMA 50, Bollinger Bands) and on-demand AI analysis buttons
 
 ## Table of Contents
 
@@ -32,20 +35,22 @@ Unlike traditional stock analysis tools that separate data retrieval from analys
 2. [Quick Start](#quick-start)
 3. [Features](#features)
 4. [Installation](#installation)
-5. [CLI Usage](#cli-usage)
-6. [REST API](#rest-api)
-7. [Docker Deployment](#docker-deployment)
-8. [Available Functions](#available-functions)
-9. [Architecture & Design](#architecture--design)
-10. [Testing Strategy](#testing-strategy)
-11. [Contributing](#contributing)
+5. [Web UI Usage](#web-ui-usage)
+6. [CLI Usage](#cli-usage)
+7. [REST API](#rest-api)
+8. [Docker Deployment](#docker-deployment)
+9. [Available Functions](#available-functions)
+10. [Architecture & Design](#architecture--design)
+11. [Testing Strategy](#testing-strategy)
+12. [Contributing](#contributing)
 
 ## Why OOBIR?
 
 ### Novel Architectural Approach
-- **Unified Data-Analysis Pipeline**: Unlike siloed tools, OOBIR's business logic layer serves both CLI and REST API without duplication, ensuring consistency across interfaces
+- **Unified Data-Analysis Pipeline**: Unlike siloed tools, OOBIR's business logic layer serves CLI, REST API, and Web UI without duplication, ensuring consistency across interfaces
 - **LLM-Native Stock Analysis**: Purpose-built for AI-powered recommendations rather than bolting on LLM after-the-fact
 - **Comprehensive Multi-Source Intelligence**: Synthesizes fundamentals, technicals, sentiment, and analyst consensus through AI reasoning
+- **Interactive Web Dashboard**: Beautiful, responsive UI with real-time data visualization and on-demand AI analysis
 
 ### Production Quality
 - **53 Comprehensive Tests** covering all 24 API endpoints with success/failure paths and external dependency mocking
@@ -53,6 +58,7 @@ Unlike traditional stock analysis tools that separate data retrieval from analys
 - **Enterprise Error Handling**: Meaningful HTTP status codes and error messages for production systems
 - **Cloud-Native Ready**: Single command deployment with Docker Compose—reproducible across development, staging, and production environments
 - **AI Service Integration**: Seamless Ollama integration with automatic model management and health verification
+- **Professional UI/UX**: Responsive web interface with charts, technical analysis, and accessible design
 
 ## Quick Start
 
@@ -60,8 +66,26 @@ Unlike traditional stock analysis tools that separate data retrieval from analys
 - Python 3.11+ (for local runs)
 - Docker & Docker Compose (recommended for deployment)
 - Ollama service (for AI analysis features)
+- Modern web browser (for Web UI)
 
-### Local Setup
+### Docker Quick Start (Recommended)
+
+```bash
+# Start all services (app + web + ollama)
+docker compose up -d --build
+
+# Pull the AI model
+docker compose exec ollama ollama pull huihui_ai/llama3.2-abliterate:3b
+
+# Verify health
+curl http://localhost:8000/health
+
+# Access services
+# Web UI: http://localhost:8081
+# API Docs: http://localhost:8000/docs
+```
+
+### Local Setup (Advanced)
 
 ```bash
 # Create virtual environment
@@ -71,33 +95,47 @@ source venv/bin/activate
 # Install dependencies
 pip install --upgrade pip
 pip install -r requirements.txt
-```
 
-### Docker Quick Start (Recommended)
+# Start API server
+python flow_api.py
+# API: http://localhost:8000
+# Docs: http://localhost:8000/docs
 
-```bash
-# Start all services (app + ollama)
-docker compose up -d --build
-
-# Pull the AI model
-docker compose exec ollama ollama pull huihui_ai/llama3.2-abliterate:3b
-
-# Verify health
-curl http://localhost:8000/health
-curl http://localhost:8000/health/ollama
-
-# Access API documentation
-open http://localhost:8000/docs
+# In another terminal, serve web UI (requires Python http.server)
+cd web && python -m http.server 8081
+# Web UI: http://localhost:8081
 ```
 
 ## Features
 
+### 🎨 Interactive Web Dashboard
+- **Real-Time Stock Search**: Search any ticker symbol with instant data loading
+- **Candlestick Chart with Technical Indicators**: Professional price history visualization with:
+  - SMA 20 (blue line) - 20-period moving average
+  - SMA 50 (orange line) - 50-period moving average
+  - Bollinger Bands (purple shaded area) - 20-period with 2 standard deviations
+  - Hover tooltips showing OHLC data
+- **Comprehensive Financial Data**: 
+  - Fundamentals (P/E ratio, market cap, earnings, etc.)
+  - Price history (120+ days of OHLCV data)
+  - Balance sheet metrics
+  - Income statement data
+  - Analyst targets and consensus
+  - Earnings calendar
+- **On-Demand AI Analysis Buttons**: Click to run AI analysis (appears only when needed to avoid slow auto-loading):
+  - AI Recommendation (buy/sell/hold with reasoning)
+  - Technical Analysis (pattern recognition and indicator interpretation)
+  - News & Sentiment Analysis (AI-powered sentiment from recent news)
+- **Responsive Design**: Optimized for desktop and tablet viewing
+
 ### 🤖 Advanced AI & LLM Capabilities
 - **LLM-Powered Intelligence**: Integrated Ollama LLM (huihui_ai/llama3.2-abliterate:3b) for sophisticated AI analysis
 - **9 Specialized AI Analysis Functions**: Fundamental, technical, balance sheet, income statement, and full report generation
+- **AI Technical Analysis**: LLM-powered analysis of technical indicators (precomputed SMA, RSI, MACD, Bollinger Bands, volume)
 - **AI News Sentiment Analysis**: LLM-powered sentiment analysis of recent news articles for market context
 - **Intelligent Recommendations**: AI-generated buy/sell/hold recommendations available in detailed, sentence, or single-word formats
 - **Context-Aware Reasoning**: LLM synthesizes multiple data sources to provide nuanced, multi-perspective analysis
+
 
 ### 📊 Data Intelligence Layer
 - **Multi-Source Financial Data**: Real-time and historical data across fundamentals, technicals, options, and analyst consensus
@@ -108,14 +146,14 @@ open http://localhost:8000/docs
 ### 🐳 Cloud & Container Deployment
 - **Docker-First Architecture**: Containerized application with Docker Compose orchestration
 - **Cloud-Native Ready**: Deploy to AWS, Azure, GCP, or on-premises with identical reproducibility
-- **Service Mesh Integration**: Multi-container setup (app + Ollama) with automatic health checks
+- **Service Mesh Integration**: Multi-container setup (app + web + Ollama) with automatic health checks
 - **Environment Parity**: Guaranteed consistency across development, staging, and production
 - **Scalability**: Stateless design supports horizontal scaling, load balancing, and orchestration (Kubernetes-compatible)
 
 ### 🚀 REST API & Platform Features
 - **24 Comprehensive Endpoints**: 2 health checks, 13 data endpoints, 9 AI analysis endpoints
 - **REST API with AutoDocs**: Full OpenAPI 3.0/Swagger documentation auto-generated by FastAPI
-- **Dual Interface Architecture**: Identical functionality via CLI (`flow.py`) or REST API (`flow_api.py`) without code duplication
+- **Triple Interface Architecture**: Identical functionality via CLI, REST API, and Web UI without code duplication
 - **Health Monitoring**: Real-time service health checks for app and Ollama LLM with graceful fallbacks
 - **Production Error Handling**: Comprehensive error responses with actionable messages and proper HTTP status codes
 - **Enterprise Scalability**: Stateless design supports horizontal scaling via Docker and Kubernetes orchestration
@@ -140,11 +178,100 @@ pip install -r requirements.txt
 - ollama: LLM integration
 - requests: HTTP requests
 
+**Frontend:**
+- HTML5, CSS3, vanilla JavaScript (no external dependencies)
+
 **Development:**
 - pytest: Testing framework
 - unittest.mock: Test mocking
 
 See `requirements.txt` and `dev-requirements.txt` for full list.
+
+## Web UI Usage
+
+### Accessing the Web Dashboard
+
+**With Docker (Recommended):**
+```bash
+docker compose up -d
+# Open browser to http://localhost:8081
+```
+
+**Locally:**
+```bash
+# Terminal 1: Start API server
+python flow_api.py
+# Runs on http://localhost:8000
+
+# Terminal 2: Serve web UI
+cd web && python -m http.server 8081
+# Open http://localhost:8081 in browser
+```
+
+**Remote Deployment:**
+```bash
+# After SSH to remote server
+# Web UI: http://192.168.1.248:8081
+# API Docs: http://192.168.1.248:8000/docs
+```
+
+### Using the Web Dashboard
+
+1. **Search for a Stock**
+   - Enter ticker symbol (e.g., AAPL, MSFT, TSLA)
+   - Click search or press Enter
+   - System auto-loads all financial data
+
+2. **View Price History with Technical Indicators**
+   - Featured candlestick chart displays at top
+   - Green candles = price up, Red candles = price down
+   - Blue line = SMA 20 (short-term trend)
+   - Orange line = SMA 50 (long-term trend)
+   - Purple shaded area = Bollinger Bands (volatility indicator)
+   - Hover over candles to see exact OHLC values
+
+3. **Review Financial Data**
+   - Fundamentals: P/E ratio, market cap, earnings, ROE, etc.
+   - Analyst Targets: Price targets and analyst recommendations
+   - Balance Sheet: Assets, liabilities, equity
+   - Income Statement: Revenue, earnings, margins
+   - Calendar: Upcoming earnings dates and events
+
+4. **Run AI Analysis (On-Demand)**
+   - **AI Recommendation**: Click button to get buy/sell/hold recommendation with full reasoning
+   - **Technical Analysis**: AI interpretation of technical indicators and price patterns
+   - **News & Sentiment**: AI analysis of recent news and market sentiment
+   - Results appear below each button after processing
+
+### Web UI Files
+
+```
+web/
+├── index.html      # Main HTML structure
+├── styles.css      # Responsive styling
+├── app.js          # Frontend logic and data visualization
+└── config.js       # API base URL configuration
+```
+
+### Customizing the Web UI
+
+**Change API Base URL:**
+Edit `web/config.js`:
+```javascript
+const API_BASE_URL = 'http://192.168.1.248:8000'; // Change to your API server
+```
+
+**Styling:**
+Edit `web/styles.css` to customize colors, fonts, layout, etc.
+
+**Chart Colors:**
+In `web/app.js`, modify the color constants in `renderPriceHistory()`:
+- Green candles: `#22c55e`
+- Red candles: `#ef4444`
+- SMA 20: `#3b82f6`
+- SMA 50: `#f59e0b`
+- Bollinger Bands: `#a78bfa`
+
 
 ## CLI Usage
 
@@ -330,11 +457,11 @@ Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model installed.
 ┌──────────────────────────────────────────────┐
 │          Presentation Layer                  │
 ├──────────────────────────────────────────────┤
-│   CLI Interface      │   REST API             │
-│   (flow.py)          │   (flow_api.py)        │
-│                      │   • 24 Endpoints       │
-│                      │   • OpenAPI/Swagger    │
-│                      │   • Health Checks      │
+│   CLI Interface  │  REST API  │  Web UI      │
+│   (flow.py)      │(flow_api)  │ (HTML/CSS)   │
+│                  │ • 24 Endpoints            │
+│                  │ • OpenAPI/Swagger         │
+│                  │ • Health Checks           │
 ├──────────────────────────────────────────────┤
 │      Business Logic Layer (Unified)          │
 ├──────────────────────────────────────────────┤
@@ -354,14 +481,39 @@ Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model installed.
 └──────────────────────────────────────────────┘
 ```
 
+### Frontend Architecture (Web UI)
+
+```
+┌─────────────────────────────────────────┐
+│          Web UI (HTML5/CSS3/JS)          │
+├─────────────────────────────────────────┤
+│  Search Component   │   Data Display     │
+│  • Ticker input     │   • Price chart    │
+│  • Search button    │   • Fundamentals   │
+│  • Quick search     │   • AI analysis    │
+├─────────────────────────────────────────┤
+│         Frontend Logic (app.js)          │
+├─────────────────────────────────────────┤
+│  • Fetch data from REST API              │
+│  • Render candlestick chart              │
+│  • Calculate technical indicators        │
+│  • Handle user interactions              │
+│  • On-demand AI button loading           │
+├─────────────────────────────────────────┤
+│    REST API (FastAPI) - 24 Endpoints     │
+└─────────────────────────────────────────┘
+```
+
 ### Architectural Principles
 
-1. **Single Codebase, Multiple Interfaces**: Business logic implemented once, exposed via CLI and REST API—eliminates duplication and ensures consistency
+1. **Single Codebase, Multiple Interfaces**: Business logic implemented once, exposed via CLI, REST API, and Web UI—eliminates duplication and ensures consistency
 2. **Separation of Concerns**: Distinct layers for presentation, business logic, and external integrations
-3. **Dependency Injection & Mocking**: Designed for testability with cleanly mockable external services
-4. **Stateless Design**: Supports horizontal scaling and cloud deployment patterns
-5. **Error Propagation**: Meaningful error messages bubble up from business logic through API layers
-6. **Health-First Design**: Service health monitored at multiple levels with graceful degradation
+3. **Frontend-Backend Separation**: Web UI communicates exclusively via REST API, allowing independent scaling and deployment
+4. **Dependency Injection & Mocking**: Designed for testability with cleanly mockable external services
+5. **Stateless Design**: Supports horizontal scaling and cloud deployment patterns
+6. **Error Propagation**: Meaningful error messages bubble up from business logic through API layers
+7. **Health-First Design**: Service health monitored at multiple levels with graceful degradation
+8. **Technical Indicator Computation**: Client-side rendering with server-side data ensures optimal performance
 
 ### Technology Stack
 
@@ -577,6 +729,6 @@ For issues, questions, or contributions, please open an issue on GitHub.
 
 ---
 
-**Last Updated**: December 18, 2025  
-**Version**: 1.0.0  
-**Status**: Production Ready
+**Last Updated**: December 19, 2025  
+**Version**: 1.1.0  
+**Status**: Production Ready with Interactive Web UI

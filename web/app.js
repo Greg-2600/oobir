@@ -28,6 +28,40 @@ searchForm.addEventListener('submit', handleSearch);
 searchFormCompact.addEventListener('submit', handleSearch);
 backButton.addEventListener('click', showLandingPage);
 
+// Technical Indicator Calculations
+function calculateSMA(prices, period) {
+    const result = new Array(prices.length).fill(null);
+    for (let i = period - 1; i < prices.length; i++) {
+        let sum = 0;
+        for (let j = 0; j < period; j++) {
+            sum += prices[i - j].Close;
+        }
+        result[i] = sum / period;
+    }
+    return result;
+}
+
+function calculateBollingerBands(prices, period, stdDevMultiplier) {
+    const sma = calculateSMA(prices, period);
+    const upper = new Array(prices.length).fill(null);
+    const lower = new Array(prices.length).fill(null);
+    const middle = sma;
+    
+    for (let i = period - 1; i < prices.length; i++) {
+        if (sma[i] === null) continue;
+        
+        let sum = 0;
+        for (let j = 0; j < period; j++) {
+            sum += Math.pow(prices[i - j].Close - sma[i], 2);
+        }
+        const stdDev = Math.sqrt(sum / period);
+        upper[i] = sma[i] + (stdDev * stdDevMultiplier);
+        lower[i] = sma[i] - (stdDev * stdDevMultiplier);
+    }
+    
+    return { upper, lower, middle };
+}
+
 // Handle search submission
 function handleSearch(e) {
     e.preventDefault();
@@ -83,8 +117,10 @@ async function loadStockData(ticker) {
     // Update stock header
     document.getElementById('stock-symbol').textContent = ticker;
     
-    // Initialize AI recommendation with a button
+    // Initialize AI sections with buttons
     initializeAIRecommendation(ticker);
+    initializeNewsSentiment(ticker);
+    initializeTechnicalAnalysis(ticker);
     
     // Load all data concurrently
     const dataPromises = {
@@ -139,6 +175,76 @@ async function loadAIRecommendation(ticker) {
     }
 }
 
+// Initialize news sentiment with button
+function initializeNewsSentiment(ticker) {
+    const container = document.getElementById('news-sentiment-data');
+    container.innerHTML = `
+        <button class="ai-button" onclick="loadNewsSentiment('${ticker}')">
+            📰 Get News & Sentiment Analysis
+        </button>
+    `;
+}
+
+// Load news sentiment on demand
+async function loadNewsSentiment(ticker) {
+    const container = document.getElementById('news-sentiment-data');
+    container.innerHTML = '<p class="text-muted">🔄 Loading news sentiment...</p>';
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/ai/news-sentiment/${ticker}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        renderNewsSentiment(data, container);
+    } catch (error) {
+        console.error(`Error fetching news sentiment:`, error);
+        container.innerHTML = `
+            <p class="text-danger">❌ Failed to load news sentiment</p>
+            <button class="ai-button" onclick="loadNewsSentiment('${ticker}')" style="margin-top: 10px;">
+                🔄 Retry
+            </button>
+        `;
+    }
+}
+
+// Initialize technical analysis button
+function initializeTechnicalAnalysis(ticker) {
+    const container = document.getElementById('technical-analysis-data');
+    container.innerHTML = `
+        <button class="ai-button" onclick="loadTechnicalAnalysis('${ticker}')">
+            📊 Get Technical Analysis
+        </button>
+    `;
+}
+
+// Load technical analysis on demand
+async function loadTechnicalAnalysis(ticker) {
+    const container = document.getElementById('technical-analysis-data');
+    container.innerHTML = '<p class="text-muted">🔄 Loading technical analysis...</p>';
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/ai/technical-analysis/${ticker}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        renderTechnicalAnalysis(data, container);
+    } catch (error) {
+        console.error(`Error fetching technical analysis:`, error);
+        container.innerHTML = `
+            <p class="text-danger">❌ Failed to load technical analysis</p>
+            <button class="ai-button" onclick="loadTechnicalAnalysis('${ticker}')" style="margin-top: 10px;">
+                🔄 Retry
+            </button>
+        `;
+    }
+}
+
 // Generic fetch function
 async function fetchData(endpoint, containerId, renderFunction) {
     const container = document.getElementById(containerId);
@@ -151,6 +257,7 @@ async function fetchData(endpoint, containerId, renderFunction) {
         }
         
         const data = await response.json();
+        console.log(`Fetched ${endpoint}:`, data); // Debug logging
         renderFunction(data, container);
     } catch (error) {
         console.error(`Error fetching ${endpoint}:`, error);
@@ -160,6 +267,7 @@ async function fetchData(endpoint, containerId, renderFunction) {
 
 // Render functions
 function renderFundamentals(data, container) {
+    console.log('renderFundamentals called with:', data);
     if (!data || typeof data !== 'object') {
         container.innerHTML = '<p class="text-muted">No data available</p>';
         return;
@@ -180,7 +288,9 @@ function renderFundamentals(data, container) {
 }
 
 function renderPriceHistory(data, container) {
+    console.log('renderPriceHistory called with:', data);
     if (!data || !data.data || !Array.isArray(data.data)) {
+        console.log('Price history data validation failed');
         container.innerHTML = '<p class="text-muted">No price history available</p>';
         return;
     }
@@ -198,19 +308,86 @@ function renderPriceHistory(data, container) {
         </span>
     `;
     
-    // Create simple chart
+    // Calculate price range for scaling
+    const minPrice = Math.min(...prices.map(p => p.Low));
+    const maxPrice = Math.max(...prices.map(p => p.High));
+    const range = maxPrice - minPrice;
+    
+    // Calculate technical indicators
+    const sma20 = calculateSMA(prices, 20);
+    const sma50 = calculateSMA(prices, 50);
+    const { upper: bbUpper, lower: bbLower } = calculateBollingerBands(prices, 20, 2);
+    
+    // Create candlestick chart with technical indicators
     const chartHtml = `
-        <div class="price-chart">
-            ${prices.map(day => {
-                const height = ((day.Close - Math.min(...prices.map(p => p.Close))) / 
-                              (Math.max(...prices.map(p => p.Close)) - Math.min(...prices.map(p => p.Close)))) * 100;
-                return `<div class="price-bar" style="height: ${height}%" title="${day.Date}: $${day.Close.toFixed(2)}"></div>`;
-            }).join('')}
-        </div>
-        <div style="text-align: center; margin-top: 16px;">
-            <strong>Latest Close:</strong> ${formatCurrency(latest.Close)} | 
-            <strong>High:</strong> ${formatCurrency(Math.max(...prices.map(p => p.High)))} | 
-            <strong>Low:</strong> ${formatCurrency(Math.min(...prices.map(p => p.Low)))}
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Legend -->
+            <div style="display: flex; gap: 20px; font-size: 0.85em; flex-wrap: wrap;">
+                <div><span style="display: inline-block; width: 12px; height: 2px; background: #22c55e; margin-right: 4px;"></span>Green = Up</div>
+                <div><span style="display: inline-block; width: 12px; height: 2px; background: #ef4444; margin-right: 4px;"></span>Red = Down</div>
+                <div><span style="display: inline-block; width: 12px; height: 2px; background: #3b82f6; margin-right: 4px;"></span>SMA 20</div>
+                <div><span style="display: inline-block; width: 12px; height: 2px; background: #f59e0b; margin-right: 4px;"></span>SMA 50</div>
+                <div><span style="display: inline-block; width: 12px; height: 1px; background: #a78bfa; margin-right: 4px;"></span>Bollinger Bands</div>
+            </div>
+            
+            <!-- Chart -->
+            <div style="display: flex; align-items: flex-end; justify-content: space-around; gap: 2px; height: 280px; padding: 10px; background: #f9f9f9; border-radius: 4px; position: relative;">
+                ${prices.map((day, idx) => {
+                    const open = day.Open;
+                    const close = day.Close;
+                    const high = day.High;
+                    const low = day.Low;
+                    
+                    // Normalize to 0-100 scale
+                    const highPercent = ((high - minPrice) / range) * 100;
+                    const lowPercent = ((low - minPrice) / range) * 100;
+                    const openPercent = ((open - minPrice) / range) * 100;
+                    const closePercent = ((close - minPrice) / range) * 100;
+                    
+                    // Technical indicators positioning
+                    const sma20Percent = sma20[idx] ? ((sma20[idx] - minPrice) / range) * 100 : null;
+                    const sma50Percent = sma50[idx] ? ((sma50[idx] - minPrice) / range) * 100 : null;
+                    const bbUpperPercent = bbUpper[idx] ? ((bbUpper[idx] - minPrice) / range) * 100 : null;
+                    const bbLowerPercent = bbLower[idx] ? ((bbLower[idx] - minPrice) / range) * 100 : null;
+                    
+                    // Determine color (green for up, red for down)
+                    const isUp = close >= open;
+                    const color = isUp ? '#22c55e' : '#ef4444';
+                    
+                    // Body is between open and close
+                    const bodyTop = Math.min(openPercent, closePercent);
+                    const bodyHeight = Math.abs(closePercent - openPercent) || 1;
+                    const wickTop = lowPercent;
+                    const wickHeight = highPercent - lowPercent;
+                    
+                    // Build indicator HTML
+                    let indicatorHtml = '';
+                    if (bbUpperPercent && bbLowerPercent) {
+                        indicatorHtml += '<div style="position: absolute; bottom: ' + bbLowerPercent + '%; width: 100%; height: ' + (bbUpperPercent - bbLowerPercent) + '%; background: rgba(167, 139, 250, 0.1); border-top: 0.5px solid rgba(167, 139, 250, 0.5); border-bottom: 0.5px solid rgba(167, 139, 250, 0.5);"></div>';
+                    }
+                    if (sma50Percent) {
+                        indicatorHtml += '<div style="position: absolute; bottom: ' + sma50Percent + '%; width: 100%; height: 1px; background: #f59e0b;"></div>';
+                    }
+                    if (sma20Percent) {
+                        indicatorHtml += '<div style="position: absolute; bottom: ' + sma20Percent + '%; width: 100%; height: 1px; background: #3b82f6;"></div>';
+                    }
+                    
+                    return '<div style="flex: 1; position: relative; height: 100%;" title="' + day.Date + ': O:$' + open.toFixed(2) + ' H:$' + high.toFixed(2) + ' L:$' + low.toFixed(2) + ' C:$' + close.toFixed(2) + '">' +
+                        indicatorHtml +
+                        '<div style="position: absolute; bottom: ' + wickTop + '%; width: 2px; height: ' + wickHeight + '%; background: ' + color + '; left: 50%; transform: translateX(-50%);"></div>' +
+                        '<div style="position: absolute; bottom: ' + bodyTop + '%; width: 100%; height: ' + bodyHeight + '%; background: ' + color + '; opacity: 0.8; border: 1px solid ' + color + ';"></div>' +
+                        '</div>';
+                }).join('')}
+            </div>
+            
+            <!-- Stats -->
+            <div style="text-align: center; margin-top: 16px; font-size: 0.9em; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                <div><strong>Latest Close:</strong> ${formatCurrency(latest.Close)}</div>
+                <div><strong>High:</strong> ${formatCurrency(maxPrice)}</div>
+                <div><strong>Low:</strong> ${formatCurrency(minPrice)}</div>
+                <div><strong>SMA 20:</strong> ${formatCurrency(sma20[sma20.length - 1] || 0)}</div>
+                <div><strong>SMA 50:</strong> ${formatCurrency(sma50[sma50.length - 1] || 0)}</div>
+            </div>
         </div>
     `;
     
@@ -224,27 +401,43 @@ function renderAnalystTargets(data, container) {
     }
     
     const fields = {
-        'Current Price': formatCurrency(data.currentPrice || data.current_price),
-        'Target High': formatCurrency(data.targetHighPrice || data.target_high_price),
-        'Target Mean': formatCurrency(data.targetMeanPrice || data.target_mean_price),
-        'Target Low': formatCurrency(data.targetLowPrice || data.target_low_price),
-        'Recommendation': (data.recommendationKey || data.recommendation_key || 'N/A').toUpperCase(),
-        'Number of Analysts': data.numberOfAnalystOpinions || data.number_of_analyst_opinions || 'N/A'
+        'Current Price': formatCurrency(data.current || data.currentPrice || data.current_price),
+        'Target High': formatCurrency(data.high || data.targetHighPrice || data.target_high_price),
+        'Target Mean': formatCurrency(data.mean || data.targetMeanPrice || data.target_mean_price),
+        'Target Low': formatCurrency(data.low || data.targetLowPrice || data.target_low_price),
+        'Target Median': formatCurrency(data.median || data.targetMedianPrice || data.target_median_price)
     };
     
     renderTable(fields, container);
 }
 
 function renderCalendar(data, container) {
-    if (!data || !Array.isArray(data) || data.length === 0) {
+    if (!data || typeof data !== 'object') {
         container.innerHTML = '<p class="text-muted">No upcoming events</p>';
         return;
     }
     
-    const html = data.map(event => `
+    // Build event list from calendar data
+    const events = [];
+    if (data['Dividend Date']) {
+        events.push({ event: '💰 Dividend Date', date: data['Dividend Date'] });
+    }
+    if (data['Ex-Dividend Date']) {
+        events.push({ event: '📅 Ex-Dividend Date', date: data['Ex-Dividend Date'] });
+    }
+    if (data['Earnings Date'] && Array.isArray(data['Earnings Date']) && data['Earnings Date'].length > 0) {
+        events.push({ event: '📊 Earnings Date', date: data['Earnings Date'][0] });
+    }
+    
+    if (events.length === 0) {
+        container.innerHTML = '<p class="text-muted">No upcoming events</p>';
+        return;
+    }
+    
+    const html = events.map(event => `
         <div class="news-item">
-            <div class="news-title">${event.event || event.title || 'Event'}</div>
-            <div class="news-meta">${event.date || event.eventDate || 'Date TBD'}</div>
+            <div class="news-title">${event.event}</div>
+            <div class="news-meta">${event.date}</div>
         </div>
     `).join('');
     
@@ -257,13 +450,21 @@ function renderIncomeStatement(data, container) {
         return;
     }
     
+    // Extract most recent quarter (first date key)
+    const dates = Object.keys(data);
+    if (dates.length === 0) {
+        container.innerHTML = '<p class="text-muted">No income statement available</p>';
+        return;
+    }
+    const latestData = data[dates[0]];
+    
     const fields = {
-        'Revenue': formatLargeNumber(data.totalRevenue || data.total_revenue),
-        'Gross Profit': formatLargeNumber(data.grossProfit || data.gross_profit),
-        'Operating Income': formatLargeNumber(data.operatingIncome || data.operating_income),
-        'Net Income': formatLargeNumber(data.netIncome || data.net_income),
-        'EPS': formatNumber(data.basicEPS || data.basic_eps),
-        'EBITDA': formatLargeNumber(data.ebitda)
+        'Revenue': formatLargeNumber(latestData['Total Revenue'] || latestData.totalRevenue || latestData.total_revenue),
+        'Gross Profit': formatLargeNumber(latestData['Gross Profit'] || latestData.grossProfit || latestData.gross_profit),
+        'Operating Income': formatLargeNumber(latestData['Operating Income'] || latestData.operatingIncome || latestData.operating_income),
+        'Net Income': formatLargeNumber(latestData['Net Income'] || latestData.netIncome || latestData.net_income),
+        'EPS': formatNumber(latestData['Basic EPS'] || latestData.basicEPS || latestData.basic_eps),
+        'EBITDA': formatLargeNumber(latestData.EBITDA || latestData.ebitda)
     };
     
     renderTable(fields, container);
@@ -275,12 +476,20 @@ function renderBalanceSheet(data, container) {
         return;
     }
     
+    // Extract most recent quarter (first date key)
+    const dates = Object.keys(data);
+    if (dates.length === 0) {
+        container.innerHTML = '<p class="text-muted">No balance sheet available</p>';
+        return;
+    }
+    const latestData = data[dates[0]];
+    
     const fields = {
-        'Total Assets': formatLargeNumber(data.totalAssets || data.total_assets),
-        'Total Liabilities': formatLargeNumber(data.totalLiabilitiesNetMinorityInterest || data.total_liabilities),
-        'Cash': formatLargeNumber(data.cashAndCashEquivalents || data.cash),
-        'Total Debt': formatLargeNumber(data.totalDebt || data.total_debt),
-        'Stockholders Equity': formatLargeNumber(data.stockholdersEquity || data.stockholders_equity)
+        'Total Assets': formatLargeNumber(latestData['TotalAssets'] || latestData['Total Assets'] || latestData.totalAssets || latestData.total_assets),
+        'Total Liabilities': formatLargeNumber(latestData['TotalLiabilitiesNetMinorityInterest'] || latestData['Total Liabilities Net Minority Interest'] || latestData.totalLiabilitiesNetMinorityInterest || latestData.total_liabilities),
+        'Cash': formatLargeNumber(latestData['CashAndCashEquivalents'] || latestData['Cash And Cash Equivalents'] || latestData.cashAndCashEquivalents || latestData.cash),
+        'Total Debt': formatLargeNumber(latestData['TotalDebt'] || latestData['Total Debt'] || latestData.totalDebt || latestData.total_debt),
+        'Stockholders Equity': formatLargeNumber(latestData['StockholdersEquity'] || latestData['Stockholders Equity'] || latestData.stockholdersEquity || latestData.stockholders_equity)
     };
     
     renderTable(fields, container);
