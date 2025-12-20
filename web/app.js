@@ -215,6 +215,8 @@ async function loadStockData(ticker) {
     initializeAIRecommendation(ticker);
     initializeNewsSentiment(ticker);
     initializeTechnicalAnalysis(ticker);
+    initializeIncomeStmtAnalysis(ticker);
+    initializeBalanceSheetAnalysis(ticker);
     
     // Load all data concurrently
     const dataPromises = {
@@ -245,7 +247,7 @@ function initializeAIRecommendation(ticker) {
     const container = document.getElementById('ai-recommendation');
     container.innerHTML = `
         <button class="ai-button" onclick="loadAIRecommendation('${ticker}')">
-            🤖 Get AI Fundamental Analysis
+            🧠 Get Fundamental Analysis
         </button>
     `;
 }
@@ -340,6 +342,74 @@ async function loadTechnicalAnalysis(ticker) {
         container.innerHTML = `
             <p class="text-danger">❌ Failed to load technical analysis</p>
             <button class="ai-button" onclick="loadTechnicalAnalysis('${ticker}')" style="margin-top: 10px;">
+                🔄 Retry
+            </button>
+        `;
+    }
+}
+
+// Initialize Income Statement Analysis with button
+function initializeIncomeStmtAnalysis(ticker) {
+    const container = document.getElementById('income-stmt-analysis-data');
+    if (!container) return;
+    container.innerHTML = `
+        <button class="ai-button" onclick="loadIncomeStmtAnalysis('${ticker}')">
+            💵 Get Income Statement Analysis
+        </button>
+    `;
+}
+
+// Load Income Statement analysis on demand
+async function loadIncomeStmtAnalysis(ticker) {
+    const container = document.getElementById('income-stmt-analysis-data');
+    if (!container) return;
+    container.innerHTML = '<p class="text-muted">🔄 Loading income statement analysis...</p>';
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/ai/income-stmt-analysis/${ticker}`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        renderIncomeStmtAnalysis(data, container);
+    } catch (error) {
+        console.error('Error fetching income statement analysis:', error);
+        container.innerHTML = `
+            <p class="text-danger">❌ Failed to load income statement analysis</p>
+            <button class="ai-button" onclick="loadIncomeStmtAnalysis('${ticker}')" style="margin-top: 10px;">
+                🔄 Retry
+            </button>
+        `;
+    }
+}
+
+// Initialize Balance Sheet Analysis with button
+function initializeBalanceSheetAnalysis(ticker) {
+    const container = document.getElementById('balance-sheet-analysis-data');
+    if (!container) return;
+    container.innerHTML = `
+        <button class="ai-button" onclick="loadBalanceSheetAnalysis('${ticker}')">
+            💰 Get Balance Sheet Analysis
+        </button>
+    `;
+}
+
+// Load Balance Sheet analysis on demand
+async function loadBalanceSheetAnalysis(ticker) {
+    const container = document.getElementById('balance-sheet-analysis-data');
+    if (!container) return;
+    container.innerHTML = '<p class="text-muted">🔄 Loading balance sheet analysis...</p>';
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/ai/balance-sheet-analysis/${ticker}`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        renderBalanceSheetAnalysis(data, container);
+    } catch (error) {
+        console.error('Error fetching balance sheet analysis:', error);
+        container.innerHTML = `
+            <p class="text-danger">❌ Failed to load balance sheet analysis</p>
+            <button class="ai-button" onclick="loadBalanceSheetAnalysis('${ticker}')" style="margin-top: 10px;">
                 🔄 Retry
             </button>
         `;
@@ -608,7 +678,8 @@ function renderPriceHistory(data, container) {
                             indicatorHtml += '<div style="position: absolute; bottom: ' + sma20Percent + '%; width: 100%; height: 1px; background: #3b82f6;"></div>';
                         }
                         
-                        return '<div style="flex: 1; position: relative; height: 100%;" title="' + day.Date + ': O:$' + open.toFixed(2) + ' H:$' + high.toFixed(2) + ' L:$' + low.toFixed(2) + ' C:$' + close.toFixed(2) + '">' +
+                        const dateLabel = (typeof day.Date === 'string') ? day.Date.split('T')[0] : day.Date;
+                        return '<div style="flex: 1; position: relative; height: 100%;" title="' + dateLabel + ': O:$' + open.toFixed(2) + ' H:$' + high.toFixed(2) + ' L:$' + low.toFixed(2) + ' C:$' + close.toFixed(2) + '">' +
                             indicatorHtml +
                             '<div style="position: absolute; bottom: ' + wickTop + '%; width: 2px; height: ' + wickHeight + '%; background: ' + color + '; left: 50%; transform: translateX(-50%);"></div>' +
                             '<div style="position: absolute; bottom: ' + bodyTop + '%; width: 100%; height: ' + bodyHeight + '%; background: ' + color + '; opacity: 0.8; border: 1px solid ' + color + ';"></div>' +
@@ -622,13 +693,15 @@ function renderPriceHistory(data, container) {
                         const step = Math.max(1, Math.floor(prices.length / 8)); // Show ~8 dates
                         for (let i = 0; i < prices.length; i += step) {
                             const dateStr = prices[i].Date;
-                            const [year, month, day] = dateStr.split('-');
+                            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
+                            const [year, month, day] = base.split('-');
                             labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
                         }
                         // Always show last date
                         if ((prices.length - 1) % step !== 0) {
                             const dateStr = prices[prices.length - 1].Date;
-                            const [year, month, day] = dateStr.split('-');
+                            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
+                            const [year, month, day] = base.split('-');
                             labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
                         }
                         return labels.join('');
@@ -645,7 +718,8 @@ function renderPriceHistory(data, container) {
                         const isUp = day.Close >= day.Open;
                         const color = isUp ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)';
                         
-                        return '<div style="flex: 1; position: relative; height: 100%;" title="' + day.Date + ': Volume ' + volume.toLocaleString() + '">' +
+                        const dateLabel = (typeof day.Date === 'string') ? day.Date.split('T')[0] : day.Date;
+                        return '<div style="flex: 1; position: relative; height: 100%;" title="' + dateLabel + ': Volume ' + volume.toLocaleString() + '">' +
                             '<div style="position: absolute; bottom: 0; width: 100%; height: ' + volumePercent + '%; background: ' + color + ';"></div>' +
                             '</div>';
                     }).join('')}
@@ -657,12 +731,14 @@ function renderPriceHistory(data, container) {
                         const step = Math.max(1, Math.floor(prices.length / 8));
                         for (let i = 0; i < prices.length; i += step) {
                             const dateStr = prices[i].Date;
-                            const [year, month, day] = dateStr.split('-');
+                            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
+                            const [year, month, day] = base.split('-');
                             labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
                         }
                         if ((prices.length - 1) % step !== 0) {
                             const dateStr = prices[prices.length - 1].Date;
-                            const [year, month, day] = dateStr.split('-');
+                            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
+                            const [year, month, day] = base.split('-');
                             labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
                         }
                         return labels.join('');
@@ -680,7 +756,8 @@ function renderPriceHistory(data, container) {
                         ${rsi.map((val, idx) => {
                             if (val === null) return '<div style="flex: 1;"></div>';
                             const color = val > 70 ? '#ef4444' : val < 30 ? '#22c55e' : '#6b7280';
-                            return '<div style="flex: 1; height: ' + val + '%; background: ' + color + '; opacity: 0.7;" title="' + prices[idx].Date + ': RSI ' + val.toFixed(1) + '"></div>';
+                            const dateLabel = (typeof prices[idx].Date === 'string') ? prices[idx].Date.split('T')[0] : prices[idx].Date;
+                            return '<div style="flex: 1; height: ' + val + '%; background: ' + color + '; opacity: 0.7;" title="' + dateLabel + ': RSI ' + val.toFixed(1) + '"></div>';
                         }).join('')}
                     </div>
                 </div>
@@ -691,12 +768,14 @@ function renderPriceHistory(data, container) {
                         const step = Math.max(1, Math.floor(rsi.length / 8));
                         for (let i = 0; i < rsi.length; i += step) {
                             const dateStr = prices[i].Date;
-                            const [year, month, day] = dateStr.split('-');
+                            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
+                            const [year, month, day] = base.split('-');
                             labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
                         }
                         if ((rsi.length - 1) % step !== 0) {
                             const dateStr = prices[rsi.length - 1].Date;
-                            const [year, month, day] = dateStr.split('-');
+                            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
+                            const [year, month, day] = base.split('-');
                             labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
                         }
                         return labels.join('');
@@ -716,7 +795,8 @@ function renderPriceHistory(data, container) {
                                 if (val === null) return '<div style="flex: 1;"></div>';
                                 const h = (Math.abs(val) / maxHist) * 50;
                                 const color = val >= 0 ? '#22c55e' : '#ef4444';
-                                return '<div style="flex: 1; display: flex; align-items: flex-end; justify-content: center; height: 100%;"><div style="width: 100%; height: ' + h + '%; background: ' + color + '; opacity: 0.75;" title="' + prices[idx].Date + ': ' + val.toFixed(3) + '"></div></div>';
+                                const dateLabel = (typeof prices[idx].Date === 'string') ? prices[idx].Date.split('T')[0] : prices[idx].Date;
+                                return '<div style="flex: 1; display: flex; align-items: flex-end; justify-content: center; height: 100%;"><div style="width: 100%; height: ' + h + '%; background: ' + color + '; opacity: 0.75;" title="' + dateLabel + ': ' + val.toFixed(3) + '"></div></div>';
                             }).join('');
                         })()}
                     </div>
@@ -728,12 +808,14 @@ function renderPriceHistory(data, container) {
                         const step = Math.max(1, Math.floor(histogram.length / 8));
                         for (let i = 0; i < histogram.length; i += step) {
                             const dateStr = prices[i].Date;
-                            const [year, month, day] = dateStr.split('-');
+                            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
+                            const [year, month, day] = base.split('-');
                             labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
                         }
                         if ((histogram.length - 1) % step !== 0) {
                             const dateStr = prices[histogram.length - 1].Date;
-                            const [year, month, day] = dateStr.split('-');
+                            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
+                            const [year, month, day] = base.split('-');
                             labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
                         }
                         return labels.join('');
@@ -751,7 +833,8 @@ function renderPriceHistory(data, container) {
                         ${stoch.map((val, idx) => {
                             if (val === null) return '<div style="flex: 1;"></div>';
                             const color = val > 80 ? '#ef4444' : val < 20 ? '#22c55e' : '#6b7280';
-                            return '<div style="flex: 1; height: ' + val + '%; background: ' + color + '; opacity: 0.7;" title="' + prices[idx].Date + ': ' + val.toFixed(1) + '"></div>';
+                            const dateLabel = (typeof prices[idx].Date === 'string') ? prices[idx].Date.split('T')[0] : prices[idx].Date;
+                            return '<div style="flex: 1; height: ' + val + '%; background: ' + color + '; opacity: 0.7;" title="' + dateLabel + ': ' + val.toFixed(1) + '"></div>';
                         }).join('')}
                     </div>
                 </div>
@@ -762,12 +845,14 @@ function renderPriceHistory(data, container) {
                         const step = Math.max(1, Math.floor(stoch.length / 8));
                         for (let i = 0; i < stoch.length; i += step) {
                             const dateStr = prices[i].Date;
-                            const [year, month, day] = dateStr.split('-');
+                            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
+                            const [year, month, day] = base.split('-');
                             labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
                         }
                         if ((stoch.length - 1) % step !== 0) {
                             const dateStr = prices[stoch.length - 1].Date;
-                            const [year, month, day] = dateStr.split('-');
+                            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
+                            const [year, month, day] = base.split('-');
                             labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
                         }
                         return labels.join('');
@@ -1089,6 +1174,16 @@ function renderTechnicalAnalysis(data, container) {
 }
 
 function renderNewsSentiment(data, container) {
+    const text = typeof data === 'string' ? data : JSON.stringify(data);
+    container.innerHTML = `<div style="white-space: pre-wrap; line-height: 1.8;">${escapeHtml(text)}</div>`;
+}
+
+function renderIncomeStmtAnalysis(data, container) {
+    const text = typeof data === 'string' ? data : JSON.stringify(data);
+    container.innerHTML = `<div style="white-space: pre-wrap; line-height: 1.8;">${escapeHtml(text)}</div>`;
+}
+
+function renderBalanceSheetAnalysis(data, container) {
     const text = typeof data === 'string' ? data : JSON.stringify(data);
     container.innerHTML = `<div style="white-space: pre-wrap; line-height: 1.8;">${escapeHtml(text)}</div>`;
 }
