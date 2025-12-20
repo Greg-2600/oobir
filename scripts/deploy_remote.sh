@@ -90,7 +90,6 @@ if [ -f docker-compose.yml ]; then
     docker-compose pull || true
     docker-compose up -d --build --force-recreate || true
     docker exec -i ollama ollama pull huihui_ai/llama3.2-abliterate:3b || true
-    docker exec -i ollama ollama pull llama3.2:1b || true
     # Ensure web assets are present inside nginx docroot (handles root-owned host dir)
     if docker ps --format '{{.Names}}' | grep -q '^oobir_web$'; then
       docker cp web/. oobir_web:/usr/share/nginx/html/ || true
