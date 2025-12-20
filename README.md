@@ -188,31 +188,45 @@ cd web && python -m http.server 8081
 │  │   Assets     │  │ • Health     │  │ • Inference│ │
 │  └──────────────┘  └──────────────┘  └────────────┘ │
 │         ↓                  ↓                 ↓        │
+│  ┌──────────────┐                                    │
+│  │  PostgreSQL  │                                    │
+│  │  (Database)  │                                    │
+│  │              │                                    │
+│  │ Port: 5432   │                                    │
+│  │              │                                    │
+│  │ Functions:   │                                    │
+│  │ • API Cache  │                                    │
+│  │ • Data Store │                                    │
+│  │ • Persistent │                                    │
+│  └──────────────┘                                    │
+│         ↑                  ↑                 ↑        │
 │  ┌──────────────────────────────────────────────┐   │
 │  │        Docker Network (oobir_default)         │   │
 │  └──────────────────────────────────────────────┘   │
 └──────────────────────────────────────────────────────┘
-
-### Caching Infrastructure (PostgreSQL)
-
-OOBIR includes a robust caching layer backed by PostgreSQL to improve performance and reduce external API calls.
-
-- **Cache Store**: `api_cache` table (JSONB payloads)
-- **Expiry**: 24 hours by default
-- **Keying**: `endpoint:symbol` plus additional parameters when present
-- **Initialization**: Schema auto-created at app startup
-- **Connection**: Managed via a pooled connection in `db.py`
-
-Docker Compose provisions a `postgres` service and wires environment variables into the `app` service:
-
-- `POSTGRES_HOST=postgres`
-- `POSTGRES_PORT=5432`
-- `POSTGRES_DB=oobir`
-- `POSTGRES_USER=oobir`
-- `POSTGRES_PASSWORD=oobir_password`
-
-See `docker-compose.yml` for the full setup, including a persistent `postgres_data` volume and healthcheck.
 ```
+
+### Caching Infrastructure
+
+OOBIR includes a robust PostgreSQL-backed caching layer to improve performance and reduce external API calls.
+
+**Cache Configuration:**
+- **Storage**: `api_cache` table with JSONB payload support
+- **Expiry**: 24 hours by default (configurable per endpoint)
+- **Keys**: `endpoint:symbol` pattern with additional parameters
+- **Initialization**: Schema auto-created at app startup
+- **Connection**: Pooled connections managed via `db.py`
+
+**Environment Variables:**
+```bash
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+POSTGRES_DB=oobir
+POSTGRES_USER=oobir
+POSTGRES_PASSWORD=oobir_password
+```
+
+See `docker-compose.yml` for full configuration including persistent `postgres_data` volume.
 
 ### Technology Principles
 
@@ -222,13 +236,6 @@ See `docker-compose.yml` for the full setup, including a persistent `postgres_da
 4. **Cloud-Native Design**: Stateless services support horizontal scaling
 5. **Separation of Concerns**: Distinct layers for presentation, logic, and data
 6. **Python-Powered**: Modern Python 3.11+ with type hints and async support
-# API: http://localhost:8000
-# Docs: http://localhost:8000/docs
-
-# In another terminal, serve web UI (requires Python http.server)
-cd web && python -m http.server 8081
-# Web UI: http://localhost:8081
-```
 
 ## Features
 
@@ -596,31 +603,40 @@ Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model installed.
 ### System Architecture
 
 ```
-┌──────────────────────────────────────────────┐
-│          Presentation Layer                  │
-├──────────────────────────────────────────────┤
-│   CLI Interface  │  REST API  │  Web UI      │
-│   (flow.py)      │(flow_api)  │ (HTML/CSS)   │
-│                  │ • 24 Endpoints            │
-│                  │ • OpenAPI/Swagger         │
-│                  │ • Health Checks           │
-├──────────────────────────────────────────────┤
-│      Business Logic Layer (Unified)          │
-├──────────────────────────────────────────────┤
-│   Data Functions     │   AI Analysis          │
-│   • Fundamentals     │   • Technical Analysis │
-│   • Technicals       │   • Sentiment Analysis │
-│   • News             │   • Recommendations    │
-│   • Screening        │   • Full Reports       │
-├──────────────────────────────────────────────┤
-│       External Services & Data Sources       │
-├──────────────────────────────────────────────┤
-│   yfinance (Market Data)  │  Ollama LLM       │
-│   • Fundamentals          │  • Analysis       │
-│   • Historical Prices     │  • Recommendations│
-│   • Options Data          │  • Sentiment      │
-│   • News Articles         │                   │
-└──────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│                 Presentation Layer                        │
+├───────────────────────────────────────────────────────────┤
+│   CLI Interface  │  REST API       │  Web UI              │
+│   (flow.py)      │  (flow_api.py)  │  (HTML5/CSS3/JS)     │
+│                  │  • 24 Endpoints │                      │
+│                  │  • OpenAPI Docs │  • Real-time search  │
+│                  │  • Health check │  • Charts & data     │
+│                  │                 │  • AI analysis btn   │
+├───────────────────────────────────────────────────────────┤
+│          Business Logic Layer (flow.py - unified)         │
+├───────────────────────────────────────────────────────────┤
+│   Data Analysis           │   AI Analysis                  │
+│   • Fundamentals          │   • LLM-powered insights       │
+│   • Price history         │   • Technical pattern detect   │
+│   • Balance sheets        │   • Sentiment analysis         │
+│   • Income statements     │   • Recommendations            │
+│   • Technical indicators  │   • Full report generation     │
+├───────────────────────────────────────────────────────────┤
+│          Caching & Persistence Layer (PostgreSQL)         │
+├───────────────────────────────────────────────────────────┤
+│   • API Response Cache (JSONB, 24-hour expiry)            │
+│   • Cache Statistics & Management                         │
+│   • Persistent Data Storage                               │
+├───────────────────────────────────────────────────────────┤
+│        External Services & Data Sources                   │
+├───────────────────────────────────────────────────────────┤
+│   yfinance (Market Data)  │  Ollama LLM (Local AI)        │
+│   • Stock fundamentals    │  • huihui_ai/llama3.2         │
+│   • Historical prices     │  • Inference engine           │
+│   • Options chains        │  • Context-aware analysis     │
+│   • Analyst data          │  • Privacy-preserving         │
+│   • News aggregation      │                               │
+└───────────────────────────────────────────────────────────┘
 ```
 
 ### Frontend Architecture (Web UI)
