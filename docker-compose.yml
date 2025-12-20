@@ -10,7 +10,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5434:5432"
+      - "5432:5432"
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U oobir"]
@@ -38,7 +38,7 @@ services:
       dockerfile: Dockerfile
     container_name: oobir_app
     ports:
-      - "8001:8000"
+      - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -62,7 +62,7 @@ services:
     volumes:
       - ./web:/usr/share/nginx/html
     ports:
-      - "8082:80"
+      - "8081:80"
     restart: unless-stopped
 
 volumes:
