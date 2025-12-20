@@ -245,7 +245,7 @@ function initializeAIRecommendation(ticker) {
     const container = document.getElementById('ai-recommendation');
     container.innerHTML = `
         <button class="ai-button" onclick="loadAIRecommendation('${ticker}')">
-            🤖 Get AI Recommendation
+            🤖 Get AI Fundamental Analysis
         </button>
     `;
 }
@@ -256,7 +256,7 @@ async function loadAIRecommendation(ticker) {
     container.innerHTML = '<p class="text-muted">🔄 Loading AI recommendation...</p>';
     
     try {
-        const response = await fetch(`${API_BASE_URL}/api/ai/action-recommendation/${ticker}`);
+        const response = await fetch(`${API_BASE_URL}/api/ai/fundamental-analysis/${ticker}`);
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
