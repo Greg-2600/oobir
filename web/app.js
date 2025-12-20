@@ -566,67 +566,108 @@ function renderPriceHistory(data, container) {
             </div>
             
             <!-- Chart -->
-            <div style="display: flex; align-items: flex-end; justify-content: space-around; gap: 2px; height: 280px; padding: 10px; background: #f9f9f9; border-radius: 4px; position: relative;">
-                ${prices.map((day, idx) => {
-                    const open = day.Open;
-                    const close = day.Close;
-                    const high = day.High;
-                    const low = day.Low;
-                    
-                    // Normalize to 0-100 scale
-                    const highPercent = ((high - minPrice) / range) * 100;
-                    const lowPercent = ((low - minPrice) / range) * 100;
-                    const openPercent = ((open - minPrice) / range) * 100;
-                    const closePercent = ((close - minPrice) / range) * 100;
-                    
-                    // Technical indicators positioning
-                    const sma20Percent = sma20[idx] ? ((sma20[idx] - minPrice) / range) * 100 : null;
-                    const sma50Percent = sma50[idx] ? ((sma50[idx] - minPrice) / range) * 100 : null;
-                    const bbUpperPercent = bbUpper[idx] ? ((bbUpper[idx] - minPrice) / range) * 100 : null;
-                    const bbLowerPercent = bbLower[idx] ? ((bbLower[idx] - minPrice) / range) * 100 : null;
-                    
-                    // Determine color (green for up, red for down)
-                    const isUp = close >= open;
-                    const color = isUp ? '#22c55e' : '#ef4444';
-                    
-                    // Body is between open and close
-                    const bodyTop = Math.min(openPercent, closePercent);
-                    const bodyHeight = Math.abs(closePercent - openPercent) || 1;
-                    const wickTop = lowPercent;
-                    const wickHeight = highPercent - lowPercent;
-                    
-                    // Build indicator HTML
-                    let indicatorHtml = '';
-                    if (bbUpperPercent && bbLowerPercent) {
-                        indicatorHtml += '<div style="position: absolute; bottom: ' + bbLowerPercent + '%; width: 100%; height: ' + (bbUpperPercent - bbLowerPercent) + '%; background: rgba(167, 139, 250, 0.1); border-top: 0.5px solid rgba(167, 139, 250, 0.5); border-bottom: 0.5px solid rgba(167, 139, 250, 0.5);"></div>';
-                    }
-                    if (sma50Percent) {
-                        indicatorHtml += '<div style="position: absolute; bottom: ' + sma50Percent + '%; width: 100%; height: 1px; background: #f59e0b;"></div>';
-                    }
-                    if (sma20Percent) {
-                        indicatorHtml += '<div style="position: absolute; bottom: ' + sma20Percent + '%; width: 100%; height: 1px; background: #3b82f6;"></div>';
-                    }
-                    
-                    return '<div style="flex: 1; position: relative; height: 100%;" title="' + day.Date + ': O:$' + open.toFixed(2) + ' H:$' + high.toFixed(2) + ' L:$' + low.toFixed(2) + ' C:$' + close.toFixed(2) + '">' +
-                        indicatorHtml +
-                        '<div style="position: absolute; bottom: ' + wickTop + '%; width: 2px; height: ' + wickHeight + '%; background: ' + color + '; left: 50%; transform: translateX(-50%);"></div>' +
-                        '<div style="position: absolute; bottom: ' + bodyTop + '%; width: 100%; height: ' + bodyHeight + '%; background: ' + color + '; opacity: 0.8; border: 1px solid ' + color + ';"></div>' +
-                        '</div>';
-                }).join('')}
+            <div style="display: flex; flex-direction: column; gap: 0;">
+                <div style="display: flex; align-items: flex-end; justify-content: space-around; gap: 2px; height: 280px; padding: 10px; background: #f9f9f9; border-radius: 4px 4px 0 0; position: relative;">
+                    ${prices.map((day, idx) => {
+                        const open = day.Open;
+                        const close = day.Close;
+                        const high = day.High;
+                        const low = day.Low;
+                        
+                        // Normalize to 0-100 scale
+                        const highPercent = ((high - minPrice) / range) * 100;
+                        const lowPercent = ((low - minPrice) / range) * 100;
+                        const openPercent = ((open - minPrice) / range) * 100;
+                        const closePercent = ((close - minPrice) / range) * 100;
+                        
+                        // Technical indicators positioning
+                        const sma20Percent = sma20[idx] ? ((sma20[idx] - minPrice) / range) * 100 : null;
+                        const sma50Percent = sma50[idx] ? ((sma50[idx] - minPrice) / range) * 100 : null;
+                        const bbUpperPercent = bbUpper[idx] ? ((bbUpper[idx] - minPrice) / range) * 100 : null;
+                        const bbLowerPercent = bbLower[idx] ? ((bbLower[idx] - minPrice) / range) * 100 : null;
+                        
+                        // Determine color (green for up, red for down)
+                        const isUp = close >= open;
+                        const color = isUp ? '#22c55e' : '#ef4444';
+                        
+                        // Body is between open and close
+                        const bodyTop = Math.min(openPercent, closePercent);
+                        const bodyHeight = Math.abs(closePercent - openPercent) || 1;
+                        const wickTop = lowPercent;
+                        const wickHeight = highPercent - lowPercent;
+                        
+                        // Build indicator HTML
+                        let indicatorHtml = '';
+                        if (bbUpperPercent && bbLowerPercent) {
+                            indicatorHtml += '<div style="position: absolute; bottom: ' + bbLowerPercent + '%; width: 100%; height: ' + (bbUpperPercent - bbLowerPercent) + '%; background: rgba(167, 139, 250, 0.1); border-top: 0.5px solid rgba(167, 139, 250, 0.5); border-bottom: 0.5px solid rgba(167, 139, 250, 0.5);"></div>';
+                        }
+                        if (sma50Percent) {
+                            indicatorHtml += '<div style="position: absolute; bottom: ' + sma50Percent + '%; width: 100%; height: 1px; background: #f59e0b;"></div>';
+                        }
+                        if (sma20Percent) {
+                            indicatorHtml += '<div style="position: absolute; bottom: ' + sma20Percent + '%; width: 100%; height: 1px; background: #3b82f6;"></div>';
+                        }
+                        
+                        return '<div style="flex: 1; position: relative; height: 100%;" title="' + day.Date + ': O:$' + open.toFixed(2) + ' H:$' + high.toFixed(2) + ' L:$' + low.toFixed(2) + ' C:$' + close.toFixed(2) + '">' +
+                            indicatorHtml +
+                            '<div style="position: absolute; bottom: ' + wickTop + '%; width: 2px; height: ' + wickHeight + '%; background: ' + color + '; left: 50%; transform: translateX(-50%);"></div>' +
+                            '<div style="position: absolute; bottom: ' + bodyTop + '%; width: 100%; height: ' + bodyHeight + '%; background: ' + color + '; opacity: 0.8; border: 1px solid ' + color + ';"></div>' +
+                            '</div>';
+                    }).join('')}
+                </div>
+                <!-- Date Labels -->
+                <div style="display: flex; justify-content: space-around; gap: 2px; padding: 4px 10px; background: #f9f9f9; border-radius: 0 0 4px 4px; font-size: 0.75em; color: #666;">
+                    ${(() => {
+                        const labels = [];
+                        const step = Math.max(1, Math.floor(prices.length / 8)); // Show ~8 dates
+                        for (let i = 0; i < prices.length; i += step) {
+                            const dateStr = prices[i].Date;
+                            const [year, month, day] = dateStr.split('-');
+                            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
+                        }
+                        // Always show last date
+                        if ((prices.length - 1) % step !== 0) {
+                            const dateStr = prices[prices.length - 1].Date;
+                            const [year, month, day] = dateStr.split('-');
+                            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
+                        }
+                        return labels.join('');
+                    })()}
+                </div>
             </div>
             
             <!-- Volume Chart -->
-            <div style="display: flex; align-items: flex-end; justify-content: space-around; gap: 2px; height: 80px; padding: 10px; background: #f9f9f9; border-radius: 4px; margin-top: 4px;">
-                ${prices.map((day) => {
-                    const volume = day.Volume || 0;
-                    const volumePercent = maxVolume > 0 ? (volume / maxVolume) * 100 : 0;
-                    const isUp = day.Close >= day.Open;
-                    const color = isUp ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)';
-                    
-                    return '<div style="flex: 1; position: relative; height: 100%;" title="' + day.Date + ': Volume ' + volume.toLocaleString() + '">' +
-                        '<div style="position: absolute; bottom: 0; width: 100%; height: ' + volumePercent + '%; background: ' + color + ';"></div>' +
-                        '</div>';
-                }).join('')}
+            <div style="display: flex; flex-direction: column; gap: 0; margin-top: 4px;">
+                <div style="display: flex; align-items: flex-end; justify-content: space-around; gap: 2px; height: 80px; padding: 10px; background: #f9f9f9; border-radius: 4px 4px 0 0;">
+                    ${prices.map((day) => {
+                        const volume = day.Volume || 0;
+                        const volumePercent = maxVolume > 0 ? (volume / maxVolume) * 100 : 0;
+                        const isUp = day.Close >= day.Open;
+                        const color = isUp ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)';
+                        
+                        return '<div style="flex: 1; position: relative; height: 100%;" title="' + day.Date + ': Volume ' + volume.toLocaleString() + '">' +
+                            '<div style="position: absolute; bottom: 0; width: 100%; height: ' + volumePercent + '%; background: ' + color + ';"></div>' +
+                            '</div>';
+                    }).join('')}
+                </div>
+                <!-- Date Labels for Volume -->
+                <div style="display: flex; justify-content: space-around; gap: 2px; padding: 4px 10px; background: #f9f9f9; border-radius: 0 0 4px 4px; font-size: 0.75em; color: #666;">
+                    ${(() => {
+                        const labels = [];
+                        const step = Math.max(1, Math.floor(prices.length / 8));
+                        for (let i = 0; i < prices.length; i += step) {
+                            const dateStr = prices[i].Date;
+                            const [year, month, day] = dateStr.split('-');
+                            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
+                        }
+                        if ((prices.length - 1) % step !== 0) {
+                            const dateStr = prices[prices.length - 1].Date;
+                            const [year, month, day] = dateStr.split('-');
+                            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
+                        }
+                        return labels.join('');
+                    })()}
+                </div>
             </div>
             
             <!-- RSI Oscillator -->
@@ -642,6 +683,24 @@ function renderPriceHistory(data, container) {
                             return '<div style="flex: 1; height: ' + val + '%; background: ' + color + '; opacity: 0.7;" title="' + prices[idx].Date + ': RSI ' + val.toFixed(1) + '"></div>';
                         }).join('')}
                     </div>
+                </div>
+                <!-- Date Labels for RSI -->
+                <div style="display: flex; justify-content: space-around; gap: 1px; padding: 2px 0; font-size: 0.65em; color: #999; margin-top: 2px;">
+                    ${(() => {
+                        const labels = [];
+                        const step = Math.max(1, Math.floor(rsi.length / 8));
+                        for (let i = 0; i < rsi.length; i += step) {
+                            const dateStr = prices[i].Date;
+                            const [year, month, day] = dateStr.split('-');
+                            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
+                        }
+                        if ((rsi.length - 1) % step !== 0) {
+                            const dateStr = prices[rsi.length - 1].Date;
+                            const [year, month, day] = dateStr.split('-');
+                            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
+                        }
+                        return labels.join('');
+                    })()}
                 </div>
             </div>
             
@@ -662,6 +721,24 @@ function renderPriceHistory(data, container) {
                         })()}
                     </div>
                 </div>
+                <!-- Date Labels for MACD -->
+                <div style="display: flex; justify-content: space-around; gap: 1px; padding: 2px 0; font-size: 0.65em; color: #999; margin-top: 2px;">
+                    ${(() => {
+                        const labels = [];
+                        const step = Math.max(1, Math.floor(histogram.length / 8));
+                        for (let i = 0; i < histogram.length; i += step) {
+                            const dateStr = prices[i].Date;
+                            const [year, month, day] = dateStr.split('-');
+                            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
+                        }
+                        if ((histogram.length - 1) % step !== 0) {
+                            const dateStr = prices[histogram.length - 1].Date;
+                            const [year, month, day] = dateStr.split('-');
+                            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
+                        }
+                        return labels.join('');
+                    })()}
+                </div>
             </div>
             
             <!-- Stochastic Oscillator -->
@@ -677,6 +754,24 @@ function renderPriceHistory(data, container) {
                             return '<div style="flex: 1; height: ' + val + '%; background: ' + color + '; opacity: 0.7;" title="' + prices[idx].Date + ': ' + val.toFixed(1) + '"></div>';
                         }).join('')}
                     </div>
+                </div>
+                <!-- Date Labels for Stochastic -->
+                <div style="display: flex; justify-content: space-around; gap: 1px; padding: 2px 0; font-size: 0.65em; color: #999; margin-top: 2px;">
+                    ${(() => {
+                        const labels = [];
+                        const step = Math.max(1, Math.floor(stoch.length / 8));
+                        for (let i = 0; i < stoch.length; i += step) {
+                            const dateStr = prices[i].Date;
+                            const [year, month, day] = dateStr.split('-');
+                            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
+                        }
+                        if ((stoch.length - 1) % step !== 0) {
+                            const dateStr = prices[stoch.length - 1].Date;
+                            const [year, month, day] = dateStr.split('-');
+                            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
+                        }
+                        return labels.join('');
+                    })()}
                 </div>
             </div>
             
