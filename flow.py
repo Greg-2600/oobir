@@ -701,7 +701,10 @@ def get_ai_technical_analysis(ticker):
                 messages=[
                     {
                         'role': 'system',
-                        'content': 'You are a professional technical analyst. Analyze the provided technical indicators and price data to identify trends, support/resistance, momentum shifts, and actionable signals. Be specific and data-driven.'
+                        'content': ('You are a professional technical analyst. Analyze the '
+                                    'provided technical indicators and price data to identify '
+                                    'trends, support/resistance, momentum shifts, and actionable '
+                                    'signals. Be specific and data-driven.')
                     },
                     {
                 'role': 'user',

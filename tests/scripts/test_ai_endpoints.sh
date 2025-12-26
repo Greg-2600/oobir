@@ -30,6 +30,7 @@ request() {
 
 # AI Analysis Endpoints
 echo "Testing AI analysis endpoints for ${SYMBOL}..."
+echo "[Preferred] Fundamental analysis (fast path)"
 request "/api/ai/fundamental-analysis/$SYMBOL"
 # Capture technical analysis to check for indicator hints (non-fatal)
 echo "=== GET $BASE_URL/api/ai/technical-analysis/$SYMBOL ==="
@@ -41,6 +42,7 @@ fi
 echo
 
 echo "Testing AI recommendation endpoints for ${SYMBOL}..."
+echo "[Note] These may be slower due to synthesis across analyses"
 request "/api/ai/action-recommendation/$SYMBOL"
 request "/api/ai/action-recommendation-sentence/$SYMBOL"
 request "/api/ai/action-recommendation-word/$SYMBOL"

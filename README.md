@@ -502,11 +502,12 @@ docker compose up -d
 - `GET /api/screen-undervalued` - Stock screener
 
 **AI Analysis Endpoints (9):**
-- `GET /api/ai/fundamental-analysis/{symbol}` - AI fundamental analysis
+> Preferred fast path: the UI "AI Recommendation" uses fundamental analysis for quicker responses.
+- `GET /api/ai/fundamental-analysis/{symbol}` - AI fundamental analysis (preferred for speed)
 - `GET /api/ai/balance-sheet-analysis/{symbol}` - AI balance sheet analysis
 - `GET /api/ai/income-stmt-analysis/{symbol}` - AI income statement analysis
 - `GET /api/ai/technical-analysis/{symbol}` - AI technical analysis
-- `GET /api/ai/action-recommendation/{symbol}` - Detailed recommendation
+- `GET /api/ai/action-recommendation/{symbol}` - Detailed recommendation (slower; synthesizes multiple analyses)
 - `GET /api/ai/action-recommendation-sentence/{symbol}` - One-sentence recommendation
 - `GET /api/ai/action-recommendation-word/{symbol}` - Single word recommendation
 - `GET /api/ai/news-sentiment/{symbol}` - AI sentiment analysis of news
