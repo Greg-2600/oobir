@@ -860,6 +860,71 @@ function renderPriceHistory(data, container) {
                 </div>
             </div>
             
+            <!-- Volume Chart -->
+            <div style="display: flex; align-items: flex-end; justify-content: space-around; gap: 2px; height: 80px; padding: 10px; background: #f9f9f9; border-radius: 4px; margin-top: 4px;">
+                ${prices.map((day) => {
+                    const volume = day.Volume || 0;
+                    const volumePercent = maxVolume > 0 ? (volume / maxVolume) * 100 : 0;
+                    const isUp = day.Close >= day.Open;
+                    const color = isUp ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)';
+                    
+                    return '<div style="flex: 1; position: relative; height: 100%;" title="' + day.Date + ': Volume ' + volume.toLocaleString() + '">' +
+                        '<div style="position: absolute; bottom: 0; width: 100%; height: ' + volumePercent + '%; background: ' + color + ';"></div>' +
+                        '</div>';
+                }).join('')}
+            </div>
+            
+            <!-- RSI Oscillator -->
+            <div style="padding: 10px; background: #f9f9f9; border-radius: 4px;">
+                <div style="font-size: 0.9em; margin-bottom: 4px; font-weight: 600;">RSI (14)</div>
+                <div style="position: relative; height: 70px; border-left: 1px solid #ccc; border-bottom: 1px solid #ccc;">
+                    <div style="position: absolute; top: 20%; width: 100%; height: 1px; background: rgba(239, 68, 68, 0.3);"></div>
+                    <div style="position: absolute; bottom: 20%; width: 100%; height: 1px; background: rgba(34, 197, 94, 0.3);"></div>
+                    <div style="display: flex; align-items: flex-end; height: 100%; gap: 1px;">
+                        ${rsi.map((val, idx) => {
+                            if (val === null) return '<div style="flex: 1;"></div>';
+                            const color = val > 70 ? '#ef4444' : val < 30 ? '#22c55e' : '#6b7280';
+                            return '<div style="flex: 1; height: ' + val + '%; background: ' + color + '; opacity: 0.7;" title="' + prices[idx].Date + ': RSI ' + val.toFixed(1) + '"></div>';
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- MACD Histogram -->
+            <div style="padding: 10px; background: #f9f9f9; border-radius: 4px;">
+                <div style="font-size: 0.9em; margin-bottom: 4px; font-weight: 600;">MACD Histogram</div>
+                <div style="position: relative; height: 70px; border-left: 1px solid #ccc; border-bottom: 1px solid #ccc; display: flex; align-items: center;">
+                    <div style="position: absolute; top: 50%; width: 100%; height: 1px; background: #bbb;"></div>
+                    <div style="display: flex; align-items: center; width: 100%; gap: 1px;">
+                        ${(() => {
+                            const maxHist = Math.max(...histogram.filter(v => v !== null).map(v => Math.abs(v)), 0.0001);
+                            return histogram.map((val, idx) => {
+                                if (val === null) return '<div style="flex: 1;"></div>';
+                                const h = (Math.abs(val) / maxHist) * 50;
+                                const color = val >= 0 ? '#22c55e' : '#ef4444';
+                                return '<div style="flex: 1; display: flex; align-items: flex-end; justify-content: center; height: 100%;"><div style="width: 100%; height: ' + h + '%; background: ' + color + '; opacity: 0.75;" title="' + prices[idx].Date + ': ' + val.toFixed(3) + '"></div></div>';
+                            }).join('');
+                        })()}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Stochastic Oscillator -->
+            <div style="padding: 10px; background: #f9f9f9; border-radius: 4px;">
+                <div style="font-size: 0.9em; margin-bottom: 4px; font-weight: 600;">Stochastic (14)</div>
+                <div style="position: relative; height: 70px; border-left: 1px solid #ccc; border-bottom: 1px solid #ccc;">
+                    <div style="position: absolute; top: 20%; width: 100%; height: 1px; background: rgba(239, 68, 68, 0.3);"></div>
+                    <div style="position: absolute; bottom: 20%; width: 100%; height: 1px; background: rgba(34, 197, 94, 0.3);"></div>
+                    <div style="display: flex; align-items: flex-end; height: 100%; gap: 1px;">
+                        ${stoch.map((val, idx) => {
+                            if (val === null) return '<div style="flex: 1;"></div>';
+                            const color = val > 80 ? '#ef4444' : val < 20 ? '#22c55e' : '#6b7280';
+                            return '<div style="flex: 1; height: ' + val + '%; background: ' + color + '; opacity: 0.7;" title="' + prices[idx].Date + ': ' + val.toFixed(1) + '"></div>';
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+            
             <!-- Stats -->
             <div style="text-align: center; margin-top: 16px; font-size: 0.9em; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
                 <div><strong>Latest Close:</strong> ${formatCurrency(latest.Close)}</div>

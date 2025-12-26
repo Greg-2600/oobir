@@ -204,6 +204,26 @@ cd web && python -m http.server 8081
 │  │        Docker Network (oobir_default)         │   │
 │  └──────────────────────────────────────────────┘   │
 └──────────────────────────────────────────────────────┘
+
+### Caching Infrastructure (PostgreSQL)
+
+OOBIR includes a robust caching layer backed by PostgreSQL to improve performance and reduce external API calls.
+
+- **Cache Store**: `api_cache` table (JSONB payloads)
+- **Expiry**: 24 hours by default
+- **Keying**: `endpoint:symbol` plus additional parameters when present
+- **Initialization**: Schema auto-created at app startup
+- **Connection**: Managed via a pooled connection in `db.py`
+
+Docker Compose provisions a `postgres` service and wires environment variables into the `app` service:
+
+- `POSTGRES_HOST=postgres`
+- `POSTGRES_PORT=5432`
+- `POSTGRES_DB=oobir`
+- `POSTGRES_USER=oobir`
+- `POSTGRES_PASSWORD=oobir_password`
+
+See `docker-compose.yml` for the full setup, including a persistent `postgres_data` volume and healthcheck.
 ```
 
 ### Caching Infrastructure
