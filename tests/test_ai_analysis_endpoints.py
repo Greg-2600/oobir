@@ -506,9 +506,11 @@ class TestNewsSentimentAPI(unittest.TestCase):
         """Set up test client."""
         self.client = TestClient(flow_api.app)
 
+    @patch('db.get_cached_data', return_value=None)
+    @patch('db.set_cached_data')
     @patch('flow.ensure_ollama')
     @patch('flow.get_ai_news_sentiment')
-    def test_news_sentiment_endpoint_success(self, mock_get_sentiment, mock_ensure_ollama):
+    def test_news_sentiment_endpoint_success(self, mock_get_sentiment, mock_ensure_ollama, mock_set_cache, mock_get_cache):
         """Test successful news sentiment endpoint call."""
         mock_get_sentiment.return_value = 'Positive sentiment for investors.'
 
@@ -537,9 +539,11 @@ class TestNewsSentimentAPI(unittest.TestCase):
 
         self.assertEqual(response.status_code, 500)
 
+    @patch('db.get_cached_data', return_value=None)
+    @patch('db.set_cached_data')
     @patch('flow.ensure_ollama')
     @patch('flow.get_ai_news_sentiment')
-    def test_news_sentiment_endpoint_various_symbols(self, mock_get_sentiment, mock_ensure_ollama):
+    def test_news_sentiment_endpoint_various_symbols(self, mock_get_sentiment, mock_ensure_ollama, mock_set_cache, mock_get_cache):
         """Test news sentiment endpoint with various stock symbols."""
         test_symbols = ['AAPL', 'MSFT', 'GOOGL', 'TSLA', 'CHTR']
         
@@ -580,9 +584,11 @@ class TestNewsSentimentAPI(unittest.TestCase):
         self.assertEqual(response1.status_code, 200)
         self.assertEqual(response2.status_code, 200)
 
+    @patch('db.get_cached_data', return_value=None)
+    @patch('db.set_cached_data')
     @patch('flow.ensure_ollama')
     @patch('flow.get_ai_news_sentiment')
-    def test_news_sentiment_with_special_characters_in_symbol(self, mock_get_sentiment, mock_ensure_ollama):
+    def test_news_sentiment_with_special_characters_in_symbol(self, mock_get_sentiment, mock_ensure_ollama, mock_set_cache, mock_get_cache):
         """Test news sentiment with special characters in symbol (e.g., BRK.B)."""
         mock_get_sentiment.return_value = 'Sentiment for BRK.B.'
 
