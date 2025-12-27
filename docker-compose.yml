@@ -1,23 +1,5 @@
 version: '3.8'
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: oobir_postgres
-    environment:
-      - POSTGRES_DB=oobir
-      - POSTGRES_USER=oobir
-      - POSTGRES_PASSWORD=oobir_password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U oobir"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
@@ -40,18 +22,11 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      postgres:
-        condition: service_healthy
       ollama:
         condition: service_started
     environment:
       - OLLAMA_HOST=http://ollama:11434
       - OLLAMA_MODEL=huihui_ai/llama3.2-abliterate:3b
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=oobir
-      - POSTGRES_USER=oobir
-      - POSTGRES_PASSWORD=oobir_password
     restart: unless-stopped
 
   web:
@@ -67,4 +42,3 @@ services:
 
 volumes:
   ollama_data:
-  postgres_data:

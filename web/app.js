@@ -27,7 +27,10 @@ const resultsContainer = document.getElementById('results-container');
 // Event Listeners
 searchForm.addEventListener('submit', handleSearch);
 searchFormCompact.addEventListener('submit', handleSearch);
-backButton.addEventListener('click', showLandingPage);
+backButton.addEventListener('click', () => {
+    window.history.pushState({ page: 'landing' }, 'OOBIR', '/');
+    showLandingPage();
+});
 
 // Technical Indicator Calculations
 function calculateSMA(prices, period) {
@@ -192,6 +195,16 @@ function showResultsPage() {
     resultsContainer.classList.add('hidden');
 }
 
+// Handle browser back button
+window.addEventListener('popstate', (event) => {
+    if (event.state && event.state.page === 'results') {
+        showResultsPage();
+        loadStockData(event.state.ticker);
+    } else {
+        showLandingPage();
+    }
+});
+
 // Show/hide error messages
 function showError(message) {
     errorMessage.textContent = message;
@@ -204,6 +217,9 @@ function hideError() {
 
 // Load all stock data
 async function loadStockData(ticker) {
+    // Add to browser history
+    window.history.pushState({ page: 'results', ticker: ticker }, `${ticker} - OOBIR`, `?ticker=${ticker}`);
+    
     showResultsPage();
     loadingTicker.textContent = ticker;
     tickerInputCompact.value = ticker;
@@ -215,18 +231,20 @@ async function loadStockData(ticker) {
     initializeAIRecommendation(ticker);
     initializeNewsSentiment(ticker);
     initializeTechnicalAnalysis(ticker);
-    initializeIncomeStmtAnalysis(ticker);
-    initializeBalanceSheetAnalysis(ticker);
     
-    // Load all data concurrently
+    // Load news first to get dates for chart markers
+    await fetchData(`/api/news/${ticker}`, 'news-data', renderNews);
+    
+    // Load sentiment analysis in background (non-blocking) to color news markers
+    // This fires async without blocking chart rendering
+    loadNewsSentimentBackground(ticker);
+    
+    // Load all other data concurrently
     const dataPromises = {
         fundamentals: fetchData(`/api/fundamentals/${ticker}`, 'fundamentals-data', renderFundamentals),
         priceHistory: fetchData(`/api/price-history/${ticker}`, 'price-history-data', renderPriceHistory),
         analystTargets: fetchData(`/api/analyst-targets/${ticker}`, 'analyst-targets-data', renderAnalystTargets),
         calendar: fetchData(`/api/calendar/${ticker}`, 'calendar-data', renderCalendar),
-        incomeStmt: fetchData(`/api/income-stmt/${ticker}`, 'income-stmt-data', renderIncomeStatement),
-        balanceSheet: fetchData(`/api/balance-sheet/${ticker}`, 'balance-sheet-data', renderBalanceSheet),
-        news: fetchData(`/api/news/${ticker}`, 'news-data', renderNews),
         optionChain: fetchData(`/api/option-chain/${ticker}`, 'option-chain-data', renderOptionChain)
     };
     
@@ -313,6 +331,29 @@ async function loadNewsSentiment(ticker) {
     }
 }
 
+// Load news sentiment in background without blocking (updates chart markers on completion)
+async function loadNewsSentimentBackground(ticker) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/ai/news-sentiment/${ticker}`);
+        
+        if (!response.ok) {
+            return; // Silently fail - grey dots will remain
+        }
+        
+        const data = await response.json();
+        // Apply sentiment and trigger chart re-render
+        applyNewsSentiment(data);
+        // Redraw the price chart with updated sentiment colors
+        const priceHistoryContainer = document.getElementById('price-history-data');
+        if (priceHistoryContainer && window.lastPriceData) {
+            renderPriceHistory(window.lastPriceData, priceHistoryContainer);
+        }
+    } catch (error) {
+        console.error('Background sentiment fetch failed:', error);
+        // Continue without sentiment - grey dots will remain
+    }
+}
+
 // Initialize technical analysis button
 function initializeTechnicalAnalysis(ticker) {
     const container = document.getElementById('technical-analysis-data');
@@ -342,74 +383,6 @@ async function loadTechnicalAnalysis(ticker) {
         container.innerHTML = `
             <p class="text-danger">❌ Failed to load technical analysis</p>
             <button class="ai-button" onclick="loadTechnicalAnalysis('${ticker}')" style="margin-top: 10px;">
-                🔄 Retry
-            </button>
-        `;
-    }
-}
-
-// Initialize Income Statement Analysis with button
-function initializeIncomeStmtAnalysis(ticker) {
-    const container = document.getElementById('income-stmt-analysis-data');
-    if (!container) return;
-    container.innerHTML = `
-        <button class="ai-button" onclick="loadIncomeStmtAnalysis('${ticker}')">
-            💵 Get Income Statement Analysis
-        </button>
-    `;
-}
-
-// Load Income Statement analysis on demand
-async function loadIncomeStmtAnalysis(ticker) {
-    const container = document.getElementById('income-stmt-analysis-data');
-    if (!container) return;
-    container.innerHTML = '<p class="text-muted">🔄 Loading income statement analysis...</p>';
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/ai/income-stmt-analysis/${ticker}`);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-        const data = await response.json();
-        renderIncomeStmtAnalysis(data, container);
-    } catch (error) {
-        console.error('Error fetching income statement analysis:', error);
-        container.innerHTML = `
-            <p class="text-danger">❌ Failed to load income statement analysis</p>
-            <button class="ai-button" onclick="loadIncomeStmtAnalysis('${ticker}')" style="margin-top: 10px;">
-                🔄 Retry
-            </button>
-        `;
-    }
-}
-
-// Initialize Balance Sheet Analysis with button
-function initializeBalanceSheetAnalysis(ticker) {
-    const container = document.getElementById('balance-sheet-analysis-data');
-    if (!container) return;
-    container.innerHTML = `
-        <button class="ai-button" onclick="loadBalanceSheetAnalysis('${ticker}')">
-            💰 Get Balance Sheet Analysis
-        </button>
-    `;
-}
-
-// Load Balance Sheet analysis on demand
-async function loadBalanceSheetAnalysis(ticker) {
-    const container = document.getElementById('balance-sheet-analysis-data');
-    if (!container) return;
-    container.innerHTML = '<p class="text-muted">🔄 Loading balance sheet analysis...</p>';
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/ai/balance-sheet-analysis/${ticker}`);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-        const data = await response.json();
-        renderBalanceSheetAnalysis(data, container);
-    } catch (error) {
-        console.error('Error fetching balance sheet analysis:', error);
-        container.innerHTML = `
-            <p class="text-danger">❌ Failed to load balance sheet analysis</p>
-            <button class="ai-button" onclick="loadBalanceSheetAnalysis('${ticker}')" style="margin-top: 10px;">
                 🔄 Retry
             </button>
         `;
@@ -537,6 +510,9 @@ function renderPriceHistory(data, container) {
         return;
     }
     
+    // Store globally for re-rendering when sentiment arrives
+    window.lastPriceData = data;
+    
     const prices = data.data;
     const latest = prices[prices.length - 1];
     const oldest = prices[0];
@@ -625,19 +601,19 @@ function renderPriceHistory(data, container) {
     
     // Create candlestick chart with technical indicators
     const chartHtml = `
-        <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; flex-direction: column; gap: 16px;">
             <!-- Legend -->
-            <div style="display: flex; gap: 20px; font-size: 0.85em; flex-wrap: wrap;">
-                <div><span style="display: inline-block; width: 12px; height: 2px; background: #22c55e; margin-right: 4px;"></span>Green = Up</div>
-                <div><span style="display: inline-block; width: 12px; height: 2px; background: #ef4444; margin-right: 4px;"></span>Red = Down</div>
-                <div><span style="display: inline-block; width: 12px; height: 2px; background: #3b82f6; margin-right: 4px;"></span>SMA 20</div>
-                <div><span style="display: inline-block; width: 12px; height: 2px; background: #f59e0b; margin-right: 4px;"></span>SMA 50</div>
-                <div><span style="display: inline-block; width: 12px; height: 1px; background: #a78bfa; margin-right: 4px;"></span>Bollinger Bands</div>
+            <div style="display: flex; gap: 20px; font-size: 0.85em; flex-wrap: wrap; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div><span style="display: inline-block; width: 14px; height: 3px; background: #22c55e; margin-right: 6px; border-radius: 2px;"></span>Up Day</div>
+                <div><span style="display: inline-block; width: 14px; height: 3px; background: #ef4444; margin-right: 6px; border-radius: 2px;"></span>Down Day</div>
+                <div><span style="display: inline-block; width: 14px; height: 3px; background: #3b82f6; margin-right: 6px; border-radius: 2px;"></span>SMA 20</div>
+                <div><span style="display: inline-block; width: 14px; height: 3px; background: #f59e0b; margin-right: 6px; border-radius: 2px;"></span>SMA 50</div>
+                <div><span style="display: inline-block; width: 14px; height: 2px; background: #a78bfa; margin-right: 6px; border-radius: 1px;"></span>Bollinger Bands</div>
             </div>
             
             <!-- Chart -->
             <div style="display: flex; flex-direction: column; gap: 0;">
-                <div style="display: flex; align-items: flex-end; justify-content: space-around; gap: 2px; height: 280px; padding: 10px; background: #f9f9f9; border-radius: 4px 4px 0 0; position: relative;">
+                <div style="display: flex; align-items: flex-end; justify-content: space-around; gap: 2px; height: 300px; padding: 16px; background: linear-gradient(to bottom, #1e293b 0%, #0f172a 100%); border-radius: 12px 12px 0 0; position: relative; box-shadow: 0 8px 16px rgba(0,0,0,0.2);">
                     ${prices.map((day, idx) => {
                         const open = day.Open;
                         const close = day.Close;
@@ -666,6 +642,29 @@ function renderPriceHistory(data, container) {
                         const wickTop = lowPercent;
                         const wickHeight = highPercent - lowPercent;
                         
+                        // Check for news on this date
+                        const dateLabel = (typeof day.Date === 'string') ? day.Date.split('T')[0] : day.Date;
+                        const newsOnDate = (window.newsArticles || []).filter(n => n.dateStr === dateLabel);
+                        let newsMarker = '';
+                        if (newsOnDate.length > 0) {
+                            const newsTitle = newsOnDate.map(n => n.title).join('\\n');
+                            const firstNewsLink = newsOnDate[0].link;
+                            const sentiment = newsOnDate[0].sentiment || 'neutral';
+                            
+                            // Choose emoji and color based on sentiment
+                            let sentimentEmoji = '⚪'; // Grey dot for neutral/loading
+                            let sentimentColor = '#9ca3af'; // grey for neutral
+                            if (sentiment === 'positive') {
+                                sentimentEmoji = '🟢';
+                                sentimentColor = '#10b981';
+                            } else if (sentiment === 'negative') {
+                                sentimentEmoji = '🔴';
+                                sentimentColor = '#ef4444';
+                            }
+                            
+                            newsMarker = `<a href="${escapeHtml(firstNewsLink)}" target="_blank" style="position: absolute; top: -8px; left: 50%; transform: translateX(-50%); font-size: 18px; cursor: pointer; z-index: 10; text-decoration: none; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); color: ${sentimentColor};" title="${newsTitle.replace(/"/g, '&quot;')}">${sentimentEmoji}</a>`;
+                        }
+                        
                         // Build indicator HTML
                         let indicatorHtml = '';
                         if (bbUpperPercent && bbLowerPercent) {
@@ -678,8 +677,8 @@ function renderPriceHistory(data, container) {
                             indicatorHtml += '<div style="position: absolute; bottom: ' + sma20Percent + '%; width: 100%; height: 1px; background: #3b82f6;"></div>';
                         }
                         
-                        const dateLabel = (typeof day.Date === 'string') ? day.Date.split('T')[0] : day.Date;
                         return '<div style="flex: 1; position: relative; height: 100%;" title="' + dateLabel + ': O:$' + open.toFixed(2) + ' H:$' + high.toFixed(2) + ' L:$' + low.toFixed(2) + ' C:$' + close.toFixed(2) + '">' +
+                            newsMarker +
                             indicatorHtml +
                             '<div style="position: absolute; bottom: ' + wickTop + '%; width: 2px; height: ' + wickHeight + '%; background: ' + color + '; left: 50%; transform: translateX(-50%);"></div>' +
                             '<div style="position: absolute; bottom: ' + bodyTop + '%; width: 100%; height: ' + bodyHeight + '%; background: ' + color + '; opacity: 0.8; border: 1px solid ' + color + ';"></div>' +
@@ -747,9 +746,9 @@ function renderPriceHistory(data, container) {
             </div>
             
             <!-- RSI Oscillator -->
-            <div style="padding: 10px; background: #f9f9f9; border-radius: 4px;">
-                <div style="font-size: 0.9em; margin-bottom: 4px; font-weight: 600;">RSI (14)</div>
-                <div style="position: relative; height: 70px; border-left: 1px solid #ccc; border-bottom: 1px solid #ccc;">
+            <div style="padding: 14px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size: 0.95em; margin-bottom: 8px; font-weight: 700; color: #92400e;">📊 RSI (14)</div>
+                <div style="position: relative; height: 80px; border-left: 2px solid #d97706; border-bottom: 2px solid #d97706; background: white; border-radius: 4px; padding: 4px;">
                     <div style="position: absolute; top: 20%; width: 100%; height: 1px; background: rgba(239, 68, 68, 0.3);"></div>
                     <div style="position: absolute; bottom: 20%; width: 100%; height: 1px; background: rgba(34, 197, 94, 0.3);"></div>
                     <div style="display: flex; align-items: flex-end; height: 100%; gap: 1px;">
@@ -784,21 +783,25 @@ function renderPriceHistory(data, container) {
             </div>
             
             <!-- MACD Histogram -->
-            <div style="padding: 10px; background: #f9f9f9; border-radius: 4px;">
-                <div style="font-size: 0.9em; margin-bottom: 4px; font-weight: 600;">MACD Histogram</div>
-                <div style="position: relative; height: 70px; border-left: 1px solid #ccc; border-bottom: 1px solid #ccc; display: flex; align-items: center;">
-                    <div style="position: absolute; top: 50%; width: 100%; height: 1px; background: #bbb;"></div>
-                    <div style="display: flex; align-items: center; width: 100%; gap: 1px;">
-                        ${(() => {
-                            const maxHist = Math.max(...histogram.filter(v => v !== null).map(v => Math.abs(v)), 0.0001);
-                            return histogram.map((val, idx) => {
-                                if (val === null) return '<div style="flex: 1;"></div>';
-                                const h = (Math.abs(val) / maxHist) * 50;
-                                const color = val >= 0 ? '#22c55e' : '#ef4444';
-                                const dateLabel = (typeof prices[idx].Date === 'string') ? prices[idx].Date.split('T')[0] : prices[idx].Date;
-                                return '<div style="flex: 1; display: flex; align-items: flex-end; justify-content: center; height: 100%;"><div style="width: 100%; height: ' + h + '%; background: ' + color + '; opacity: 0.75;" title="' + dateLabel + ': ' + val.toFixed(3) + '"></div></div>';
-                            }).join('');
-                        })()}
+            <div style="padding: 14px; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size: 0.95em; margin-bottom: 8px; font-weight: 700; color: #1e40af;">📈 MACD Histogram (Count: ${histogram.length})</div>
+                <div style="position: relative; height: 100px; background: white; border-radius: 4px; padding: 8px; border: 2px solid #3b82f6;">
+                    <div style="position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: #3b82f6; z-index: 1;"></div>
+                    <div style="display: flex; align-items: flex-end; width: 100%; height: 100%; gap: 1px;">
+                        ${histogram.map((val, idx) => {
+                            if (val === null || isNaN(val)) return '<div style="flex: 1; background: rgba(200,200,200,0.2);"></div>';
+                            const maxHist = Math.max(...histogram.filter(v => v !== null && !isNaN(v)).map(v => Math.abs(v)), 0.01);
+                            const absVal = Math.abs(val);
+                            let barHeight = (absVal / maxHist) * 40;
+                            const color = val >= 0 ? '#10b981' : '#ef4444';
+                            const dateLabel = (typeof prices[idx]?.Date === 'string') ? prices[idx].Date.split('T')[0] : prices[idx]?.Date || 'N/A';
+                            
+                            if (val >= 0) {
+                                return `<div style="flex: 1; height: 100%; display: flex; align-items: center; justify-content: center;"><div style="width: 80%; height: ${barHeight}%; background: ${color}; margin-top: auto; margin-bottom: 50%; border-radius: 2px;" title="${dateLabel}: ${val.toFixed(4)}"></div></div>`;
+                            } else {
+                                return `<div style="flex: 1; height: 100%; display: flex; align-items: center; justify-content: center;"><div style="width: 80%; height: ${barHeight}%; background: ${color}; margin-top: 50%; border-radius: 2px;" title="${dateLabel}: ${val.toFixed(4)}"></div></div>`;
+                            }
+                        }).join('')}
                     </div>
                 </div>
                 <!-- Date Labels for MACD -->
@@ -824,9 +827,9 @@ function renderPriceHistory(data, container) {
             </div>
             
             <!-- Stochastic Oscillator -->
-            <div style="padding: 10px; background: #f9f9f9; border-radius: 4px;">
-                <div style="font-size: 0.9em; margin-bottom: 4px; font-weight: 600;">Stochastic (14)</div>
-                <div style="position: relative; height: 70px; border-left: 1px solid #ccc; border-bottom: 1px solid #ccc;">
+            <div style="padding: 14px; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size: 0.95em; margin-bottom: 8px; font-weight: 700; color: #065f46;">📉 Stochastic (14)</div>
+                <div style="position: relative; height: 80px; border-left: 2px solid #059669; border-bottom: 2px solid #059669; background: white; border-radius: 4px; padding: 4px;">
                     <div style="position: absolute; top: 20%; width: 100%; height: 1px; background: rgba(239, 68, 68, 0.3);"></div>
                     <div style="position: absolute; bottom: 20%; width: 100%; height: 1px; background: rgba(34, 197, 94, 0.3);"></div>
                     <div style="display: flex; align-items: flex-end; height: 100%; gap: 1px;">
@@ -993,63 +996,28 @@ function renderCalendar(data, container) {
     container.innerHTML = html;
 }
 
-function renderIncomeStatement(data, container) {
-    if (!data || typeof data !== 'object') {
-        hideCardIfEmpty(container);
-        return;
-    }
-    
-    // Extract most recent quarter (first date key)
-    const dates = Object.keys(data);
-    if (dates.length === 0) {
-        container.innerHTML = '<p class="text-muted">No income statement available</p>';
-        return;
-    }
-    const latestData = data[dates[0]];
-    
-    const fields = {
-        'Revenue': formatLargeNumber(latestData['Total Revenue'] || latestData.totalRevenue || latestData.total_revenue),
-        'Gross Profit': formatLargeNumber(latestData['Gross Profit'] || latestData.grossProfit || latestData.gross_profit),
-        'Operating Income': formatLargeNumber(latestData['Operating Income'] || latestData.operatingIncome || latestData.operating_income),
-        'Net Income': formatLargeNumber(latestData['Net Income'] || latestData.netIncome || latestData.net_income),
-        'EPS': formatNumber(latestData['Basic EPS'] || latestData.basicEPS || latestData.basic_eps),
-        'EBITDA': formatLargeNumber(latestData.EBITDA || latestData.ebitda)
-    };
-    
-    renderTable(fields, container);
-}
-
-function renderBalanceSheet(data, container) {
-    if (!data || typeof data !== 'object') {
-        hideCardIfEmpty(container);
-        return;
-    }
-    
-    // Extract most recent quarter (first date key)
-    const dates = Object.keys(data);
-    if (dates.length === 0) {
-        container.innerHTML = '<p class="text-muted">No balance sheet available</p>';
-        return;
-    }
-    const latestData = data[dates[0]];
-    
-    const fields = {
-        'Total Assets': formatLargeNumber(latestData['TotalAssets'] || latestData['Total Assets'] || latestData.totalAssets || latestData.total_assets),
-        'Total Liabilities': formatLargeNumber(latestData['TotalLiabilitiesNetMinorityInterest'] || latestData['Total Liabilities Net Minority Interest'] || latestData.totalLiabilitiesNetMinorityInterest || latestData.total_liabilities),
-        'Cash': formatLargeNumber(latestData['CashAndCashEquivalents'] || latestData['Cash And Cash Equivalents'] || latestData.cashAndCashEquivalents || latestData.cash),
-        'Total Debt': formatLargeNumber(latestData['TotalDebt'] || latestData['Total Debt'] || latestData.totalDebt || latestData.total_debt),
-        'Stockholders Equity': formatLargeNumber(latestData['StockholdersEquity'] || latestData['Stockholders Equity'] || latestData.stockholdersEquity || latestData.stockholders_equity)
-    };
-    
-    renderTable(fields, container);
-}
-
 function renderNews(data, container) {
     const items = Array.isArray(data) ? data : (data?.result || data?.news || []);
     if (!items || items.length === 0) {
         hideCardIfEmpty(container);
         return;
     }
+    
+    // Store news globally with dates for price chart markers
+    window.newsArticles = items.map(item => {
+        const content = item.content || item;
+        const ts = content.pubDate || content.publish_time || item.pubDate || item.providerPublishTime;
+        const title = content.title || content.headline || item.title || item.headline || 'No title';
+        const link = content.canonicalUrl?.url || content.clickThroughUrl?.url || content.link || item.link || item.url || '#';
+        // Default to neutral sentiment until AI analysis loads
+        return {
+            date: ts ? new Date(ts) : null,
+            dateStr: ts ? new Date(ts).toISOString().split('T')[0] : null,
+            title: title,
+            link: link,
+            sentiment: 'neutral' // Will be updated by sentiment analysis
+        };
+    }).filter(n => n.date);
     
     const html = items.slice(0, 5).map(item => {
         const content = item.content || item; // Yahoo sometimes nests under content
@@ -1066,7 +1034,7 @@ function renderNews(data, container) {
             }
         }
         
-        return `<div class="news-item">
+        return `<div class="news-item" id="news-${escapeHtml(dateStr.replace(/\//g, '-'))}">
             <a href="${escapeHtml(link)}" target="_blank" class="news-title">${escapeHtml(title)}</a>
             <div class="news-meta">${escapeHtml(source)}${dateStr ? ' • ' + escapeHtml(dateStr) : ''}</div>
         </div>`;
@@ -1238,19 +1206,58 @@ function renderTechnicalAnalysis(data, container) {
     container.innerHTML = `<div style="white-space: pre-wrap; line-height: 1.8;">${escapeHtml(text)}</div>`;
 }
 
+// Apply sentiment to news articles without rendering UI (used during initial load)
+function applyNewsSentiment(data) {
+    const text = typeof data === 'string' ? data : JSON.stringify(data);
+    
+    // Parse sentiment from AI response
+    const sentimentText = text.toLowerCase();
+    let overallSentiment = 'neutral'; // default
+    
+    if (sentimentText.includes('positive') || sentimentText.includes('bullish') || sentimentText.includes('good')) {
+        overallSentiment = 'positive';
+    } else if (sentimentText.includes('negative') || sentimentText.includes('bearish') || sentimentText.includes('bad')) {
+        overallSentiment = 'negative';
+    }
+    
+    // Update sentiment for all news articles
+    if (window.newsArticles && Array.isArray(window.newsArticles)) {
+        window.newsArticles.forEach(article => {
+            article.sentiment = overallSentiment;
+        });
+    }
+}
+
 function renderNewsSentiment(data, container) {
     const text = typeof data === 'string' ? data : JSON.stringify(data);
-    container.innerHTML = `<div style="white-space: pre-wrap; line-height: 1.8;">${escapeHtml(text)}</div>`;
-}
-
-function renderIncomeStmtAnalysis(data, container) {
-    const text = typeof data === 'string' ? data : JSON.stringify(data);
-    container.innerHTML = `<div style="white-space: pre-wrap; line-height: 1.8;">${escapeHtml(text)}</div>`;
-}
-
-function renderBalanceSheetAnalysis(data, container) {
-    const text = typeof data === 'string' ? data : JSON.stringify(data);
-    container.innerHTML = `<div style="white-space: pre-wrap; line-height: 1.8;">${escapeHtml(text)}</div>`;
+    
+    // Parse sentiment from AI response and apply to articles
+    applyNewsSentiment(data);
+    
+    // Parse sentiment again for UI rendering
+    const sentimentText = text.toLowerCase();
+    let overallSentiment = 'neutral'; // default
+    
+    if (sentimentText.includes('positive') || sentimentText.includes('bullish') || sentimentText.includes('good')) {
+        overallSentiment = 'positive';
+    } else if (sentimentText.includes('negative') || sentimentText.includes('bearish') || sentimentText.includes('bad')) {
+        overallSentiment = 'negative';
+    }
+    
+    // Render sentiment UI
+    const sentimentEmoji = overallSentiment === 'positive' ? '🟢' : overallSentiment === 'negative' ? '🔴' : '⚪';
+    const sentimentLabel = overallSentiment.charAt(0).toUpperCase() + overallSentiment.slice(1);
+    const sentimentColor = overallSentiment === 'positive' ? '#10b981' : overallSentiment === 'negative' ? '#ef4444' : '#9ca3af';
+    
+    container.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background-color: rgba(0,0,0,0.02); border-radius: 8px; border-left: 4px solid ${sentimentColor};">
+            <div style="font-size: 24px;">${sentimentEmoji}</div>
+            <div>
+                <div style="font-weight: 600; color: ${sentimentColor};">${sentimentLabel} Sentiment</div>
+                <div style="font-size: 14px; color: #666; white-space: pre-wrap; line-height: 1.6; margin-top: 6px;">${escapeHtml(text)}</div>
+            </div>
+        </div>
+    `;
 }
 
 function renderTechnicalSignals(_data, container) {
@@ -1343,19 +1350,40 @@ async function loadAIBuys() {
     if (!container) return;
     
     try {
-        const response = await fetch(`${API_BASE_URL}/api/screen-undervalued`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
+        // Fetch both undervalued and growth stocks
+        const [undervaluedResponse, growthResponse] = await Promise.all([
+            fetch(`${API_BASE_URL}/api/screen-undervalued`),
+            fetch(`${API_BASE_URL}/api/screen-undervalued-growth`)
+        ]);
         
         let stocks = [];
-        if (Array.isArray(data)) {
-            stocks = data;
-        } else if (data.stocks && Array.isArray(data.stocks)) {
-            stocks = data.stocks;
-        } else if (data.data && Array.isArray(data.data)) {
-            stocks = data.data;
-        } else if (typeof data === 'object' && data !== null) {
-            stocks = Object.keys(data).slice(0, 10);
+        
+        // Process undervalued stocks
+        if (undervaluedResponse.ok) {
+            const data = await undervaluedResponse.json();
+            if (Array.isArray(data)) {
+                stocks.push(...data);
+            } else if (data.stocks && Array.isArray(data.stocks)) {
+                stocks.push(...data.stocks);
+            } else if (data.data && Array.isArray(data.data)) {
+                stocks.push(...data.data);
+            } else if (typeof data === 'object' && data !== null) {
+                stocks.push(...Object.keys(data).slice(0, 10));
+            }
+        }
+        
+        // Process growth stocks
+        if (growthResponse.ok) {
+            const data = await growthResponse.json();
+            if (Array.isArray(data)) {
+                stocks.push(...data);
+            } else if (data.stocks && Array.isArray(data.stocks)) {
+                stocks.push(...data.stocks);
+            } else if (data.data && Array.isArray(data.data)) {
+                stocks.push(...data.data);
+            } else if (typeof data === 'object' && data !== null) {
+                stocks.push(...Object.keys(data).slice(0, 10));
+            }
         }
         
         if (!stocks || stocks.length === 0) {
@@ -1363,21 +1391,25 @@ async function loadAIBuys() {
             return;
         }
         
-        const tickers = stocks.slice(0, 10).map(item => {
-            if (typeof item === 'string') return item.toUpperCase();
-            if (item.ticker) return item.ticker.toUpperCase();
-            if (item.symbol) return item.symbol.toUpperCase();
-            return null;
-        }).filter(Boolean);
+        // Extract tickers and remove duplicates
+        const tickers = Array.from(new Set(
+            stocks.slice(0, 20).map(item => {
+                if (typeof item === 'string') return item.toUpperCase();
+                if (item.ticker) return item.ticker.toUpperCase();
+                if (item.symbol) return item.symbol.toUpperCase();
+                return null;
+            }).filter(Boolean)
+        ));
         
         container.innerHTML = tickers.map(ticker => `
-            <div class="ai-buy-ticker" onclick="handleTickerClick('${escapeHtml(ticker)}')" title="Analyze ${escapeHtml(ticker)}">
+            <div class="ai-buy-ticker" id="ticker-box-${escapeHtml(ticker)}" onclick="handleTickerClick('${escapeHtml(ticker)}')" title="Analyze ${escapeHtml(ticker)}">
                 <span class="ticker-symbol">${escapeHtml(ticker)}</span>
                 <span class="ticker-price" id="price-${escapeHtml(ticker)}">...</span>
+                <span class="dividend-badge" id="dividend-${escapeHtml(ticker)}" style="display: none; margin-left: 4px; font-size: 12px; color: #10b981;">💰</span>
             </div>
         `).join('');
         
-        // Fetch prices for each ticker
+        // Fetch prices and dividend info for each ticker
         tickers.forEach(async (ticker) => {
             try {
                 const priceResponse = await fetch(`${API_BASE_URL}/api/fundamentals/${ticker}`);
@@ -1389,6 +1421,21 @@ async function loadAIBuys() {
                         priceEl.textContent = formatCurrency(price);
                     } else if (priceEl) {
                         priceEl.textContent = '';
+                    }
+                    
+                    // Check for dividend
+                    const dividendYield = priceData.dividendYield || priceData.dividend_yield;
+                    const trailingAnnualDividendRate = priceData.trailingAnnualDividendRate || priceData.trailing_annual_dividend_rate;
+                    const hasDividend = (dividendYield && dividendYield > 0) || (trailingAnnualDividendRate && trailingAnnualDividendRate > 0);
+                    
+                    const tickerBox = document.getElementById(`ticker-box-${ticker}`);
+                    const dividendBadge = document.getElementById(`dividend-${ticker}`);
+                    
+                    if (hasDividend && tickerBox) {
+                        // Apply green gradient background
+                        tickerBox.style.background = 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)';
+                        tickerBox.style.borderLeft = '4px solid #10b981';
+                        if (dividendBadge) dividendBadge.style.display = 'inline';
                     }
                 }
             } catch (err) {

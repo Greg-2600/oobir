@@ -83,9 +83,42 @@ logger.info("Ollama host configured: %s", OLLAMA_HOST)
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on application startup."""
+    logger.info("OOBIR Stock Analysis API starting up")
+
+
+# System/Cache Endpoints
+@app.get("/api/health")
+def health_endpoint():
+    """Health check endpoint."""
+    return {"status": "ok", "service": "OOBIR Stock Analysis API"}
+
+
+@app.get("/api/cache-info")
+def cache_info():
+    """Get cache information."""
+    return db.get_cache_stats()
+
+
+@app.post("/api/cache-flush")
+def flush_cache(endpoint: str = None, symbol: str = None):
+    """
+    Clear cache entries.
+    
+    Query Parameters:
+        endpoint: Optional endpoint name to clear (e.g., 'price-history')
+        symbol: Optional stock symbol to clear (e.g., 'AAPL')
+    
+    If both are omitted, entire cache is cleared.
+    """
+    count = db.clear_cache(endpoint=endpoint, symbol=symbol)
+    return {"cleared": count, "message": f"Cleared {count} cache entries"}
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize services on application startup."""
     logger.info("Starting OOBIR API...")
-    db.init_db_pool()
-    logger.info("Database connection pool initialized")
+    logger.info("Database cache initialized")
 
 
 @app.on_event("shutdown")
@@ -242,7 +275,7 @@ def with_ai_cache(endpoint: str, symbol: str, flow_function, *args, **kwargs):
 
     serialized_result = serialize_value(result)
     logger.info("Caching AI response for %s/%s", endpoint, symbol)
-    db.set_cached_data(endpoint, serialized_result, symbol)
+    db.set_cached_data(endpoint, serialized_result, symbol, market_aware=True)
     return serialized_result
 
 

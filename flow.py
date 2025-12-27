@@ -397,6 +397,221 @@ def get_screen_undervalued_large_caps():
         return None
 
 
+def _safe_float(value):
+    try:
+        val = float(value)
+        if pd.isna(val):
+            return None
+        return val
+    except Exception:  # pylint: disable=broad-except
+        return None
+
+
+def _format_money(value):
+    if value is None:
+        return "n/a"
+    magnitude = abs(value)
+    if magnitude >= 1e9:
+        return f"${value / 1e9:.1f}B"
+    if magnitude >= 1e6:
+        return f"${value / 1e6:.1f}M"
+    return f"${value:,.0f}"
+
+
+def _format_ratio(value):
+    if value is None:
+        return "n/a"
+    return f"{value:.2f}"
+
+
+def _latest_balance_sheet_slice(balance_sheet):
+    if balance_sheet is None:
+        return None, None
+
+    if isinstance(balance_sheet, pd.DataFrame):
+        try:
+            frame = balance_sheet.copy()
+            frame.index = frame.index.astype(str)
+            balance_sheet = frame.to_dict(orient='index')
+        except Exception:  # pylint: disable=broad-except
+            return None, None
+
+    if not isinstance(balance_sheet, dict):
+        return None, None
+
+    if balance_sheet and all(isinstance(v, dict) for v in balance_sheet.values()):
+        def _period_key(key):
+            try:
+                return pd.to_datetime(key)
+            except Exception:  # pylint: disable=broad-except
+                return key
+
+        ordered = sorted(balance_sheet.keys(), key=_period_key, reverse=True)
+        period = ordered[0]
+        metrics = balance_sheet.get(period, {})
+    else:
+        period = "latest"
+        metrics = balance_sheet
+
+    if not isinstance(metrics, dict):
+        return None, None
+
+    return metrics, period
+
+
+def _summarize_balance_sheet_for_prompt(balance_sheet):
+    metrics, period = _latest_balance_sheet_slice(balance_sheet)
+    if not metrics:
+        return None, period
+
+    def _get_value(*keys):
+        for key in keys:
+            if key in metrics:
+                val = _safe_float(metrics.get(key))
+                if val is not None:
+                    return val
+        return None
+
+    def _round(val):
+        if val is None:
+            return None
+        try:
+            return round(float(val), 2)
+        except Exception:  # pylint: disable=broad-except
+            return None
+
+    total_assets = _get_value('Total Assets', 'TotalAssets')
+    total_liabilities = _get_value('Total Liab', 'Total Liabilities', 'TotalLiab')
+    equity = _get_value('Total Stockholder Equity', 'Total Stockholders Equity', 'Stockholder Equity', 'Total Equity')
+    current_assets = _get_value('Total Current Assets', 'Current Assets')
+    current_liabilities = _get_value('Total Current Liabilities', 'Current Liabilities')
+    cash = _get_value('Cash And Cash Equivalents', 'Cash And Cash Equivalents USD', 'Cash', 'Cash Equivalents')
+    long_debt = _get_value('Long Term Debt', 'LongTermDebt')
+    short_debt = _get_value('Short Long Term Debt', 'Short Term Debt', 'Short Term Borrowings')
+    total_debt = _get_value('Total Debt')
+
+    if total_debt is None and (long_debt is not None or short_debt is not None):
+        total_debt = (long_debt or 0) + (short_debt or 0)
+
+    working_capital = None
+    if current_assets is not None and current_liabilities is not None:
+        working_capital = current_assets - current_liabilities
+
+    current_ratio = None
+    if current_assets is not None and current_liabilities not in (None, 0):
+        current_ratio = current_assets / current_liabilities
+
+    cash_ratio = None
+    if cash is not None and current_liabilities not in (None, 0):
+        cash_ratio = cash / current_liabilities
+
+    debt_to_equity = None
+    if total_debt is not None and equity not in (None, 0):
+        debt_to_equity = total_debt / equity
+
+    net_debt = None
+    if total_debt is not None and cash is not None:
+        net_debt = total_debt - cash
+
+    payload_metrics = {}
+
+    for key, val in [
+        ('total_assets', total_assets),
+        ('total_liabilities', total_liabilities),
+        ('equity', equity),
+        ('current_assets', current_assets),
+        ('current_liabilities', current_liabilities),
+        ('working_capital', working_capital),
+        ('cash', cash),
+        ('total_debt', total_debt),
+        ('net_debt', net_debt),
+        ('current_ratio', current_ratio),
+        ('cash_ratio', cash_ratio),
+        ('debt_to_equity', debt_to_equity),
+    ]:
+        rounded = _round(val)
+        if rounded is not None:
+            payload_metrics[key] = rounded
+
+    if not payload_metrics:
+        return None, period
+
+    return payload_metrics, period
+
+
+def _render_balance_sheet_bullets(metrics):
+    """Render a deterministic four-line Graham-style balance sheet summary."""
+    current_ratio = metrics.get('current_ratio')
+    cash_ratio = metrics.get('cash_ratio')
+    working_capital = metrics.get('working_capital')
+    equity = metrics.get('equity')
+    total_assets = metrics.get('total_assets')
+    total_liabilities = metrics.get('total_liabilities')
+    debt_to_equity = metrics.get('debt_to_equity')
+    net_debt = metrics.get('net_debt')
+    total_debt = metrics.get('total_debt')
+
+    liquidity_bits = []
+    if current_ratio is not None:
+        liquidity_bits.append(f"current ratio {current_ratio:.2f}")
+    if cash_ratio is not None:
+        liquidity_bits.append(f"cash ratio {cash_ratio:.2f}")
+    if working_capital is not None:
+        liquidity_bits.append("positive working capital" if working_capital > 0 else "working capital tight")
+    liquidity = ", ".join(liquidity_bits) if liquidity_bits else "insufficient data on near-term coverage"
+
+    leverage_bits = []
+    if debt_to_equity is not None:
+        leverage_bits.append(f"D/E {debt_to_equity:.2f}")
+    if total_debt is not None:
+        leverage_bits.append("net cash" if (net_debt is not None and net_debt < 0) else "net debt present")
+    if equity is not None:
+        leverage_bits.append("equity positive" if equity > 0 else "equity negative")
+    leverage = ", ".join(leverage_bits) if leverage_bits else "unable to assess leverage"
+
+    margin_bits = []
+    if equity is not None and total_assets not in (None, 0):
+        margin_bits.append(f"equity {equity / total_assets:.0%} of assets")
+    if total_assets is not None and total_liabilities not in (None, 0):
+        margin_bits.append(f"assets/liabilities {total_assets / total_liabilities:.2f}x")
+    margin = ", ".join(margin_bits) if margin_bits else "limited without price or earnings"
+
+    liquidity_line = f"Liquidity: {liquidity}"
+    leverage_line = f"Leverage: {leverage}"
+    margin_line = f"Margin of Safety: {margin}"
+
+    liquidity_ok = current_ratio is not None and current_ratio >= 1.5
+    leverage_ok = (debt_to_equity is None or debt_to_equity <= 1.0) and (net_debt is None or net_debt <= 0) and (equity is None or equity > 0)
+    verdict = "VALUE" if liquidity_ok and leverage_ok else "INCONCLUSIVE"
+    verdict_line = f"Verdict: {verdict}"
+
+    return "\n".join([liquidity_line, leverage_line, margin_line, verdict_line])
+
+
+def _coerce_balance_sheet_response(metrics, raw_text):
+    """Ensure balance sheet AI output is four labeled lines; otherwise synthesize it."""
+
+    def _maybe_use_raw(text):
+        if not text:
+            return None
+        lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+        labels = ["liquidity", "leverage", "margin of safety", "verdict"]
+        if len(lines) < 4:
+            return None
+        head = lines[:4]
+        if all(head[i].lower().startswith(labels[i]) for i in range(4)):
+            candidate = "\n".join(head)
+            if len(candidate.replace("\n", " ").split()) <= 120:
+                return candidate
+        return None
+
+    formatted = _maybe_use_raw(raw_text)
+    if formatted:
+        return formatted
+
+    return _render_balance_sheet_bullets(metrics)
+
+
 def get_ai_balance_sheet_analysis(ticker):
     """
     Generate an AI-driven analysis of a company's balance sheet.
@@ -431,23 +646,51 @@ def get_ai_balance_sheet_analysis(ticker):
     """
     try:
         balance_sheet = get_balance_sheet(ticker)
+        summary_metrics, period = _summarize_balance_sheet_for_prompt(balance_sheet)
+        if not summary_metrics:
+            return "Balance sheet data unavailable for analysis."
+
+        summary_json = json.dumps(
+            {
+                'ticker': ticker,
+                'period': period,
+                'metrics': summary_metrics,
+            },
+            separators=(',', ':'),
+        )
 
         ensure_ollama()
         response = _CHAT(
             model='huihui_ai/llama3.2-abliterate:3b',
-            messages=[{
-                'role': 'user',
-                'content': (
-                    'You are Benjamin Graham, a renowned value investor. '
-                    'Please provide your expert insights and guidance on '
-                    'valuation metrics, fundamental analysis, and potential '
-                    f'risks and rewards {balance_sheet}.'
-                ),
-            }]
+            messages=[
+                {
+                    'role': 'system',
+                    'content': (
+                        'You are a financial analyst following Benjamin Graham principles. '
+                        'Evaluate the given balance sheet data ONLY. Do NOT write code, ask questions, or provide calculations. '
+                        'Your response MUST be exactly four lines, each starting with one of these labels: '
+                        '"Liquidity:", "Leverage:", "Margin of Safety:", "Verdict:". '
+                        'The verdict line must end with exactly one word: either VALUE or INCONCLUSIVE. '
+                        'Each line must be under 20 words. Total response under 120 words.'
+                    ),
+                },
+                {
+                    'role': 'user',
+                    'content': (
+                        f'Analyze this balance sheet (JSON): {summary_json}\n\n'
+                        'Respond with EXACTLY four labeled lines:\n'
+                        '1. Liquidity: [assessment of current ratio, working capital, cash position]\n'
+                        '2. Leverage: [assessment of debt levels, D/E ratio, net debt]\n'
+                        '3. Margin of Safety: [assessment of equity cushion, asset coverage]\n'
+                        '4. Verdict: VALUE or INCONCLUSIVE\n\n'
+                        'Remember: No explanations, calculations, code, or questions. Only four lines with the four labels.'
+                    ),
+                },
+            ]
         )
 
         balance_sheet_analysis = getattr(response, 'message', response).content  # pylint: disable=no-member
-        return balance_sheet_analysis
+        return _coerce_balance_sheet_response(summary_metrics, balance_sheet_analysis)
 
     except Exception as exc:  # pylint: disable=broad-except
         print(f"An error occurred while performing balance_sheet_analysis: {exc}")
@@ -543,24 +786,198 @@ def get_ai_quarterly_income_stm_analysis(ticker):
     try:
         quarterly_income_stm = get_quarterly_income_stmt(ticker)
 
+        def _latest_income_stmt_slice(income_stmt):
+            if income_stmt is None:
+                return None, None
+
+            if isinstance(income_stmt, pd.DataFrame):
+                try:
+                    frame = income_stmt.copy()
+                    frame.index = frame.index.astype(str)
+                    income_stmt = frame.to_dict(orient='index')
+                except Exception:
+                    return None, None
+
+            if not isinstance(income_stmt, dict):
+                return None, None
+
+            try:
+                ordered = sorted(income_stmt.keys(), reverse=True)
+                period = ordered[0] if ordered else 'latest'
+                metrics = income_stmt.get(period, {})
+            except Exception:
+                period = 'latest'
+                metrics = income_stmt
+
+            if not isinstance(metrics, dict):
+                return None, None
+
+            return metrics, period
+
+        def _summarize_income_stmt_for_prompt(income_stmt):
+            metrics, period = _latest_income_stmt_slice(income_stmt)
+            if not metrics:
+                return None, period
+
+            def _get_value(*keys):
+                for key in keys:
+                    if key in metrics:
+                        return metrics.get(key)
+                return None
+
+            def _round(val):
+                if val is None:
+                    return None
+                try:
+                    return round(float(val), 2)
+                except Exception:
+                    return None
+
+            revenue = _get_value('Total Revenue', 'Revenue')
+            gross_profit = _get_value('Gross Profit', 'GrossProfit')
+            operating_income = _get_value('Operating Income', 'OperatingIncome')
+            net_income = _get_value('Net Income', 'NetIncome', 'Net Income Common Stockholders')
+            eps = _get_value('Diluted EPS', 'Basic EPS', 'Earnings Per Share')
+
+            gross_margin = None
+            operating_margin = None
+            net_margin = None
+            if revenue not in (None, 0):
+                try:
+                    gross_margin = (gross_profit or 0) / revenue if gross_profit is not None else None
+                except Exception:
+                    gross_margin = None
+                try:
+                    operating_margin = (operating_income or 0) / revenue if operating_income is not None else None
+                except Exception:
+                    operating_margin = None
+                try:
+                    net_margin = (net_income or 0) / revenue if net_income is not None else None
+                except Exception:
+                    net_margin = None
+
+            payload_metrics = {}
+            for key, val in [
+                ('revenue', revenue),
+                ('gross_profit', gross_profit),
+                ('operating_income', operating_income),
+                ('net_income', net_income),
+                ('eps', eps),
+                ('gross_margin', gross_margin),
+                ('operating_margin', operating_margin),
+                ('net_margin', net_margin),
+            ]:
+                rounded = _round(val)
+                if rounded is not None:
+                    payload_metrics[key] = rounded
+
+            if not payload_metrics:
+                return None, period
+
+            return payload_metrics, period
+
+        def _render_income_stmt_bullets(summary):
+            revenue = summary.get('revenue')
+            gross_margin = summary.get('gross_margin')
+            operating_margin = summary.get('operating_margin')
+            net_margin = summary.get('net_margin')
+            net_income = summary.get('net_income')
+            eps = summary.get('eps')
+
+            rev_bit = f"revenue ${revenue:,.0f}" if revenue is not None else "revenue n/a"
+            profit_bit = f"net ${net_income:,.0f}" if net_income is not None else "net n/a"
+            margins = []
+            if gross_margin is not None:
+                margins.append(f"gross {gross_margin:.0%}")
+            if operating_margin is not None:
+                margins.append(f"operating {operating_margin:.0%}")
+            if net_margin is not None:
+                margins.append(f"net {net_margin:.0%}")
+            margin_line = ", ".join(margins) if margins else "margins n/a"
+
+            eps_bit = f"EPS {eps:.2f}" if eps is not None else "EPS n/a"
+
+            healthy_profit = net_margin is not None and net_margin >= 0.15
+            verdict = "VALUE" if healthy_profit else "INCONCLUSIVE"
+
+            line1 = f"Revenue & Profitability: {rev_bit}, {profit_bit}"
+            line2 = f"Margins: {margin_line}"
+            line3 = f"Earnings: {eps_bit}"
+            line4 = f"Verdict: {verdict}"
+            return "\n".join([line1, line2, line3, line4])
+
+        def _coerce_income_stmt_response(summary, raw_text):
+            def _maybe_use_raw(text):
+                if not text:
+                    return None
+                lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+                labels = [
+                    "revenue & profitability",
+                    "margins",
+                    "earnings",
+                    "verdict",
+                ]
+                if len(lines) < 4:
+                    return None
+                head = lines[:4]
+                if all(head[i].lower().startswith(labels[i]) for i in range(4)):
+                    candidate = "\n".join(head)
+                    if len(candidate.replace("\n", " ").split()) <= 120:
+                        return candidate
+                return None
+
+            formatted = _maybe_use_raw(raw_text)
+            if formatted:
+                return formatted
+            return _render_income_stmt_bullets(summary)
+
+        summary_metrics, period = _summarize_income_stmt_for_prompt(quarterly_income_stm)
+        if not summary_metrics:
+            return "Income statement data unavailable for analysis."
+
+        summary_json = json.dumps(
+            {
+                'ticker': ticker,
+                'period': period,
+                'metrics': summary_metrics,
+            },
+            separators=(',', ':'),
+        )
+
         ensure_ollama()
         response = _CHAT(
             model='huihui_ai/llama3.2-abliterate:3b',
-            messages=[{
-                'role': 'user',
-                'content': (
-                    'You are Benjamin Graham, a renowned value investor. '
-                    'Please provide your expert insights and guidance on '
-                    'valuation metrics, fundamental analysis, and potential '
-                    f'risks and rewards {quarterly_income_stm}.'
-                ),
-            }]
+            messages=[
+                {
+                    'role': 'system',
+                    'content': (
+                        'You are a financial analyst following Benjamin Graham principles. '
+                        'Evaluate ONLY the provided income statement metrics. Do NOT write code, ask questions, or provide calculations. '
+                        'Your response MUST be exactly four lines, each starting with one of these labels: '
+                        '"Revenue & Profitability:", "Margins:", "Earnings:", "Verdict:". '
+                        'The verdict line must end with exactly one word: either VALUE or INCONCLUSIVE. '
+                        'Each line must be under 20 words. Total response under 120 words.'
+                    ),
+                },
+                {
+                    'role': 'user',
+                    'content': (
+                        f'Analyze this income statement (JSON): {summary_json}\n\n'
+                        'Respond with EXACTLY four labeled lines:\n'
+                        '1. Revenue & Profitability: [revenue level, net income]\n'
+                        '2. Margins: [gross, operating, net margins]\n'
+                        '3. Earnings: [EPS or note if unavailable]\n'
+                        '4. Verdict: VALUE or INCONCLUSIVE\n\n'
+                        'Remember: No explanations, calculations, code, or questions. Only four lines with the four labels.'
+                    ),
+                },
+            ]
         )
 
-        quarterly_income_stm_analysis = getattr(response, 'message', response).content  # pylint: disable=no-member
-        return quarterly_income_stm_analysis
+        ai_text = getattr(response, 'message', response).content
+        return _coerce_income_stmt_response(summary_metrics, ai_text)
 
-    except Exception as exc:  # pylint: disable=broad-except
+    except Exception as exc:
         print(f"An error occurred while performing income statement analysis: {exc}")
         return None
 
@@ -701,10 +1118,7 @@ def get_ai_technical_analysis(ticker):
                 messages=[
                     {
                         'role': 'system',
-                        'content': ('You are a professional technical analyst. Analyze the '
-                                    'provided technical indicators and price data to identify '
-                                    'trends, support/resistance, momentum shifts, and actionable '
-                                    'signals. Be specific and data-driven.')
+                        'content': 'You are a professional technical analyst. Analyze the provided technical indicators and price data to identify trends, support/resistance, momentum shifts, and actionable signals. Be specific and data-driven.'
                     },
                     {
                 'role': 'user',
@@ -735,7 +1149,7 @@ def get_ai_technical_analysis(ticker):
 def get_ai_action_recommendation(ticker):
     """Generate AI recommendation to buy, sell, or hold a stock."""
     try:
-        technical_analysis = get_ai_technical_analysis(ticker)
+        #technical_analysis = get_ai_technical_analysis(ticker)
         fundamental_analysis = get_ai_fundamental_analysis(ticker)
 
         ensure_ollama()
@@ -863,9 +1277,9 @@ def get_ai_full_report(ticker):
     """Generate comprehensive AI report based on all available information."""
     try:
         fundamental_analysis = get_ai_fundamental_analysis(ticker)
-        technical_analysis = get_ai_technical_analysis(ticker)
-        action_analysis = get_ai_action_recommendation(ticker)
-        analyst_price_targets = get_analyst_price_targets(ticker)
+        #technical_analysis = get_ai_technical_analysis(ticker)
+        #action_analysis = get_ai_action_recommendation(ticker)
+        #analyst_price_targets = get_analyst_price_targets(ticker)
 
         ensure_ollama()
         response = _CHAT(
