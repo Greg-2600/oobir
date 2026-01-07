@@ -5,25 +5,200 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OOBIR - Stock Analysis Platform</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        .unified-page {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
+        }
+
+        .unified-header {
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 20px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .unified-header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .unified-logo {
+            font-size: 1.8em;
+            font-weight: 300;
+            letter-spacing: -1px;
+            color: #1a73e8;
+            cursor: pointer;
+        }
+
+        .unified-search-bar {
+            flex: 1;
+            max-width: 500px;
+        }
+
+        .unified-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .stocks-grid-section {
+            margin-top: 40px;
+        }
+
+        .stocks-grid-section h2 {
+            font-size: 1.8em;
+            margin-bottom: 24px;
+            color: #1f2937;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .stocks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+            gap: 24px;
+        }
+
+        .stock-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            border: 1px solid #e5e7eb;
+            min-height: 400px;
+            cursor: pointer;
+        }
+
+        .stock-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.12);
+            border-color: #3b82f6;
+        }
+
+        .stock-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #f3f4f6;
+            padding-bottom: 10px;
+        }
+
+        .stock-ticker {
+            margin: 0;
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #1f2937;
+            letter-spacing: 1px;
+        }
+
+        .stock-price-badge {
+            background: #f0f9ff;
+            color: #0369a1;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.95em;
+        }
+
+        .stock-card-chart {
+            margin: 12px 0;
+            border-radius: 6px;
+            background: #fafbfc;
+            border: 1px solid #f0f0f0;
+            overflow: hidden;
+        }
+
+        .stock-card-indicator {
+            margin: 10px 0;
+        }
+
+        .stock-card-body {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .stock-change {
+            font-weight: 600;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.95em;
+            text-align: center;
+        }
+
+        .stock-change.positive {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .stock-change.negative {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .stock-company {
+            margin: 0;
+            font-size: 0.85em;
+            color: #6b7280;
+            line-height: 1.3;
+        }
+
+        .stock-metric {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8em;
+            color: #666;
+        }
+
+        .stock-metric span {
+            color: #999;
+        }
+
+        .stock-metric strong {
+            color: #1f2937;
+        }
+
+        @media (max-width: 768px) {
+            .unified-header-content {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .unified-search-bar {
+                max-width: 100%;
+            }
+
+            .stocks-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Landing Page -->
-        <div id="landing-page" class="landing-page">
-            <div class="logo-section">
-                <h1 class="logo">OOBIR</h1>
-                <p class="tagline">AI-Powered Stock Analysis</p>
-            </div>
-            
-            <div class="search-section">
-                <form id="search-form" class="search-form">
+    <div id="unified-page" class="unified-page">
+        <!-- Header -->
+        <div class="unified-header">
+            <div class="unified-header-content">
+                <div class="unified-logo" onclick="window.location.href='index.html'; return false;">OOBIR</div>
+                <form id="search-form" class="search-form unified-search-bar">
                     <input 
                         type="text" 
                         id="ticker-input" 
                         class="search-input" 
-                        placeholder="Enter stock ticker (e.g., AAPL, BRK-A, ^GSPC)"
+                        placeholder="Search stocks... (e.g., AAPL, MSFT)"
                         autocomplete="off"
-                        autofocus
                     >
                     <button type="submit" class="search-button">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -32,23 +207,31 @@
                         </svg>
                     </button>
                 </form>
-                <div id="error-message" class="error-message"></div>
+            </div>
+        </div>
 
-                <!-- AI Selected BUYs -->
-                <div class="ai-buys-section">
-                    <h3>AI Selected Undervalued Stocks</h3>
-                    <div id="ai-buys-container">
-                        <div style="color: var(--text-secondary); font-size: 13px;">Loading...</div>
+        <!-- Main Content -->
+        <div class="unified-content">
+            <div id="error-message" class="error-message"></div>
+            
+            <!-- Stocks Grid -->
+            <div class="stocks-grid-section">
+                <h2>📊 Market Screener</h2>
+                <div class="stocks-grid" id="stocks-grid">
+                    <div style="text-align: center; padding: 40px; color: #6b7280; grid-column: 1/-1;">
+                        <div style="width: 40px; height: 40px; border: 3px solid #f3f4f6; border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
+                        <p>Loading stocks...</p>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
         <!-- Results Page -->
         <div id="results-page" class="results-page hidden">
             <header class="results-header">
                 <div class="header-left">
-                    <h2 class="logo-small" onclick="location.reload()" style="cursor: pointer;">OOBIR</h2>
+                    <h2 class="logo-small" onclick="window.location.href='index.html'; return false;" style="cursor: pointer;">OOBIR</h2>
                 </div>
                 <div class="header-center">
                     <form id="search-form-compact" class="search-form-compact">
@@ -89,6 +272,13 @@
                             <div id="stock-price" class="stock-price"></div>
                         </div>
                         <div id="price-trend-summary" style="text-align: right; font-size: 0.9em; color: #666; min-width: 200px;"></div>
+                    </div>
+
+                    <!-- Trend Prediction Banner -->
+                    <div id="trend-prediction" class="card" style="margin-bottom: 20px; border-left: 4px solid #3b82f6; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);">
+                        <div style="padding: 20px;">
+                            <div class="loading-placeholder">Analyzing trend...</div>
+                        </div>
                     </div>
 
                     <!-- Company Summary Box -->
