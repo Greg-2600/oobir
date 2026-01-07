@@ -74,39 +74,27 @@ def _is_market_open_now():
 
 def _should_expire_cache(cached_at_str: str) -> bool:
     """
-    Determine if cache should expire based on market opening.
+    Determine if cache should expire based on market status.
     
     Market-aware logic:
-    - If market is currently open and data was cached before today's market open, expire it
-    - If market is closed and data was cached after last market close, keep it
-    - Otherwise, expire cache older than 24 hours
+    - If market is currently open: expire cache older than 1 hour
+    - If market is closed: never expire (keep indefinitely)
     """
     try:
         cached_at = datetime.fromisoformat(cached_at_str)
         now = datetime.now()
         
-        # If cache is older than 24 hours, always expire
-        if (now - cached_at).total_seconds() > 86400:
-            return True
-        
-        # Get today's market open time (9:30 AM ET)
-        today = now.date()
-        today_market_open = datetime.combine(today, MARKET_OPEN_TIME)
-        
         # If market is currently open
         if _is_market_open_now():
-            # Expire if cache is before today's market open
-            if cached_at < today_market_open:
+            # Expire if cache is older than 1 hour
+            cache_age_seconds = (now - cached_at).total_seconds()
+            if cache_age_seconds > 3600:  # 1 hour = 3600 seconds
+                logger.debug(f"Cache expired: {cache_age_seconds/60:.1f} minutes old (market open)")
                 return True
         else:
-            # Market is closed
-            # Check if we're past today's market hours
-            today_market_close = datetime.combine(today, MARKET_CLOSE_TIME)
-            if now > today_market_close:
-                # We're after market close today
-                # Expire if cache is from before today's market open
-                if cached_at < today_market_open:
-                    return True
+            # Market is closed - never expire
+            logger.debug(f"Cache kept: market is closed")
+            return False
         
         return False
     except Exception as e:

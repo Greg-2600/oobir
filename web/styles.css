@@ -78,6 +78,16 @@ body {
     color: var(--text-primary);
 }
 
+.view-all-link {
+    transition: color 0.2s, transform 0.2s;
+    display: inline-block;
+}
+
+.view-all-link:hover {
+    color: var(--primary-hover) !important;
+    transform: translateX(4px);
+}
+
 .ai-buys-container {
     display: flex;
     flex-wrap: wrap;
@@ -350,6 +360,114 @@ body {
 .data-content table {
     width: 100%;
     border-collapse: collapse;
+}
+
+.technical-signals-table {
+    width: 100% !important;
+    border-collapse: collapse;
+}
+
+.technical-signals-table td {
+    padding: 12px 8px !important;
+    border-bottom: 1px solid var(--border-color) !important;
+}
+
+.technical-signals-table .indicator-label {
+    font-weight: 600 !important;
+    color: var(--text-primary) !important;
+    width: 35%;
+    font-size: 15px;
+}
+
+.technical-signals-table .indicator-value {
+    text-align: center !important;
+    font-family: 'Monaco', 'Courier New', monospace !important;
+    font-weight: 500;
+    width: 30%;
+    color: #3b82f6;
+    font-size: 14px;
+}
+
+.technical-signals-table .indicator-signal {
+    text-align: right !important;
+    font-weight: 700 !important;
+    font-size: 13px;
+    width: 35%;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Technical Indicators Grid Cards */
+.tech-indicators-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.tech-indicator-card {
+    background: linear-gradient(135deg, #f8fafc 0%, #eef2f5 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.tech-indicator-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-color: #cbd5e1;
+}
+
+.tech-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.tech-emoji {
+    font-size: 1.5em;
+    line-height: 1;
+}
+
+.tech-label {
+    font-weight: 700;
+    color: #1e293b;
+    font-size: 0.95em;
+}
+
+.tech-value-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.tech-value {
+    font-size: 1.2em;
+    font-weight: 700;
+    color: #3b82f6;
+    font-family: 'Monaco', 'Courier New', monospace;
+    flex: 1;
+}
+
+.tech-signal {
+    font-size: 0.75em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.tech-bar {
+    height: 8px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
 }
 
 .data-content td {

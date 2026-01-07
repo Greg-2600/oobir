@@ -12,7 +12,7 @@ let currentTicker = '';
 let fundamentalsData = {};
 
 // DOM Elements
-const landingPage = document.getElementById('landing-page');
+const unifiedPage = document.getElementById('unified-page');
 const resultsPage = document.getElementById('results-page');
 const searchForm = document.getElementById('search-form');
 const searchFormCompact = document.getElementById('search-form-compact');
@@ -20,6 +20,7 @@ const tickerInput = document.getElementById('ticker-input');
 const tickerInputCompact = document.getElementById('ticker-input-compact');
 const backButton = document.getElementById('back-button');
 const errorMessage = document.getElementById('error-message');
+const stocksGrid = document.getElementById('stocks-grid');
 const loadingSpinner = document.getElementById('loading-spinner');
 const loadingTicker = document.getElementById('loading-ticker');
 const resultsContainer = document.getElementById('results-container');
@@ -181,15 +182,16 @@ function handleSearch(e) {
 
 // Show landing page
 function showLandingPage() {
-    landingPage.classList.remove('hidden');
+    unifiedPage.classList.remove('hidden');
     resultsPage.classList.add('hidden');
     tickerInput.value = '';
     tickerInput.focus();
+    loadAllStocks();
 }
 
 // Show results page
 function showResultsPage() {
-    landingPage.classList.add('hidden');
+    unifiedPage.classList.add('hidden');
     resultsPage.classList.remove('hidden');
     loadingSpinner.classList.remove('hidden');
     resultsContainer.classList.add('hidden');
@@ -215,10 +217,331 @@ function hideError() {
     errorMessage.classList.remove('show');
 }
 
+// Load all stocks for the unified page grid
+async function loadAllStocks() {
+    const FEATURED_TICKERS = ['SI=F', 'CHTR', 'MSTY', 'IBIT', 'MSTR', 'FBTC', 'TSLA', 'PLTR', 'NVDA'];
+    
+    if (!stocksGrid) return;
+    
+    try {
+        // Load featured stocks
+        const featuredStocks = [];
+        for (const ticker of FEATURED_TICKERS) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/fundamentals/${encodeURIComponent(ticker)}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    // Add if it has currentPrice or regularMarketPrice (includes commodities)
+                    if (data.currentPrice || data.regularMarketPrice) {
+                        featuredStocks.push({
+                            ticker: ticker,
+                            ...data
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error(`Error loading ${ticker}:`, err);
+            }
+        }
+        
+        // Load AI-recommended stocks
+        let aiStocks = [];
+        try {
+            const [undervaluedRes, growthRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/api/screen-undervalued`),
+                fetch(`${API_BASE_URL}/api/screen-undervalued-growth`)
+            ]);
+            
+            const allRecommendations = [];
+            if (undervaluedRes.ok) {
+                const data = await undervaluedRes.json();
+                const tickers = Array.isArray(data) ? data : 
+                               data.stocks ? data.stocks :
+                               data.data ? data.data : [];
+                allRecommendations.push(...tickers);
+            }
+            if (growthRes.ok) {
+                const data = await growthRes.json();
+                const tickers = Array.isArray(data) ? data : 
+                               data.stocks ? data.stocks :
+                               data.data ? data.data : [];
+                allRecommendations.push(...tickers);
+            }
+            
+            // Remove featured tickers and get unique recommendations
+            const uniqueRecommendations = Array.from(new Set(
+                allRecommendations.map(item => {
+                    if (typeof item === 'string') return item.toUpperCase();
+                    if (item.ticker) return item.ticker.toUpperCase();
+                    if (item.symbol) return item.symbol.toUpperCase();
+                    return null;
+                }).filter(t => t && !FEATURED_TICKERS.includes(t))
+            )).slice(0, 12);
+            
+            // Load AI stock fundamentals
+            for (const ticker of uniqueRecommendations) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/fundamentals/${encodeURIComponent(ticker)}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        // Only add if it has current price (stock, not commodity)
+                        if (data.currentPrice) {
+                            aiStocks.push({
+                                ticker: ticker,
+                                ...data
+                            });
+                        }
+                    }
+                } catch (err) {
+                    console.error(`Error loading AI stock ${ticker}:`, err);
+                }
+            }
+        } catch (err) {
+            console.error('Error loading AI recommendations:', err);
+        }
+        
+        // Render stocks grid
+        renderStocksGrid([...featuredStocks, ...aiStocks]);
+        hideError();
+        
+    } catch (err) {
+        console.error('Error loading stocks:', err);
+        showError('Failed to load stocks. Please try again.');
+    }
+}
+
+// Render stocks grid with stock cards
+async function renderStocksGrid(stocks) {
+    if (!stocksGrid) return;
+    
+    if (!stocks || stocks.length === 0) {
+        stocksGrid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #999;">No stocks to display</div>';
+        return;
+    }
+    
+    stocksGrid.innerHTML = stocks.map(stock => {
+        const ticker = stock.ticker || '';
+        const symbol = escapeHtml(ticker);
+        const currentPrice = stock.currentPrice || stock.regularMarketPrice || 0;
+        const previousClose = stock.regularMarketPreviousClose || stock.previousClose || 0;
+        const priceChange = currentPrice - previousClose;
+        const priceChangePercent = previousClose ? (priceChange / previousClose * 100).toFixed(2) : 0;
+        const isPositive = priceChange >= 0;
+        const pe = stock.trailingPE || stock.forwardPE || null;
+        const marketCap = stock.marketCap;
+        const chartContainerId = `chart-${ticker.replace(/[^A-Z0-9]/gi, '_')}`;
+        const indicatorContainerId = `indicator-${ticker.replace(/[^A-Z0-9]/gi, '_')}`;
+        
+        return `
+            <div class="stock-card" style="cursor: pointer; display: flex; flex-direction: column;" onclick="handleStockClick('${escapeHtml(ticker)}')">
+                <div class="stock-card-header">
+                    <h3 class="stock-ticker">${symbol}</h3>
+                    <span class="stock-price-badge">\$${currentPrice.toFixed(2)}</span>
+                </div>
+                
+                <div class="stock-card-chart">
+                    <canvas id="${chartContainerId}" width="800" height="240" style="display: block; width: 100%; height: 120px;"></canvas>
+                </div>
+                
+                <div class="stock-card-indicator">
+                    <div id="${indicatorContainerId}" style="font-size: 0.85em; text-align: center; padding: 8px; background: #f9fafb; border-radius: 6px; color: #666;">
+                        Loading indicator...
+                    </div>
+                </div>
+                
+                <div class="stock-card-body" style="flex-grow: 1; display: flex; flex-direction: column;">
+                    <div class="stock-change ${isPositive ? 'positive' : 'negative'}">
+                        ${isPositive ? '↑' : '↓'} ${Math.abs(priceChangePercent)}%
+                    </div>
+                    ${stock.shortName || stock.companyName ? `<p class="stock-company">${escapeHtml(stock.shortName || stock.companyName)}</p>` : ''}
+                    ${marketCap ? `<div class="stock-metric"><span>Market Cap:</span> <strong>${formatLargeNumber(marketCap)}</strong></div>` : ''}
+                    ${pe ? `<div class="stock-metric"><span>P/E:</span> <strong>${pe.toFixed(2)}</strong></div>` : ''}
+                    ${stock.dividendYield ? `<div class="stock-metric"><span>💰 Dividend:</span> <strong>${(stock.dividendYield * 100).toFixed(2)}%</strong></div>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    // Load chart data for each stock
+    for (const stock of stocks) {
+        const ticker = stock.ticker || '';
+        const chartContainerId = `chart-${ticker.replace(/[^A-Z0-9]/gi, '_')}`;
+        const indicatorContainerId = `indicator-${ticker.replace(/[^A-Z0-9]/gi, '_')}`;
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/price-history/${encodeURIComponent(ticker)}`);
+            if (response.ok) {
+                const data = await response.json();
+                const prices = Array.isArray(data) ? data : data.data || data.prices || data.history || [];
+                
+                if (prices.length > 0) {
+                    // Draw candlestick chart
+                    const canvas = document.getElementById(chartContainerId);
+                    if (canvas) {
+                        drawMiniStockChart(canvas, prices, ticker);
+                    }
+                    
+                    // Calculate and display key indicator
+                    const indicatorElement = document.getElementById(indicatorContainerId);
+                    if (indicatorElement) {
+                        const indicator = getKeyIndicator(prices);
+                        indicatorElement.innerHTML = indicator;
+                    }
+                }
+            }
+        } catch (err) {
+            console.error(`Error loading chart for ${ticker}:`, err);
+        }
+    }
+}
+
+// Draw mini candlestick chart with Bollinger Bands
+function drawMiniStockChart(canvas, prices, ticker) {
+    if (!canvas || !prices || prices.length === 0) return;
+    
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width || 800;
+    const height = canvas.height || 240;
+    
+    // Use last 90 days for mini chart
+    const chartData = prices.slice(-90);
+    const closes = chartData.map(p => typeof p === 'object' ? (p.Close || p.close || p.price || 0) : p);
+    
+    if (closes.length === 0) return;
+    
+    // Calculate Bollinger Bands
+    const { middle: sma20, upper: bbUpper, lower: bbLower } = calculateBollingerBands(chartData, 20, 2);
+    
+    // Find min/max prices
+    const minPrice = Math.min(...closes.filter(p => p > 0));
+    const maxPrice = Math.max(...closes.filter(p => p > 0));
+    const priceRange = maxPrice - minPrice || 1;
+    const padding = priceRange * 0.1;
+    
+    // Drawing setup
+    const chartPadding = { top: 10, bottom: 10, left: 10, right: 10 };
+    const chartWidth = width - chartPadding.left - chartPadding.right;
+    const chartHeight = height - chartPadding.top - chartPadding.bottom;
+    const candleWidth = Math.max(2, chartWidth / (chartData.length * 1.2));
+    const candleGap = candleWidth * 0.2;
+    
+    // Clear canvas
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Draw Bollinger Bands
+    ctx.strokeStyle = 'rgba(200, 200, 200, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    
+    for (let i = 0; i < bbUpper.length; i++) {
+        if (bbUpper[i] !== null) {
+            const y = chartPadding.top + chartHeight - ((bbUpper[i] - (minPrice - padding)) / (priceRange + padding * 2)) * chartHeight;
+            if (i === 0) ctx.moveTo(chartPadding.left + i * (candleWidth + candleGap), y);
+            else ctx.lineTo(chartPadding.left + i * (candleWidth + candleGap), y);
+        }
+    }
+    ctx.stroke();
+    
+    ctx.beginPath();
+    for (let i = 0; i < bbLower.length; i++) {
+        if (bbLower[i] !== null) {
+            const y = chartPadding.top + chartHeight - ((bbLower[i] - (minPrice - padding)) / (priceRange + padding * 2)) * chartHeight;
+            if (i === 0) ctx.moveTo(chartPadding.left + i * (candleWidth + candleGap), y);
+            else ctx.lineTo(chartPadding.left + i * (candleWidth + candleGap), y);
+        }
+    }
+    ctx.stroke();
+    
+    // Draw candlesticks
+    for (let i = 0; i < chartData.length; i++) {
+        const candle = chartData[i];
+        const open = typeof candle === 'object' ? (candle.Open || candle.open || closes[i]) : candle;
+        const close = typeof candle === 'object' ? (candle.Close || candle.close || closes[i]) : candle;
+        const high = typeof candle === 'object' ? (candle.High || candle.high || Math.max(open, close)) : candle;
+        const low = typeof candle === 'object' ? (candle.Low || candle.low || Math.min(open, close)) : candle;
+        
+        const x = chartPadding.left + i * (candleWidth + candleGap);
+        const yHigh = chartPadding.top + chartHeight - ((high - (minPrice - padding)) / (priceRange + padding * 2)) * chartHeight;
+        const yLow = chartPadding.top + chartHeight - ((low - (minPrice - padding)) / (priceRange + padding * 2)) * chartHeight;
+        const yOpen = chartPadding.top + chartHeight - ((open - (minPrice - padding)) / (priceRange + padding * 2)) * chartHeight;
+        const yClose = chartPadding.top + chartHeight - ((close - (minPrice - padding)) / (priceRange + padding * 2)) * chartHeight;
+        
+        // Wick
+        ctx.strokeStyle = close >= open ? '#10b981' : '#ef4444';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x + candleWidth / 2, yHigh);
+        ctx.lineTo(x + candleWidth / 2, yLow);
+        ctx.stroke();
+        
+        // Body
+        ctx.fillStyle = close >= open ? '#10b981' : '#ef4444';
+        const bodyTop = Math.min(yOpen, yClose);
+        const bodyHeight = Math.abs(yClose - yOpen) || 2;
+        ctx.fillRect(x, bodyTop, candleWidth, bodyHeight);
+        ctx.strokeStyle = close >= open ? '#059669' : '#dc2626';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(x, bodyTop, candleWidth, bodyHeight);
+    }
+}
+
+// Get the most important technical indicator
+function getKeyIndicator(prices) {
+    if (!prices || prices.length < 14) {
+        return '<span style="color: #999;">Insufficient data</span>';
+    }
+    
+    try {
+        // calculateRSI expects objects with .Close property
+        const rsi = calculateRSI(prices, 14);
+        const lastRSI = rsi[rsi.length - 1];
+        
+        if (lastRSI === null || lastRSI === undefined || isNaN(lastRSI)) {
+            return '<span style="color: #999;">RSI: N/A</span>';
+        }
+        
+        let signal = '';
+        let color = '#6b7280';
+        
+        if (lastRSI > 70) {
+            signal = '⚠️ Overbought';
+            color = '#ef4444';
+        } else if (lastRSI < 30) {
+            signal = '📈 Oversold';
+            color = '#10b981';
+        } else if (lastRSI > 60) {
+            signal = '🔴 Strong';
+            color = '#f59e0b';
+        } else if (lastRSI < 40) {
+            signal = '🟢 Weak';
+            color = '#3b82f6';
+        } else {
+            signal = '→ Neutral';
+            color = '#6b7280';
+        }
+        
+        return `<span style="color: ${color}; font-weight: 600;">RSI: ${lastRSI.toFixed(0)} - ${signal}</span>`;
+    } catch (err) {
+        console.error('Error calculating indicator:', err);
+        return '<span style="color: #999;">Error</span>';
+    }
+}
+
+// Handle stock card click
+function handleStockClick(ticker) {
+    currentTicker = ticker;
+    loadStockData(ticker, false);
+}
+
 // Load all stock data
-async function loadStockData(ticker) {
+async function loadStockData(ticker, replaceHistory = false) {
     // Add to browser history
-    window.history.pushState({ page: 'results', ticker: ticker }, `${ticker} - OOBIR`, `?ticker=${ticker}`);
+    if (replaceHistory) {
+        window.history.replaceState({ page: 'results', ticker: ticker }, `${ticker} - OOBIR`, `?ticker=${ticker}`);
+    } else {
+        window.history.pushState({ page: 'results', ticker: ticker }, `${ticker} - OOBIR`, `?ticker=${ticker}`);
+    }
     
     showResultsPage();
     loadingTicker.textContent = ticker;
@@ -598,6 +921,9 @@ function renderPriceHistory(data, container) {
         bbUpper: bbUpper[bbUpper.length - 1],
         bbLower: bbLower[bbLower.length - 1]
     };
+    
+    // Render trend prediction at the top
+    renderTrendPrediction();
     
     // Create candlestick chart with technical indicators
     const chartHtml = `
@@ -1260,6 +1586,134 @@ function renderNewsSentiment(data, container) {
     `;
 }
 
+// Generate and display trend prediction based on technical indicators
+function renderTrendPrediction() {
+    const container = document.getElementById('trend-prediction');
+    if (!container) return;
+    
+    const ind = window.technicalIndicators || {};
+    const currentPrice = window.currentPrice || 0;
+    
+    if (!ind || (!ind.rsi && !ind.macd)) {
+        container.style.display = 'none';
+        return;
+    }
+    
+    // Calculate bullish/bearish signals
+    let bullishSignals = 0;
+    let bearishSignals = 0;
+    const signals = [];
+    
+    // RSI
+    if (ind.rsi !== undefined && ind.rsi !== null) {
+        if (ind.rsi < 30) {
+            bullishSignals++;
+            signals.push('RSI oversold (buy signal)');
+        } else if (ind.rsi > 70) {
+            bearishSignals++;
+            signals.push('RSI overbought (sell signal)');
+        }
+    }
+    
+    // MACD
+    if (ind.macdHistogram !== undefined && ind.macdHistogram !== null) {
+        if (ind.macdHistogram > 0) {
+            bullishSignals++;
+            signals.push('MACD bullish crossover');
+        } else {
+            bearishSignals++;
+            signals.push('MACD bearish crossover');
+        }
+    }
+    
+    // Moving Averages
+    if (currentPrice && ind.sma20 && ind.sma50) {
+        if (currentPrice > ind.sma20 && ind.sma20 > ind.sma50) {
+            bullishSignals++;
+            signals.push('Price above moving averages');
+        } else if (currentPrice < ind.sma20 && ind.sma20 < ind.sma50) {
+            bearishSignals++;
+            signals.push('Price below moving averages');
+        }
+    }
+    
+    // Stochastic
+    if (ind.stochastic !== undefined && ind.stochastic !== null) {
+        if (ind.stochastic < 20) {
+            bullishSignals++;
+            signals.push('Stochastic oversold');
+        } else if (ind.stochastic > 80) {
+            bearishSignals++;
+            signals.push('Stochastic overbought');
+        }
+    }
+    
+    // Determine trend
+    const totalSignals = bullishSignals + bearishSignals;
+    let trend = 'NEUTRAL';
+    let trendIcon = '→';
+    let trendColor = '#6b7280';
+    let borderColor = '#3b82f6';
+    let bgGradient = 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)';
+    let prediction = 'The market signals are mixed. Wait for clearer direction.';
+    
+    if (totalSignals > 0) {
+        const bullishPercent = (bullishSignals / totalSignals) * 100;
+        
+        if (bullishPercent >= 70) {
+            trend = 'BULLISH';
+            trendIcon = '📈';
+            trendColor = '#10b981';
+            borderColor = '#10b981';
+            bgGradient = 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)';
+            prediction = 'Technical indicators suggest upward momentum. Consider buying or holding.';
+        } else if (bullishPercent <= 30) {
+            trend = 'BEARISH';
+            trendIcon = '📉';
+            trendColor = '#ef4444';
+            borderColor = '#ef4444';
+            bgGradient = 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)';
+            prediction = 'Technical indicators suggest downward pressure. Consider caution.';
+        } else {
+            trend = 'NEUTRAL';
+            trendIcon = '↔️';
+            prediction = 'Mixed signals detected. Market consolidating or transitioning.';
+        }
+    }
+    
+    const html = `
+        <div style="padding: 20px;">
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+                <div style="font-size: 3em;">${trendIcon}</div>
+                <div style="flex: 1;">
+                    <div style="font-size: 1.4em; font-weight: 700; color: ${trendColor}; margin-bottom: 4px;">
+                        Trend Prediction: ${trend}
+                    </div>
+                    <div style="font-size: 1em; color: #374151; line-height: 1.5;">
+                        ${prediction}
+                    </div>
+                </div>
+                <div style="text-align: right; font-size: 0.9em; color: #6b7280;">
+                    <div style="font-weight: 600; color: #10b981; font-size: 1.2em;">${bullishSignals}</div>
+                    <div>Bullish Signals</div>
+                    <div style="font-weight: 600; color: #ef4444; font-size: 1.2em; margin-top: 8px;">${bearishSignals}</div>
+                    <div>Bearish Signals</div>
+                </div>
+            </div>
+            ${signals.length > 0 ? `
+                <div style="font-size: 0.85em; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 12px; margin-top: 12px;">
+                    <strong>Key Signals:</strong> ${signals.join(', ')}
+                </div>
+            ` : ''}
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    container.style.borderLeftColor = borderColor;
+    container.style.background = bgGradient;
+    container.style.display = 'block';
+}
+
 function renderTechnicalSignals(_data, container) {
     const ind = window.technicalIndicators || {};
     if (!ind || (!ind.rsi && !ind.macd && !ind.stochastic)) {
@@ -1272,26 +1726,45 @@ function renderTechnicalSignals(_data, container) {
     const adxSignal = ind.adx && ind.adx > 25 ? 'Trending' : 'Weak Trend';
     const smaSignal = (window.currentPrice || 0) > (ind.sma20 || 0) && (ind.sma20 || 0) > (ind.sma50 || 0) ? 'Bullish' : (window.currentPrice || 0) < (ind.sma20 || 0) && (ind.sma20 || 0) < (ind.sma50 || 0) ? 'Bearish' : 'Mixed';
     
-    const row = (label, value, signal) => `
-        <tr>
-            <td>${label}</td>
-            <td class="value">${value}</td>
-            <td class="value">${signal}</td>
-        </tr>
-    `;
+    const indicator = (emoji, label, value, signal, thresholds = {}) => {
+        const signalColor = signal === 'Overbought' || signal === 'Bearish' ? '#ef4444' : 
+                           signal === 'Oversold' || signal === 'Bullish' ? '#10b981' : 
+                           signal === 'Trending' ? '#3b82f6' : '#6b7280';
+        
+        // Determine fill percentage for visual bar
+        let fillPercent = 0;
+        if (thresholds.min !== undefined && thresholds.max !== undefined) {
+            fillPercent = Math.max(0, Math.min(100, ((parseFloat(value) - thresholds.min) / (thresholds.max - thresholds.min)) * 100));
+        }
+        
+        const barColor = signal === 'Overbought' ? '#ef4444' : signal === 'Oversold' ? '#10b981' : '#3b82f6';
+        
+        return `
+            <div class="tech-indicator-card">
+                <div class="tech-header">
+                    <span class="tech-emoji">${emoji}</span>
+                    <span class="tech-label">${label}</span>
+                </div>
+                <div class="tech-value-row">
+                    <div class="tech-value">${value}</div>
+                    <div class="tech-signal" style="color: ${signalColor};">${signal}</div>
+                </div>
+                ${thresholds.min !== undefined ? `<div class="tech-bar" style="background: linear-gradient(90deg, ${barColor} 0%, ${barColor} ${fillPercent}%, rgba(${barColor === '#ef4444' ? '239,68,68' : barColor === '#10b981' ? '16,185,129' : '59,130,246'},0.1) ${fillPercent}%, rgba(${barColor === '#ef4444' ? '239,68,68' : barColor === '#10b981' ? '16,185,129' : '59,130,246'},0.1) 100%);"></div>` : ''}
+            </div>
+        `;
+    };
     
     const html = `
-        <table>
-            ${row('RSI (14)', ind.rsi ? ind.rsi.toFixed(1) : 'N/A', rsiSignal)}
-            ${row('MACD', ind.macd ? ind.macd.toFixed(3) : 'N/A', macdSignal)}
-            ${row('MACD Hist', ind.macdHistogram ? ind.macdHistogram.toFixed(3) : 'N/A', macdSignal)}
-            ${row('Stochastic', ind.stochastic ? ind.stochastic.toFixed(1) : 'N/A', stochSignal)}
-            ${row('ADX', ind.adx ? ind.adx.toFixed(1) : 'N/A', adxSignal)}
-            ${row('SMA 20', ind.sma20 ? formatCurrency(ind.sma20) : 'N/A', smaSignal)}
-            ${row('SMA 50', ind.sma50 ? formatCurrency(ind.sma50) : 'N/A', smaSignal)}
-            ${row('BB Upper', ind.bbUpper ? formatCurrency(ind.bbUpper) : 'N/A', '-')}
-            ${row('BB Lower', ind.bbLower ? formatCurrency(ind.bbLower) : 'N/A', '-')}
-        </table>
+        <div class="tech-indicators-grid">
+            ${indicator('📊', 'RSI (14)', ind.rsi ? ind.rsi.toFixed(1) : 'N/A', rsiSignal, {min: 0, max: 100})}
+            ${indicator('📈', 'MACD', ind.macd ? ind.macd.toFixed(3) : 'N/A', macdSignal)}
+            ${indicator('🎯', 'Stochastic', ind.stochastic ? ind.stochastic.toFixed(1) : 'N/A', stochSignal, {min: 0, max: 100})}
+            ${indicator('📍', 'ADX', ind.adx ? ind.adx.toFixed(1) : 'N/A', adxSignal, {min: 0, max: 50})}
+            ${indicator('💰', 'SMA 20', ind.sma20 ? formatCurrency(ind.sma20) : 'N/A', smaSignal)}
+            ${indicator('💰', 'SMA 50', ind.sma50 ? formatCurrency(ind.sma50) : 'N/A', smaSignal)}
+            ${indicator('🎁', 'BB Upper', ind.bbUpper ? formatCurrency(ind.bbUpper) : 'N/A', '-')}
+            ${indicator('🎁', 'BB Lower', ind.bbLower ? formatCurrency(ind.bbLower) : 'N/A', '-')}
+        </div>
     `;
     container.innerHTML = html;
 }
@@ -1460,6 +1933,19 @@ function handleTickerClick(ticker) {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
-    tickerInput.focus();
-    loadAIBuys();
+    // Check if ticker is in URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const tickerParam = urlParams.get('ticker');
+    
+    if (tickerParam) {
+        // Auto-search for the ticker from URL (use replaceState to avoid duplicate history)
+        const ticker = tickerParam.trim().toUpperCase();
+        tickerInput.value = ticker;
+        currentTicker = ticker;
+        loadStockData(ticker, true); // true = replaceHistory
+    } else {
+        // Normal landing page - load all stocks
+        tickerInput.focus();
+        loadAllStocks();
+    }
 });
