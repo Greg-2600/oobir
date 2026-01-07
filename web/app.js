@@ -219,7 +219,7 @@ function hideError() {
 
 // Load all stocks for the unified page grid
 async function loadAllStocks() {
-    const FEATURED_TICKERS = ['SI=F', 'CHTR', 'MSTY', 'IBIT', 'MSTR', 'FBTC', 'TSLA', 'PLTR', 'NVDA'];
+    const FEATURED_TICKERS = ['BTC-USD', 'SI=F', 'CHTR', 'MSTY', 'IBIT', 'MSTR', 'FBTC', 'TSLA', 'PLTR', 'NVDA'];
     
     if (!stocksGrid) return;
     
