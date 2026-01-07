@@ -83,8 +83,8 @@ body {
     display: inline-block;
 }
 
-.view-all-link:hover {
-    color: var(--primary-hover) !important;
+.ai-buys-section .view-all-link:hover {
+    color: var(--primary-hover);
     transform: translateX(4px);
 }
 
@@ -363,25 +363,25 @@ body {
 }
 
 .technical-signals-table {
-    width: 100% !important;
+    width: 100%;
     border-collapse: collapse;
 }
 
 .technical-signals-table td {
-    padding: 12px 8px !important;
-    border-bottom: 1px solid var(--border-color) !important;
+    padding: 12px 8px;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .technical-signals-table .indicator-label {
-    font-weight: 600 !important;
-    color: var(--text-primary) !important;
+    font-weight: 600;
+    color: var(--text-primary);
     width: 35%;
     font-size: 15px;
 }
 
 .technical-signals-table .indicator-value {
-    text-align: center !important;
-    font-family: 'Monaco', 'Courier New', monospace !important;
+    text-align: center;
+    font-family: 'Monaco', 'Courier New', monospace;
     font-weight: 500;
     width: 30%;
     color: #3b82f6;

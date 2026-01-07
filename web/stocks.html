@@ -486,13 +486,53 @@
             return card;
         }
 
+        // Load featured tickers from configuration/API with a safe fallback
+        async function getFeaturedTickers() {
+            // Fallback list used if the configuration endpoint is unavailable or returns no data
+            const fallbackTickers = ['SI=F', 'CHTR', 'MSTY', 'IBIT', 'MSTR', 'FBTC', 'TSLA', 'PLTR'];
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/featured-tickers`);
+                if (!response.ok) {
+                    return fallbackTickers;
+                }
+
+                const data = await response.json();
+                let tickers = [];
+
+                if (Array.isArray(data)) {
+                    tickers = data;
+                } else if (data.tickers && Array.isArray(data.tickers)) {
+                    tickers = data.tickers;
+                } else if (data.data && Array.isArray(data.data)) {
+                    tickers = data.data;
+                } else if (typeof data === 'object' && data !== null) {
+                    tickers = Object.keys(data);
+                }
+
+                const normalizedTickers = Array.from(new Set(
+                    (tickers || []).map(item => {
+                        if (typeof item === 'string') return item.toUpperCase();
+                        if (item.ticker) return item.ticker.toUpperCase();
+                        if (item.symbol) return item.symbol.toUpperCase();
+                        return null;
+                    }).filter(Boolean)
+                ));
+
+                return normalizedTickers.length > 0 ? normalizedTickers : fallbackTickers;
+            } catch (error) {
+                console.error('Failed to load featured tickers from API, using fallback list.', error);
+                return fallbackTickers;
+            }
+        }
+
         // Load all stocks
         async function loadAllStocks() {
             const container = document.getElementById('stocks-container');
             
             try {
-                // Priority/Featured tickers (always at top, static)
-                const featuredTickers = ['SI=F', 'CHTR', 'MSTY', 'IBIT', 'MSTR', 'FBTC', 'TSLA', 'PLTR'];
+                // Priority/Featured tickers (always at top)
+                const featuredTickers = await getFeaturedTickers();
                 
                 // Create grid
                 container.innerHTML = '<div class="stocks-grid" id="stocks-grid"></div>';

@@ -76,9 +76,16 @@ def _should_expire_cache(cached_at_str: str) -> bool:
     """
     Determine if cache should expire based on market status.
     
-    Market-aware logic:
+    Market-aware logic (current behavior):
     - If market is currently open: expire cache older than 1 hour
     - If market is closed: never expire (keep indefinitely)
+    
+    Note:
+    This replaces the previous implementation, which used a 24-hour expiration
+    policy with market-open awareness. Callers relying on the older behavior
+    should be aware that cache entries may now be retained longer when the
+    market is closed and may expire more aggressively (after 1 hour) while
+    the market is open.
     """
     try:
         cached_at = datetime.fromisoformat(cached_at_str)
