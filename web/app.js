@@ -33,6 +33,15 @@ backButton.addEventListener('click', () => {
     showLandingPage();
 });
 
+// Export PDF button (may be absent on landing page)
+const exportPdfButton = document.getElementById('export-pdf-button');
+if (exportPdfButton) {
+    exportPdfButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        exportResultsToPdf();
+    });
+}
+
 // Technical Indicator Calculations
 function calculateSMA(prices, period) {
     const result = new Array(prices.length).fill(null);
@@ -215,6 +224,105 @@ function showError(message) {
 
 function hideError() {
     errorMessage.classList.remove('show');
+}
+
+// Export visible results page to a PDF, omitting empty AI boxes
+async function exportResultsToPdf() {
+    if (typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined') {
+        alert('Export requires html2canvas and jsPDF. Please ensure they are loaded.');
+        return;
+    }
+
+    const { jsPDF } = window.jspdf || {};
+    if (!jsPDF) {
+        alert('jsPDF not available.');
+        return;
+    }
+
+    const container = document.getElementById('results-container');
+    if (!container) {
+        alert('Nothing to export. Open a ticker results page first.');
+        return;
+    }
+
+    // Clone the results container so we can modify it without affecting the live page
+    const clone = container.cloneNode(true);
+
+    // Remove any explicit loading placeholders
+    clone.querySelectorAll('.loading-placeholder').forEach(n => n.remove());
+
+    // Remove AI boxes (cards) that have no useful content
+    const aiIds = ['ai-recommendation', 'technical-analysis-data', 'news-sentiment-data'];
+    aiIds.forEach(id => {
+        const el = clone.querySelector('#' + id);
+        if (!el) return;
+        const text = (el.textContent || '').trim();
+        const hasLoading = el.querySelector('.loading-placeholder') || /loading|analyzing|nothing/i.test(text);
+        if (!text || hasLoading) {
+            const card = el.closest('.card');
+            if (card && card.parentNode) card.parentNode.removeChild(card);
+            else el.parentNode && el.parentNode.removeChild(el);
+        }
+    });
+
+    // Create a wrapper for rendering (offscreen)
+    const wrapper = document.createElement('div');
+    wrapper.style.background = '#ffffff';
+    wrapper.style.padding = '20px';
+    wrapper.style.width = container.offsetWidth + 'px';
+    wrapper.style.boxSizing = 'border-box';
+    wrapper.style.position = 'absolute';
+    wrapper.style.left = '-10000px';
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
+
+    try {
+        // Use a modest scale and JPEG encoding to reduce output file size
+        const canvas = await html2canvas(wrapper, { scale: 1, useCORS: true, backgroundColor: '#ffffff' });
+        const JPEG_QUALITY = 0.75;
+        const imgData = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+
+        // Calculate pixel-per-mm to split into pages if needed
+        const pxPerMm = canvas.width / pageWidth;
+        const pageHeightPx = Math.floor(pageHeight * pxPerMm);
+
+        if (canvas.height <= pageHeightPx) {
+            // Single page
+            pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, (canvas.height / pxPerMm));
+        } else {
+            // Multiple pages: slice canvas by vertical segments
+            let remainingHeight = canvas.height;
+            let offsetY = 0;
+            let pageIndex = 0;
+            while (remainingHeight > 0) {
+                const sliceHeight = Math.min(pageHeightPx, remainingHeight);
+                const pageCanvas = document.createElement('canvas');
+                pageCanvas.width = canvas.width;
+                pageCanvas.height = sliceHeight;
+                const ctx = pageCanvas.getContext('2d');
+                ctx.drawImage(canvas, 0, offsetY, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+                const pageData = pageCanvas.toDataURL('image/jpeg', JPEG_QUALITY);
+                const pageImgHeightMm = sliceHeight / pxPerMm;
+                if (pageIndex > 0) pdf.addPage();
+                pdf.addImage(pageData, 'JPEG', 0, 0, pageWidth, pageImgHeightMm);
+                remainingHeight -= sliceHeight;
+                offsetY += sliceHeight;
+                pageIndex += 1;
+            }
+        }
+
+        const filename = (currentTicker ? currentTicker.replace(/[^A-Z0-9\-_=]/ig, '_') : 'oobir') + '-report.pdf';
+        pdf.save(filename);
+    } catch (err) {
+        console.error('Export to PDF failed:', err);
+        alert('Failed to export PDF. See console for details.');
+    } finally {
+        // Cleanup
+        if (wrapper && wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
+    }
 }
 
 // Load all stocks for the unified page grid
