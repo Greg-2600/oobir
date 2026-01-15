@@ -90,19 +90,21 @@ def _should_expire_cache(cached_at_str: str) -> bool:
     try:
         cached_at = datetime.fromisoformat(cached_at_str)
         now = datetime.now()
-        
-        # If market is currently open
+
+        # Always expire cache older than 24 hours
+        cache_age_seconds = (now - cached_at).total_seconds()
+        if cache_age_seconds > 86400:  # 24 hours
+            logger.debug(f"Cache expired: {cache_age_seconds/3600:.1f} hours old")
+            return True
+
+        # If market is currently open, be more aggressive: expire if older than 1 hour
         if _is_market_open_now():
-            # Expire if cache is older than 1 hour
-            cache_age_seconds = (now - cached_at).total_seconds()
-            if cache_age_seconds > 3600:  # 1 hour = 3600 seconds
+            if cache_age_seconds > 3600:
                 logger.debug(f"Cache expired: {cache_age_seconds/60:.1f} minutes old (market open)")
                 return True
-        else:
-            # Market is closed - never expire
-            logger.debug(f"Cache kept: market is closed")
-            return False
-        
+
+        # Otherwise, keep the cache
+        logger.debug(f"Cache kept: age {cache_age_seconds/60:.1f} minutes, market open={_is_market_open_now()}")
         return False
     except Exception as e:
         logger.error(f"Error checking cache expiration: {e}")

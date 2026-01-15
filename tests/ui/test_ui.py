@@ -23,15 +23,15 @@ class TestHomePageLoad:
         wait = WebDriverWait(browser, 10)
 
         # Check for main logo
-        logo = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "logo")))
-        assert logo.text == "OOBIR"
+        logo = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "unified-logo")))
+        assert "OOBIR" in logo.text
 
         # Check for search form
         search_form = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "search-form")))
         assert search_form.is_displayed()
 
         # Check for search input
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "stock-ticker")))
+        search_input = wait.until(EC.presence_of_element_located((By.ID, "ticker-input")))
         assert search_input.is_displayed()
 
     def test_search_button_visible(self, browser, base_url):
@@ -62,7 +62,7 @@ class TestStockSearch:
         wait = WebDriverWait(browser, wait_timeout)
 
         # Find and fill search input
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "stock-ticker")))
+        search_input = wait.until(EC.presence_of_element_located((By.ID, "ticker-input")))
         search_input.clear()
         search_input.send_keys("AAPL")
 
@@ -79,7 +79,7 @@ class TestStockSearch:
         browser.get(base_url)
         wait = WebDriverWait(browser, 10)
 
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "stock-ticker")))
+        search_input = wait.until(EC.presence_of_element_located((By.ID, "ticker-input")))
         search_input.send_keys("MSFT")
 
         assert search_input.get_attribute("value") == "MSFT"
@@ -89,7 +89,7 @@ class TestStockSearch:
         browser.get(base_url)
         wait = WebDriverWait(browser, 10)
 
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "stock-ticker")))
+        search_input = wait.until(EC.presence_of_element_located((By.ID, "ticker-input")))
         search_input.send_keys("msft")
 
         assert search_input.get_attribute("value").upper() == "MSFT"
@@ -128,9 +128,9 @@ class TestResultsPageDisplay:
         # Wait for results
         wait.until(EC.presence_of_element_located((By.ID, "results-page")))
 
-        # Check for company info section
+        # Check for company summary box
         company_info = wait.until(
-            EC.presence_of_element_located((By.CLASS_NAME, "company-info"))
+            EC.presence_of_element_located((By.ID, "company-summary-box"))
         )
         assert company_info.is_displayed()
 
@@ -139,7 +139,7 @@ class TestResultsPageDisplay:
         browser.get(base_url)
         wait = WebDriverWait(browser, wait_timeout)
 
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "stock-ticker")))
+        search_input = wait.until(EC.presence_of_element_located((By.ID, "ticker-input")))
         search_input.send_keys("AAPL")
         search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
         search_button.click()
@@ -163,22 +163,20 @@ class TestResultsPageDisplay:
         # Wait for results
         wait.until(EC.presence_of_element_located((By.ID, "results-page")))
 
-        # Click back button
-        back_button = wait.until(
-            EC.element_to_be_clickable((By.CLASS_NAME, "back-button"))
-        )
-        back_button.click()
+        # Click the logo to return home (back button was removed)
+        logo = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "unified-logo")))
+        logo.click()
 
-        # Verify back on landing page
-        wait.until(EC.presence_of_element_located((By.ID, "landing-page")))
-        assert browser.find_element(By.ID, "landing-page").is_displayed()
+        # Verify back on landing/unified page
+        wait.until(EC.presence_of_element_located((By.ID, "unified-page")))
+        assert browser.find_element(By.ID, "unified-page").is_displayed()
 
     def test_results_page_tabs_visible(self, browser, base_url, wait_timeout):
         """Verify results tabs (Fundamentals, Price, etc.) are visible."""
         browser.get(base_url)
         wait = WebDriverWait(browser, wait_timeout)
 
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "stock-ticker")))
+        search_input = wait.until(EC.presence_of_element_located((By.ID, "ticker-input")))
         search_input.send_keys("AAPL")
         search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
         search_button.click()
@@ -198,7 +196,7 @@ class TestRecommendationsSection:
         browser.get(base_url)
         wait = WebDriverWait(browser, wait_timeout)
 
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "stock-ticker")))
+        search_input = wait.until(EC.presence_of_element_located((By.ID, "ticker-input")))
         search_input.send_keys("AAPL")
         search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
         search_button.click()
@@ -225,7 +223,7 @@ class TestRecommendationsSection:
         browser.get(base_url)
         wait = WebDriverWait(browser, wait_timeout)
 
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "stock-ticker")))
+        search_input = wait.until(EC.presence_of_element_located((By.ID, "ticker-input")))
         search_input.send_keys("AAPL")
         search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
         search_button.click()
