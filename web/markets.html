@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markets - OOBIR</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .stocks-page {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .stocks-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .stocks-header h1 {
+            margin: 0;
+            font-size: 2em;
+            color: #1f2937;
+        }
+
+        .logo-link {
+            text-decoration: none;
+            color: #3b82f6;
+            font-weight: bold;
+            font-size: 1.5em;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .logo-link:hover { color: #2563eb; }
+
+        .stocks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .stock-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            min-height: 220px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .stock-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            border-color: #3b82f6;
+        }
+
+        .stock-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .stock-ticker {
+            font-size: 0.95em;
+            font-weight: 400;
+            color: #1f2937;
+        }
+
+        .stock-name { color: #1f2937; font-size: 1.25em; font-weight: 700; }
+        .stock-meta { margin-top:6px; display:flex; align-items:center; gap:8px; color:#6b7280; font-size:0.9em; }
+        .stock-meta .flag { font-size:18px; line-height:1; }
+        .stock-meta .country { color:#6b7280 }
+        .flag-large { display:block; font-size:20px; line-height:1; margin-bottom:6px }
+
+        .stock-price { font-size: 1.1em; font-weight: 700; color: #1a73e8; }
+        /* Trend color helpers: color whole card background for clearer signal */
+        .stock-card.trend-up { background: linear-gradient(180deg, rgba(16,185,129,0.06), rgba(16,185,129,0.02)); border-color: rgba(16,185,129,0.2); box-shadow: 0 8px 24px rgba(16,185,129,0.06); }
+        .stock-card.trend-down { background: linear-gradient(180deg, rgba(239,68,68,0.06), rgba(239,68,68,0.02)); border-color: rgba(239,68,68,0.2); box-shadow: 0 8px 24px rgba(239,68,68,0.06); }
+        .stock-card.trend-neutral { background: white; border-color: #e5e7eb; }
+        .stock-card.trend-up .stock-price { color: #065f46; }
+        .stock-card.trend-down .stock-price { color: #7f1d1d; }
+        /* Ensure hover effect remains visible on colored cards */
+        .stock-card.trend-up:hover, .stock-card.trend-down:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(2,6,23,0.12); }
+
+        .mini-chart { height: 80px; border-radius: 8px; background: linear-gradient(180deg,#fafafa,#f3f4f6); display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:0.9em;border:1px solid #f0f0f0 }
+
+        @media (max-width: 768px) {
+            .stocks-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="stocks-page">
+        <div class="stocks-header">
+            <h1>🌐 International Market Indexes</h1>
+            <a href="/" class="logo-link">OOBIR</a>
+        </div>
+
+        <div class="stocks-grid" id="markets-grid">
+            <!-- US indexes first -->
+            <div class="stock-card" data-ticker="^GSPC">
+                <div>
+                    <div class="stock-card-header">
+                        <div>
+                            <div class="stock-name">S&amp;P 500</div>
+                            <div class="stock-ticker">^GSPC</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="flag-large">🇺🇸</span>
+                            <div class="stock-price">—</div>
+                        </div>
+                    </div>
+                    <div class="mini-chart" data-container-id="chart-^GSPC">Loading...</div>
+                </div>
+            </div>
+
+            <div class="stock-card" data-ticker="^DJI">
+                <div>
+                    <div class="stock-card-header">
+                        <div>
+                            <div class="stock-name">Dow Jones Industrial Average</div>
+                            <div class="stock-ticker">^DJI</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="flag-large">🇺🇸</span>
+                            <div class="stock-price">—</div>
+                        </div>
+                    </div>
+                    <div class="mini-chart" data-container-id="chart-^DJI">Loading...</div>
+                </div>
+            </div>
+
+            <div class="stock-card" data-ticker="^IXIC">
+                <div>
+                    <div class="stock-card-header">
+                        <div>
+                            <div class="stock-name">Nasdaq Composite</div>
+                            <div class="stock-ticker">^IXIC</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="flag-large">🇺🇸</span>
+                            <div class="stock-price">—</div>
+                        </div>
+                    </div>
+                    <div class="mini-chart" data-container-id="chart-^IXIC">Loading...</div>
+                </div>
+            </div>
+
+            <div class="stock-card" data-ticker="^RUT">
+                <div>
+                    <div class="stock-card-header">
+                        <div>
+                            <div class="stock-name">Russell 2000</div>
+                            <div class="stock-ticker">^RUT</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="flag-large">🇺🇸</span>
+                            <div class="stock-price">—</div>
+                        </div>
+                    </div>
+                    <div class="mini-chart" data-container-id="chart-^RUT">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Non-US markets sorted by estimated market-cap size -->
+            <div class="stock-card" data-ticker="000001.SS">
+                <div>
+                    <div class="stock-card-header">
+                        <div>
+                            <div class="stock-name">Shanghai Composite</div>
+                            <div class="stock-ticker">000001.SS</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="flag-large">🇨🇳</span>
+                            <div class="stock-price">—</div>
+                        </div>
+                    </div>
+                    <div class="mini-chart" data-container-id="chart-000001.SS">Loading...</div>
+                </div>
+            </div>
+
+            <div class="stock-card" data-ticker="^N225">
+                <div>
+                    <div class="stock-card-header">
+                        <div>
+                            <div class="stock-name">Nikkei 225</div>
+                            <div class="stock-ticker">^N225</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="flag-large">🇯🇵</span>
+                            <div class="stock-price">—</div>
+                        </div>
+                    </div>
+                    <div class="mini-chart" data-container-id="chart-^N225">Loading...</div>
+                </div>
+            </div>
+
+            <div class="stock-card" data-ticker="^FTSE">
+                <div>
+                    <div class="stock-card-header">
+                        <div>
+                            <div class="stock-name">FTSE 100</div>
+                            <div class="stock-ticker">^FTSE</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="flag-large">🇬🇧</span>
+                            <div class="stock-price">—</div>
+                        </div>
+                    </div>
+                    <div class="mini-chart" data-container-id="chart-^FTSE">Loading...</div>
+                </div>
+            </div>
+
+            <div class="stock-card" data-ticker="^STOXX50E">
+                <div>
+                    <div class="stock-card-header">
+                        <div>
+                            <div class="stock-name">Euro Stoxx 50</div>
+                            <div class="stock-ticker">^STOXX50E</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="flag-large">🇪🇺</span>
+                            <div class="stock-price">—</div>
+                        </div>
+                    </div>
+                    <div class="mini-chart" data-container-id="chart-^STOXX50E">Loading...</div>
+                </div>
+            </div>
+
+            <div class="stock-card" data-ticker="^FCHI">
+                <div>
+                    <div class="stock-card-header">
+                        <div>
+                            <div class="stock-name">CAC 40</div>
+                            <div class="stock-ticker">^FCHI</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="flag-large">🇫🇷</span>
+                            <div class="stock-price">—</div>
+                        </div>
+                    </div>
+                    <div class="mini-chart" data-container-id="chart-^FCHI">Loading...</div>
+                </div>
+            </div>
+
+            <div class="stock-card" data-ticker="^GDAXI">
+                <div>
+                    <div class="stock-card-header">
+                        <div>
+                            <div class="stock-name">DAX</div>
+                            <div class="stock-ticker">^GDAXI</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="flag-large">🇩🇪</span>
+                            <div class="stock-price">—</div>
+                        </div>
+                    </div>
+                    <div class="mini-chart" data-container-id="chart-^GDAXI">Loading...</div>
+                </div>
+            </div>
+
+            <div class="stock-card" data-ticker="^NSEI">
+                <div>
+                    <div class="stock-card-header">
+                        <div>
+                            <div class="stock-name">Nifty 50</div>
+                            <div class="stock-ticker">^NSEI</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="flag-large">🇮🇳</span>
+                            <div class="stock-price">—</div>
+                        </div>
+                    </div>
+                    <div class="mini-chart" data-container-id="chart-^NSEI">Loading...</div>
+                </div>
+            </div>
+
+            <div class="stock-card" data-ticker="^BSESN">
+                <div>
+                    <div class="stock-card-header">
+                        <div>
+                            <div class="stock-name">BSE Sensex</div>
+                            <div class="stock-ticker">^BSESN</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="flag-large">🇮🇳</span>
+                            <div class="stock-price">—</div>
+                        </div>
+                    </div>
+                    <div class="mini-chart" data-container-id="chart-^BSESN">Loading...</div>
+                </div>
+            </div>
+
+            <div class="stock-card" data-ticker="^GSPTSE">
+                <div>
+                    <div class="stock-card-header">
+                        <div>
+                            <div class="stock-name">S&amp;P/TSX Composite</div>
+                            <div class="stock-ticker">^GSPTSE</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="flag-large">🇨🇦</span>
+                            <div class="stock-price">—</div>
+                        </div>
+                    </div>
+                    <div class="mini-chart" data-container-id="chart-^GSPTSE">Loading...</div>
+                </div>
+            </div>
+
+            <div class="stock-card" data-ticker="^HSI">
+                <div>
+                    <div class="stock-card-header">
+                        <div>
+                            <div class="stock-name">Hang Seng</div>
+                            <div class="stock-ticker">^HSI</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="flag-large">🇭🇰</span>
+                            <div class="stock-price">—</div>
+                        </div>
+                    </div>
+                    <div class="mini-chart" data-container-id="chart-^HSI">Loading...</div>
+                </div>
+            </div>
+
+            <div class="stock-card" data-ticker="^KS11">
+                <div>
+                    <div class="stock-card-header">
+                        <div>
+                            <div class="stock-name">KOSPI</div>
+                            <div class="stock-ticker">^KS11</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="flag-large">🇰🇷</span>
+                            <div class="stock-price">—</div>
+                        </div>
+                    </div>
+                    <div class="mini-chart" data-container-id="chart-^KS11">Loading...</div>
+                </div>
+            </div>
+
+            <div class="stock-card" data-ticker="^AXJO">
+                <div>
+                    <div class="stock-card-header">
+                        <div>
+                            <div class="stock-name">ASX 200</div>
+                            <div class="stock-ticker">^AXJO</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="flag-large">🇦🇺</span>
+                            <div class="stock-price">—</div>
+                        </div>
+                    </div>
+                    <div class="mini-chart" data-container-id="chart-^AXJO">Loading...</div>
+                </div>
+            </div>
+
+            <div class="stock-card" data-ticker="^BVSP">
+                <div>
+                    <div class="stock-card-header">
+                        <div>
+                            <div class="stock-name">Bovespa</div>
+                            <div class="stock-ticker">^BVSP</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="flag-large">🇧🇷</span>
+                            <div class="stock-price">—</div>
+                        </div>
+                    </div>
+                    <div class="mini-chart" data-container-id="chart-^BVSP">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Navigate to index with ticker query when a card is clicked
+        document.getElementById('markets-grid').addEventListener('click', function(e){
+            let el = e.target;
+            while(el && !el.classList.contains('stock-card')) el = el.parentElement;
+            if(!el) return;
+            const ticker = el.getAttribute('data-ticker');
+            if(ticker) window.location.href = 'index.html?ticker=' + encodeURIComponent(ticker);
+        });
+
+        // Draw a compact candlestick chart into the container using OHLC data
+        function drawCandles(container, data){
+            container.innerHTML = '';
+            if(!data || data.length === 0){ container.textContent = 'No data'; return; }
+
+            // Normalize to numeric OHLC
+            const series = data.map(pt => ({
+                open: Number(pt.Open ?? pt.open ?? pt.o ?? NaN),
+                high: Number(pt.High ?? pt.high ?? pt.h ?? NaN),
+                low: Number(pt.Low ?? pt.low ?? pt.l ?? NaN),
+                close: Number(pt.Close ?? pt.close ?? pt.c ?? NaN),
+            })).filter(p => !isNaN(p.open) && !isNaN(p.high) && !isNaN(p.low) && !isNaN(p.close));
+            if(series.length === 0){ container.textContent = 'No data'; return; }
+
+            const w = container.clientWidth || 300;
+            const h = container.clientHeight || 80;
+            const padding = 6;
+
+            const allPrices = series.flatMap(p => [p.high, p.low]);
+            const minPrice = Math.min(...allPrices);
+            const maxPrice = Math.max(...allPrices);
+            const range = maxPrice - minPrice || 1;
+
+            const svgNS = 'http://www.w3.org/2000/svg';
+            const svg = document.createElementNS(svgNS, 'svg');
+            svg.setAttribute('width', '100%');
+            svg.setAttribute('height', h);
+            svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+
+            const barWidth = Math.max(2, (w / series.length) * 0.6);
+            const step = w / Math.max(1, series.length - 1);
+
+            series.forEach((p, i) => {
+                const x = i * step;
+                const yHigh = padding + ((maxPrice - p.high) / range) * (h - padding*2);
+                const yLow = padding + ((maxPrice - p.low) / range) * (h - padding*2);
+                const yOpen = padding + ((maxPrice - p.open) / range) * (h - padding*2);
+                const yClose = padding + ((maxPrice - p.close) / range) * (h - padding*2);
+
+                // wick
+                const wick = document.createElementNS(svgNS, 'line');
+                wick.setAttribute('x1', x);
+                wick.setAttribute('x2', x);
+                wick.setAttribute('y1', yHigh);
+                wick.setAttribute('y2', yLow);
+                wick.setAttribute('stroke', '#374151');
+                wick.setAttribute('stroke-width', Math.max(1, barWidth/6));
+                wick.setAttribute('stroke-linecap', 'round');
+                svg.appendChild(wick);
+
+                // body
+                const isUp = p.close >= p.open;
+                const body = document.createElementNS(svgNS, 'rect');
+                const bodyTop = Math.min(yOpen, yClose);
+                const bodyHeight = Math.max(1, Math.abs(yClose - yOpen));
+                body.setAttribute('x', x - barWidth/2);
+                body.setAttribute('y', bodyTop);
+                body.setAttribute('width', barWidth);
+                body.setAttribute('height', bodyHeight);
+                body.setAttribute('fill', isUp ? '#16a34a' : '#ef4444');
+                body.setAttribute('stroke', isUp ? '#15803d' : '#b91c1c');
+                body.setAttribute('stroke-width', '0.5');
+                svg.appendChild(body);
+            });
+
+            const last = series[series.length-1];
+            container.appendChild(svg);
+
+            // Move the latest close price into the card's `.stock-price` element (under the flag)
+            const card = container.closest('.stock-card');
+            if(card){
+                const priceEl = card.querySelector('.stock-price');
+                if(priceEl) priceEl.textContent = last.close.toFixed(2);
+            }
+        }
+
+        async function loadMarketCharts(){
+            const apiBase = (typeof CONFIG !== 'undefined' && CONFIG.API_BASE_URL) ? CONFIG.API_BASE_URL : 'http://localhost:8000';
+            const cards = document.querySelectorAll('.stock-card');
+            for(const card of cards){
+                const ticker = card.getAttribute('data-ticker');
+                const chartEl = card.querySelector('.mini-chart');
+                const priceEl = card.querySelector('.stock-price');
+                if(!ticker || !chartEl) continue;
+                try{
+                    const res = await fetch(`${apiBase}/api/price-history/${encodeURIComponent(ticker)}?days=30`);
+                    if(!res.ok){ chartEl.textContent = 'No data'; continue; }
+                    let json = await res.json();
+                    let data = [];
+                    if(Array.isArray(json)) data = json;
+                    else if(json.data && Array.isArray(json.data)) data = json.data;
+                    else if(json.prices && Array.isArray(json.prices)) data = json.prices;
+                    // Pass recent OHLC points to candlestick drawer
+                    const recent = data.slice(-30);
+                    if(!recent || recent.length === 0){
+                        chartEl.textContent = 'No data';
+                        if(priceEl) priceEl.textContent = '—';
+                        continue;
+                    }
+                    drawCandles(chartEl, recent);
+                    // compute a 5-day slope (percent change over 5 trading points) and tint card stronger for larger moves
+                    try{
+                        const closes = recent.map(p => Number(p.Close ?? p.close ?? p.c ?? NaN)).filter(v => !isNaN(v));
+                        card.classList.remove('trend-up','trend-down','trend-neutral');
+                        if(closes.length >= 5){
+                            const last = closes[closes.length-1];
+                            const prior = closes[closes.length-5];
+                            // percent change over period
+                            const pct = prior === 0 ? 0 : (last - prior) / Math.abs(prior);
+                            const direction = pct > 0 ? 'up' : (pct < 0 ? 'down' : 'neutral');
+                            // strength: map abs(pct) where 5% maps to full strength (cap at 10%)
+                            const strength = Math.min(Math.abs(pct) / 0.05, 2); // allow up to 2x for very strong moves
+                            // derive alpha from strength (base 0.06 -> up to 0.3)
+                            const alpha = Math.min(0.06 + (0.12 * Math.min(strength,1)), 0.3);
+                            if(direction === 'up'){
+                                card.classList.add('trend-up');
+                                card.style.background = `linear-gradient(180deg, rgba(16,185,129,${alpha}), rgba(16,185,129,${Math.max(0.02, alpha/4)}))`;
+                                card.style.borderColor = `rgba(16,185,129,${Math.min(0.3, alpha)})`;
+                            } else if(direction === 'down'){
+                                card.classList.add('trend-down');
+                                card.style.background = `linear-gradient(180deg, rgba(239,68,68,${alpha}), rgba(239,68,68,${Math.max(0.02, alpha/4)}))`;
+                                card.style.borderColor = `rgba(239,68,68,${Math.min(0.3, alpha)})`;
+                            } else {
+                                card.classList.add('trend-neutral');
+                                card.style.background = '';
+                                card.style.borderColor = '';
+                            }
+                        } else if(closes.length >= 2){
+                            // fallback to 1-day change if 5 points unavailable
+                            const last = closes[closes.length-1];
+                            const prev = closes[closes.length-2];
+                            if(last > prev) card.classList.add('trend-up');
+                            else if(last < prev) card.classList.add('trend-down');
+                            else card.classList.add('trend-neutral');
+                            card.style.background = '';
+                            card.style.borderColor = '';
+                        } else {
+                            card.classList.add('trend-neutral');
+                            card.style.background = '';
+                            card.style.borderColor = '';
+                        }
+                    }catch(e){
+                        card.classList.remove('trend-up','trend-down');
+                        card.classList.add('trend-neutral');
+                        card.style.background = '';
+                        card.style.borderColor = '';
+                    }
+                }catch(err){
+                    chartEl.textContent = 'Error';
+                    if(priceEl) priceEl.textContent = '—';
+                    console.error('market chart error', ticker, err);
+                }
+            }
+        }
+
+        // Run after DOM ready
+        if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadMarketCharts);
+        else loadMarketCharts();
+    </script>
+</body>
+</html>

@@ -2,6 +2,7 @@
 Pytest configuration and fixtures for Selenium UI tests.
 """
 import os
+import shutil
 import pytest
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
@@ -10,39 +11,76 @@ from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.firefox import GeckoDriverManager
 
 
-@pytest.fixture(params=["chrome", "firefox"])
+# Determine which browsers to run. Default to chrome (headless) for CI.
+env_browsers = os.getenv("UI_BROWSERS")
+if env_browsers:
+    _requested = [b.strip().lower() for b in env_browsers.split(",") if b.strip()]
+else:
+    _requested = ["chrome"]
+
+# Detect available browser binaries; skip tests at import-time if none present.
+_available = []
+for b in _requested:
+    if b == "chrome":
+        if shutil.which("google-chrome") or shutil.which("chrome") or shutil.which("chromium") or shutil.which("chromium-browser"):
+            _available.append("chrome")
+    elif b == "firefox":
+        if shutil.which("firefox"):
+            _available.append("firefox")
+
+if not _available:
+    pytest.skip("No Chrome/Firefox binary found on PATH; skipping UI tests.", allow_module_level=True)
+
+
+@pytest.fixture(params=_available)
 def browser(request):
-    """
-    Fixture that provides browser instances for both Chrome and Firefox.
-    Tests using this fixture will run against both browsers.
+    """Provide a browser instance. Runs headless by default (can be controlled
+    with environment variable `HEADLESS=0`). Use `UI_BROWSERS` to customize
+    which browsers to attempt (comma-separated, e.g. "chrome,firefox").
     """
     browser_name = request.param
     driver = None
+    headless = os.getenv("HEADLESS", "1") not in ("0", "false", "False")
 
     if browser_name == "chrome":
         options = webdriver.ChromeOptions()
-        options.add_argument("--start-maximized")
         options.add_argument("--disable-blink-features=AutomationControlled")
-        # Uncomment for headless mode in CI/CD:
-        # options.add_argument("--headless")
-        driver = webdriver.Chrome(
-            service=ChromeService(ChromeDriverManager().install()),
-            options=options
-        )
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        if headless:
+            # Use new headless mode when available
+            options.add_argument("--headless=new")
+        else:
+            options.add_argument("--start-maximized")
+        try:
+            driver = webdriver.Chrome(
+                service=ChromeService(ChromeDriverManager().install()),
+                options=options
+            )
+        except Exception as e:
+            pytest.skip(f"Could not start chrome driver: {e}")
+
     elif browser_name == "firefox":
         options = webdriver.FirefoxOptions()
-        options.add_argument("--start-maximized")
-        # Uncomment for headless mode in CI/CD:
-        # options.add_argument("--headless")
-        driver = webdriver.Firefox(
-            service=FirefoxService(GeckoDriverManager().install()),
-            options=options
-        )
+        if headless:
+            options.add_argument("-headless")
+        else:
+            options.add_argument("--start-maximized")
+        try:
+            driver = webdriver.Firefox(
+                service=FirefoxService(GeckoDriverManager().install()),
+                options=options
+            )
+        except Exception as e:
+            pytest.skip(f"Could not start firefox driver: {e}")
 
     yield driver
 
     if driver:
-        driver.quit()
+        try:
+            driver.quit()
+        except Exception:
+            pass
 
 
 @pytest.fixture

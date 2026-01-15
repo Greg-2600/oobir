@@ -28,10 +28,12 @@ const resultsContainer = document.getElementById('results-container');
 // Event Listeners
 searchForm.addEventListener('submit', handleSearch);
 searchFormCompact.addEventListener('submit', handleSearch);
-backButton.addEventListener('click', () => {
-    window.history.pushState({ page: 'landing' }, 'OOBIR', '/');
-    showLandingPage();
-});
+if (backButton) {
+    backButton.addEventListener('click', () => {
+        window.history.pushState({ page: 'landing' }, 'OOBIR', '/');
+        showLandingPage();
+    });
+}
 
 // Export PDF button (may be absent on landing page)
 const exportPdfButton = document.getElementById('export-pdf-button');

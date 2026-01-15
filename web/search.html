@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search - OOBIR</title>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>OOBIR Search</title>
+        <link rel="stylesheet" href="styles.css">
+        <style>
+            html,body{height:100%;margin:0;font-family:Arial,Helvetica,sans-serif;background:#fff;color:#202124}
+            .google-like {
+                height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+                padding:24px;box-sizing:border-box;
+            }
+            .brand {font-size:64px;font-weight:600;letter-spacing:-2px;margin-bottom:24px;color:#1a73e8}
+            .brand .dot{color:#ea4335}
+            .search-wrap{width:100%;max-width:640px}
+            .search-box{display:flex;border:1px solid #dfe1e5;border-radius:24px;padding:10px 14px;box-shadow:0 2px 6px rgba(32,33,36,0.08);align-items:center}
+            .search-input{flex:1;border:0;outline:none;font-size:18px;padding:8px 12px;background:transparent}
+            .search-actions{margin-top:18px;display:flex;justify-content:center;gap:12px}
+            .btn{background:#f8f9fa;border:1px solid #dadce0;padding:10px 16px;border-radius:4px;font-size:14px;color:#3c4043;cursor:pointer}
+            .btn.primary{background:#1a73e8;color:#fff;border-color:#1a73e8}
+            /* Centered quick-link row under search actions */
+            .link-row{margin-top:18px;display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+            .link-pill{display:inline-flex;align-items:center;gap:10px;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:700;color:var(--pill-fore,#1a73e8);background:var(--pill-bg,rgba(26,115,232,0.06));box-shadow:0 6px 18px rgba(16,24,40,0.06);border:1px solid rgba(26,115,232,0.08);font-size:15px;transition:transform .12s ease,box-shadow .12s ease,opacity .12s ease}
+            .link-pill.secondary{--pill-fore:#374151;--pill-bg:rgba(99,102,241,0.04);border-color:rgba(99,102,241,0.06)}
+            .link-pill.primary{color:#fff;background:linear-gradient(180deg,#2b7cff,#1a73e8);border-color:rgba(26,115,232,0.12);box-shadow:0 8px 20px rgba(26,115,232,0.12)}
+            .link-pill:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(16,24,40,0.12)}
+            @media (max-width:520px){.brand{font-size:40px}.search-wrap{padding:0 12px}.link-pill{width:100%;justify-content:center}}
+        </style>
+    </head>
+    <body>
+        <main class="google-like">
+            <div class="brand">OOBIR<span class="dot">.</span></div>
+
+            <div class="search-wrap">
+                <form id="search-form" class="search-box" role="search" aria-label="Search stocks">
+                    <input id="q" name="q" class="search-input" type="search" placeholder="Search ticker or company" autocomplete="off" />
+                </form>
+
+                <div class="search-actions">
+                    <button id="search-btn" class="btn primary">Search</button>
+                    <button id="lucky-btn" class="btn">Surprise me</button>
+                </div>
+
+                <div class="link-row" aria-label="Quick links">
+                    <a class="link-pill primary" href="index.html">Stock Screen</a>
+                    <a class="link-pill secondary" href="markets.html">Market Indexes</a>
+                </div>
+            </div>
+        </main>
+
+        <script>
+            (function(){
+                const form = document.getElementById('search-form');
+                const input = document.getElementById('q');
+                const searchBtn = document.getElementById('search-btn');
+                const luckyBtn = document.getElementById('lucky-btn');
+
+                function goToTicker(v){
+                    if(!v) return;
+                    window.location.href = 'index.html?ticker=' + encodeURIComponent(v);
+                }
+
+                form.addEventListener('submit', function(e){ e.preventDefault(); goToTicker(input.value.trim()); });
+                searchBtn.addEventListener('click', function(){ goToTicker(input.value.trim()); });
+
+                // "Surprise me" loads a random featured ticker if available via config, else picks a sample
+                luckyBtn.addEventListener('click', async function(){
+                    try{
+                        const res = await fetch('config.js');
+                    }catch(e){}
+                    const samples = ['AAPL','MSFT','TSLA','AMZN','GOOGL'];
+                    const choice = samples[Math.floor(Math.random()*samples.length)];
+                    goToTicker(choice);
+                });
+
+                input.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); goToTicker(input.value.trim()); } });
+            })();
+        </script>
+    </body>
+    </html>
+        </div>
