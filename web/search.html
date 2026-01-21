@@ -75,7 +75,13 @@
                     try{
                         const res = await fetch('config.js');
                     }catch(e){}
-                    const samples = ['AAPL','MSFT','TSLA','AMZN','GOOGL'];
+                    const samples = [
+                        'AAPL','MSFT','TSLA','AMZN','GOOGL','META','NVDA','NFLX','BRK.B','JPM',
+                        'V','MA','BAC','WMT','HD','PG','KO','NKE','DIS','ADBE',
+                        'CRM','PYPL','INTC','AMD','ORCL','CSCO','PEP','T','TMUS','CMCSA',
+                        'PFE','MRK','JNJ','ABBV','BA','CAT','SBUX','UBER','LYFT','SQ',
+                        'SHOP','SPOT','RIVN','PLTR','TSM','BABA','ZM','Roku','XOM','CVX'
+                    ];
                     const choice = samples[Math.floor(Math.random()*samples.length)];
                     goToTicker(choice);
                 });
