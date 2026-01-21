@@ -667,11 +667,10 @@ def get_ai_balance_sheet_analysis(ticker):
                     'role': 'system',
                     'content': (
                         'You are a financial analyst following Benjamin Graham principles. '
-                        'Evaluate the given balance sheet data ONLY. Do NOT write code, ask questions, or provide calculations. '
-                        'Your response MUST be exactly four lines, each starting with one of these labels: '
-                        '"Liquidity:", "Leverage:", "Margin of Safety:", "Verdict:". '
-                        'The verdict line must end with exactly one word: either VALUE or INCONCLUSIVE. '
-                        'Each line must be under 20 words. Total response under 120 words.'
+                        'Evaluate the given balance sheet data ONLY. '
+                        'Do NOT write code, ask questions, or provide calculations. '
+                        'Respond with exactly four labeled lines: Liquidity, Leverage, Margin of Safety, Verdict. '
+                        'The verdict must be VALUE or INCONCLUSIVE. Keep each line short.'
                     ),
                 },
                 {
@@ -679,11 +678,11 @@ def get_ai_balance_sheet_analysis(ticker):
                     'content': (
                         f'Analyze this balance sheet (JSON): {summary_json}\n\n'
                         'Respond with EXACTLY four labeled lines:\n'
-                        '1. Liquidity: [assessment of current ratio, working capital, cash position]\n'
-                        '2. Leverage: [assessment of debt levels, D/E ratio, net debt]\n'
-                        '3. Margin of Safety: [assessment of equity cushion, asset coverage]\n'
+                        '1. Liquidity: [current ratio, working capital, cash]\n'
+                        '2. Leverage: [debt levels, D/E, net debt]\n'
+                        '3. Margin of Safety: [equity cushion, asset coverage]\n'
                         '4. Verdict: VALUE or INCONCLUSIVE\n\n'
-                        'Remember: No explanations, calculations, code, or questions. Only four lines with the four labels.'
+                        'No explanations or calculations; only four labeled lines.'
                     ),
                 },
             ]
@@ -725,18 +724,55 @@ def get_ai_fundamental_analysis(ticker):
     try:
         fundamentals = get_fundamentals(ticker)
 
+        # Build a compact fundamentals summary for the AI prompt to keep token usage low.
+        try:
+            data = json.loads(fundamentals) if fundamentals else {}
+        except Exception:
+            data = {}
+
+        keys = [
+            'symbol', 'shortName', 'longName', 'marketCap', 'trailingPE', 'forwardPE',
+            'trailingEPS', 'earningsQuarterlyGrowth', 'revenue', 'regularMarketPrice',
+            'regularMarketPreviousClose', 'fiftyTwoWeekHigh', 'fiftyTwoWeekLow',
+            'totalCash', 'totalDebt', 'ebitda', 'freeCashflow', 'profitMargins',
+            'returnOnEquity', 'pegRatio', 'dividendYield'
+        ]
+
+        fundamentals_summary = {}
+        for k in keys:
+            if k in data:
+                fundamentals_summary[k] = data.get(k)
+            else:
+                alt = k[0].lower() + k[1:] if len(k) > 1 else k.lower()
+                if alt in data:
+                    fundamentals_summary[k] = data.get(alt)
+
+        # Small helpful derived field
+        if 'marketCap' in fundamentals_summary and isinstance(fundamentals_summary.get('marketCap'), (int, float)):
+            fundamentals_summary['marketCapBillions'] = round(fundamentals_summary['marketCap'] / 1e9, 2)
+
+        fundamentals_summary_json = json.dumps({'ticker': ticker, 'fundamentals_summary': fundamentals_summary}, separators=(',', ':'), ensure_ascii=False)
+
         ensure_ollama()
-        response = _CHAT(
-            model='huihui_ai/llama3.2-abliterate:3b',
-            messages=[{
+        messages = [
+            {
+                'role': 'system',
+                'content': (
+                    'You are a concise financial analyst. Produce 4–6 short, plain bullet points. '
+                    'Focus on valuation, balance-sheet strength, cash flow, and material risks. '
+                    'Keep bullets factual and succinct.'
+                ),
+            },
+            {
                 'role': 'user',
                 'content': (
-                    'You are Benjamin Graham, a renowned value investor. '
-                    'Please provide your expert insights and guidance on '
-                    'valuation metrics, fundamental analysis, and potential '
-                    f'risks and rewards {fundamentals}.'
+                    f'Analyze this compact fundamentals JSON and respond with 4–6 concise bullets:\n{fundamentals_summary_json}'
                 ),
-            }]
+            },
+        ]
+        response = _CHAT(
+            model='huihui_ai/llama3.2-abliterate:3b',
+            messages=messages,
         )
 
         fundamental_analysis = getattr(response, 'message', response).content  # pylint: disable=no-member
@@ -952,11 +988,10 @@ def get_ai_quarterly_income_stm_analysis(ticker):
                     'role': 'system',
                     'content': (
                         'You are a financial analyst following Benjamin Graham principles. '
-                        'Evaluate ONLY the provided income statement metrics. Do NOT write code, ask questions, or provide calculations. '
-                        'Your response MUST be exactly four lines, each starting with one of these labels: '
-                        '"Revenue & Profitability:", "Margins:", "Earnings:", "Verdict:". '
-                        'The verdict line must end with exactly one word: either VALUE or INCONCLUSIVE. '
-                        'Each line must be under 20 words. Total response under 120 words.'
+                        'Evaluate ONLY the provided income statement metrics. '
+                        'Do NOT write code, ask questions, or provide calculations. '
+                        'Respond with exactly four labeled lines: Revenue & Profitability, Margins, Earnings, Verdict. '
+                        'The verdict must be VALUE or INCONCLUSIVE. Keep lines concise.'
                     ),
                 },
                 {
@@ -968,7 +1003,7 @@ def get_ai_quarterly_income_stm_analysis(ticker):
                         '2. Margins: [gross, operating, net margins]\n'
                         '3. Earnings: [EPS or note if unavailable]\n'
                         '4. Verdict: VALUE or INCONCLUSIVE\n\n'
-                        'Remember: No explanations, calculations, code, or questions. Only four lines with the four labels.'
+                        'No explanations or calculations; only four labeled lines.'
                     ),
                 },
             ]
@@ -1152,8 +1187,9 @@ def get_ai_technical_analysis(ticker):
 def get_ai_action_recommendation(ticker):
     """Generate AI recommendation to buy, sell, or hold a stock."""
     try:
-        #technical_analysis = get_ai_technical_analysis(ticker)
+        technical_analysis = get_ai_technical_analysis(ticker)
         fundamental_analysis = get_ai_fundamental_analysis(ticker)
+        analyst_price_targets = get_analyst_price_targets(ticker)
 
         ensure_ollama()
         response = _CHAT(
@@ -1164,7 +1200,7 @@ def get_ai_action_recommendation(ticker):
                     'You are an expert and experienced stock broker specializing '
                     'in retirement accounts. Please analyze this information and '
                     'recommend to buy, sell, or hold: '
-                    f'{ticker} {technical_analysis} {fundamental_analysis}'
+                    f'{ticker} {technical_analysis} {fundamental_analysis} {analyst_price_targets}'
                 ),
             }]
         )
@@ -1280,9 +1316,9 @@ def get_ai_full_report(ticker):
     """Generate comprehensive AI report based on all available information."""
     try:
         fundamental_analysis = get_ai_fundamental_analysis(ticker)
-        #technical_analysis = get_ai_technical_analysis(ticker)
-        #action_analysis = get_ai_action_recommendation(ticker)
-        #analyst_price_targets = get_analyst_price_targets(ticker)
+        technical_analysis = get_ai_technical_analysis(ticker)
+        action_analysis = get_ai_action_recommendation(ticker)
+        analyst_price_targets = get_analyst_price_targets(ticker)
 
         ensure_ollama()
         response = _CHAT(
