@@ -62,10 +62,10 @@ function calculateBollingerBands(prices, period, stdDevMultiplier) {
     const upper = new Array(prices.length).fill(null);
     const lower = new Array(prices.length).fill(null);
     const middle = sma;
-    
+
     for (let i = period - 1; i < prices.length; i++) {
         if (sma[i] === null) continue;
-        
+
         let sum = 0;
         for (let j = 0; j < period; j++) {
             sum += Math.pow(prices[i - j].Close - sma[i], 2);
@@ -74,7 +74,7 @@ function calculateBollingerBands(prices, period, stdDevMultiplier) {
         upper[i] = sma[i] + (stdDev * stdDevMultiplier);
         lower[i] = sma[i] - (stdDev * stdDevMultiplier);
     }
-    
+
     return { upper, lower, middle };
 }
 
@@ -175,17 +175,17 @@ function calculateADX(prices, period = 14) {
 function handleSearch(e) {
     e.preventDefault();
     const ticker = (e.target === searchForm ? tickerInput : tickerInputCompact).value.trim().toUpperCase();
-    
+
     if (!ticker) {
         showError('Please enter a stock ticker');
         return;
     }
-    
+
     if (!/^[A-Z0-9\-\^=]{1,10}$/.test(ticker)) {
         showError('Please enter a valid stock ticker (1-10 characters, letters, numbers, -, ^, =)');
         return;
     }
-    
+
     hideError();
     currentTicker = ticker;
     loadStockData(ticker);
@@ -330,9 +330,9 @@ async function exportResultsToPdf() {
 // Load all stocks for the unified page grid
 async function loadAllStocks() {
     const FEATURED_TICKERS = ['BTC-USD', 'SI=F', 'CHTR', 'MSTY', 'IBIT', 'MSTR', 'FBTC', 'TSLA', 'PLTR', 'NVDA'];
-    
+
     if (!stocksGrid) return;
-    
+
     try {
         // Load featured stocks
         const featuredStocks = [];
@@ -353,7 +353,7 @@ async function loadAllStocks() {
                 console.error(`Error loading ${ticker}:`, err);
             }
         }
-        
+
         // Load AI-recommended stocks
         let aiStocks = [];
         try {
@@ -361,23 +361,23 @@ async function loadAllStocks() {
                 fetch(`${API_BASE_URL}/api/screen-undervalued`),
                 fetch(`${API_BASE_URL}/api/screen-undervalued-growth`)
             ]);
-            
+
             const allRecommendations = [];
             if (undervaluedRes.ok) {
                 const data = await undervaluedRes.json();
-                const tickers = Array.isArray(data) ? data : 
+                const tickers = Array.isArray(data) ? data :
                                data.stocks ? data.stocks :
                                data.data ? data.data : [];
                 allRecommendations.push(...tickers);
             }
             if (growthRes.ok) {
                 const data = await growthRes.json();
-                const tickers = Array.isArray(data) ? data : 
+                const tickers = Array.isArray(data) ? data :
                                data.stocks ? data.stocks :
                                data.data ? data.data : [];
                 allRecommendations.push(...tickers);
             }
-            
+
             // Remove featured tickers and get unique recommendations
             const uniqueRecommendations = Array.from(new Set(
                 allRecommendations.map(item => {
@@ -387,7 +387,7 @@ async function loadAllStocks() {
                     return null;
                 }).filter(t => t && !FEATURED_TICKERS.includes(t))
             )).slice(0, 12);
-            
+
             // Load AI stock fundamentals
             for (const ticker of uniqueRecommendations) {
                 try {
@@ -409,11 +409,11 @@ async function loadAllStocks() {
         } catch (err) {
             console.error('Error loading AI recommendations:', err);
         }
-        
+
         // Render stocks grid
         renderStocksGrid([...featuredStocks, ...aiStocks]);
         hideError();
-        
+
     } catch (err) {
         console.error('Error loading stocks:', err);
         showError('Failed to load stocks. Please try again.');
@@ -423,12 +423,12 @@ async function loadAllStocks() {
 // Render stocks grid with stock cards
 async function renderStocksGrid(stocks) {
     if (!stocksGrid) return;
-    
+
     if (!stocks || stocks.length === 0) {
         stocksGrid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #999;">No stocks to display</div>';
         return;
     }
-    
+
     stocksGrid.innerHTML = stocks.map(stock => {
         const ticker = stock.ticker || '';
         const symbol = escapeHtml(ticker);
@@ -441,24 +441,24 @@ async function renderStocksGrid(stocks) {
         const marketCap = stock.marketCap;
         const chartContainerId = `chart-${ticker.replace(/[^A-Z0-9]/gi, '_')}`;
         const indicatorContainerId = `indicator-${ticker.replace(/[^A-Z0-9]/gi, '_')}`;
-        
+
         return `
             <div class="stock-card" style="cursor: pointer; display: flex; flex-direction: column;" onclick="handleStockClick('${escapeHtml(ticker)}')">
                 <div class="stock-card-header">
                     <h3 class="stock-ticker">${symbol}</h3>
                     <span class="stock-price-badge">\$${currentPrice.toFixed(2)}</span>
                 </div>
-                
+
                 <div class="stock-card-chart">
                     <canvas id="${chartContainerId}" width="800" height="240" style="display: block; width: 100%; height: 120px;"></canvas>
                 </div>
-                
+
                 <div class="stock-card-indicator">
                     <div id="${indicatorContainerId}" style="font-size: 0.85em; text-align: center; padding: 8px; background: #f9fafb; border-radius: 6px; color: #666;">
                         Loading indicator...
                     </div>
                 </div>
-                
+
                 <div class="stock-card-body" style="flex-grow: 1; display: flex; flex-direction: column;">
                     <div class="stock-change ${isPositive ? 'positive' : 'negative'}">
                         ${isPositive ? '↑' : '↓'} ${Math.abs(priceChangePercent)}%
@@ -471,26 +471,26 @@ async function renderStocksGrid(stocks) {
             </div>
         `;
     }).join('');
-    
+
     // Load chart data for each stock
     for (const stock of stocks) {
         const ticker = stock.ticker || '';
         const chartContainerId = `chart-${ticker.replace(/[^A-Z0-9]/gi, '_')}`;
         const indicatorContainerId = `indicator-${ticker.replace(/[^A-Z0-9]/gi, '_')}`;
-        
+
         try {
             const response = await fetch(`${API_BASE_URL}/api/price-history/${encodeURIComponent(ticker)}`);
             if (response.ok) {
                 const data = await response.json();
                 const prices = Array.isArray(data) ? data : data.data || data.prices || data.history || [];
-                
+
                 if (prices.length > 0) {
                     // Draw candlestick chart
                     const canvas = document.getElementById(chartContainerId);
                     if (canvas) {
                         drawMiniStockChart(canvas, prices, ticker);
                     }
-                    
+
                     // Calculate and display key indicator
                     const indicatorElement = document.getElementById(indicatorContainerId);
                     if (indicatorElement) {
@@ -508,42 +508,42 @@ async function renderStocksGrid(stocks) {
 // Draw mini candlestick chart with Bollinger Bands
 function drawMiniStockChart(canvas, prices, ticker) {
     if (!canvas || !prices || prices.length === 0) return;
-    
+
     const ctx = canvas.getContext('2d');
     const width = canvas.width || 800;
     const height = canvas.height || 240;
-    
+
     // Use last 90 days for mini chart
     const chartData = prices.slice(-90);
     const closes = chartData.map(p => typeof p === 'object' ? (p.Close || p.close || p.price || 0) : p);
-    
+
     if (closes.length === 0) return;
-    
+
     // Calculate Bollinger Bands
-    const { middle: sma20, upper: bbUpper, lower: bbLower } = calculateBollingerBands(chartData, 20, 2);
-    
+    const { upper: bbUpper, lower: bbLower } = calculateBollingerBands(chartData, 20, 2);
+
     // Find min/max prices
     const minPrice = Math.min(...closes.filter(p => p > 0));
     const maxPrice = Math.max(...closes.filter(p => p > 0));
     const priceRange = maxPrice - minPrice || 1;
     const padding = priceRange * 0.1;
-    
+
     // Drawing setup
     const chartPadding = { top: 10, bottom: 10, left: 10, right: 10 };
     const chartWidth = width - chartPadding.left - chartPadding.right;
     const chartHeight = height - chartPadding.top - chartPadding.bottom;
     const candleWidth = Math.max(2, chartWidth / (chartData.length * 1.2));
     const candleGap = candleWidth * 0.2;
-    
+
     // Clear canvas
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, width, height);
-    
+
     // Draw Bollinger Bands
     ctx.strokeStyle = 'rgba(200, 200, 200, 0.3)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    
+
     for (let i = 0; i < bbUpper.length; i++) {
         if (bbUpper[i] !== null) {
             const y = chartPadding.top + chartHeight - ((bbUpper[i] - (minPrice - padding)) / (priceRange + padding * 2)) * chartHeight;
@@ -552,7 +552,7 @@ function drawMiniStockChart(canvas, prices, ticker) {
         }
     }
     ctx.stroke();
-    
+
     ctx.beginPath();
     for (let i = 0; i < bbLower.length; i++) {
         if (bbLower[i] !== null) {
@@ -562,7 +562,7 @@ function drawMiniStockChart(canvas, prices, ticker) {
         }
     }
     ctx.stroke();
-    
+
     // Draw candlesticks
     for (let i = 0; i < chartData.length; i++) {
         const candle = chartData[i];
@@ -570,13 +570,13 @@ function drawMiniStockChart(canvas, prices, ticker) {
         const close = typeof candle === 'object' ? (candle.Close || candle.close || closes[i]) : candle;
         const high = typeof candle === 'object' ? (candle.High || candle.high || Math.max(open, close)) : candle;
         const low = typeof candle === 'object' ? (candle.Low || candle.low || Math.min(open, close)) : candle;
-        
+
         const x = chartPadding.left + i * (candleWidth + candleGap);
         const yHigh = chartPadding.top + chartHeight - ((high - (minPrice - padding)) / (priceRange + padding * 2)) * chartHeight;
         const yLow = chartPadding.top + chartHeight - ((low - (minPrice - padding)) / (priceRange + padding * 2)) * chartHeight;
         const yOpen = chartPadding.top + chartHeight - ((open - (minPrice - padding)) / (priceRange + padding * 2)) * chartHeight;
         const yClose = chartPadding.top + chartHeight - ((close - (minPrice - padding)) / (priceRange + padding * 2)) * chartHeight;
-        
+
         // Wick
         ctx.strokeStyle = close >= open ? '#10b981' : '#ef4444';
         ctx.lineWidth = 1;
@@ -584,7 +584,7 @@ function drawMiniStockChart(canvas, prices, ticker) {
         ctx.moveTo(x + candleWidth / 2, yHigh);
         ctx.lineTo(x + candleWidth / 2, yLow);
         ctx.stroke();
-        
+
         // Body
         ctx.fillStyle = close >= open ? '#10b981' : '#ef4444';
         const bodyTop = Math.min(yOpen, yClose);
@@ -601,19 +601,19 @@ function getKeyIndicator(prices) {
     if (!prices || prices.length < 14) {
         return '<span style="color: #999;">Insufficient data</span>';
     }
-    
+
     try {
         // calculateRSI expects objects with .Close property
         const rsi = calculateRSI(prices, 14);
         const lastRSI = rsi[rsi.length - 1];
-        
+
         if (lastRSI === null || lastRSI === undefined || isNaN(lastRSI)) {
             return '<span style="color: #999;">RSI: N/A</span>';
         }
-        
+
         let signal = '';
         let color = '#6b7280';
-        
+
         if (lastRSI > 70) {
             signal = '⚠️ Overbought';
             color = '#ef4444';
@@ -630,7 +630,7 @@ function getKeyIndicator(prices) {
             signal = '→ Neutral';
             color = '#6b7280';
         }
-        
+
         return `<span style="color: ${color}; font-weight: 600;">RSI: ${lastRSI.toFixed(0)} - ${signal}</span>`;
     } catch (err) {
         console.error('Error calculating indicator:', err);
@@ -652,26 +652,26 @@ async function loadStockData(ticker, replaceHistory = false) {
     } else {
         window.history.pushState({ page: 'results', ticker: ticker }, `${ticker} - OOBIR`, `?ticker=${ticker}`);
     }
-    
+
     showResultsPage();
     loadingTicker.textContent = ticker;
     tickerInputCompact.value = ticker;
-    
+
     // Update stock header
     document.getElementById('stock-symbol').textContent = ticker;
-    
+
     // Initialize AI sections with buttons
     initializeAIRecommendation(ticker);
     initializeNewsSentiment(ticker);
     initializeTechnicalAnalysis(ticker);
-    
+
     // Load news first to get dates for chart markers
     await fetchData(`/api/news/${ticker}`, 'news-data', renderNews);
-    
+
     // Load sentiment analysis in background (non-blocking) to color news markers
     // This fires async without blocking chart rendering
     loadNewsSentimentBackground(ticker);
-    
+
     // Load all other data concurrently
     const dataPromises = {
         fundamentals: fetchData(`/api/fundamentals/${ticker}`, 'fundamentals-data', renderFundamentals),
@@ -680,14 +680,14 @@ async function loadStockData(ticker, replaceHistory = false) {
         calendar: fetchData(`/api/calendar/${ticker}`, 'calendar-data', renderCalendar),
         optionChain: fetchData(`/api/option-chain/${ticker}`, 'option-chain-data', renderOptionChain)
     };
-    
+
     // Wait for all data to load
     await Promise.allSettled(Object.values(dataPromises));
     const techContainer = document.getElementById('technical-signals-data');
     if (techContainer) {
         renderTechnicalSignals(null, techContainer);
     }
-    
+
     // Show results
     loadingSpinner.classList.add('hidden');
     resultsContainer.classList.remove('hidden');
@@ -707,14 +707,14 @@ function initializeAIRecommendation(ticker) {
 async function loadAIRecommendation(ticker) {
     const container = document.getElementById('ai-recommendation');
     container.innerHTML = '<p class="text-muted">🔄 Loading AI recommendation...</p>';
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/api/ai/fundamental-analysis/${ticker}`);
-        
+
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
-        
+
         const data = await response.json();
         renderAIRecommendation(data, container);
     } catch (error) {
@@ -743,14 +743,14 @@ function initializeNewsSentiment(ticker) {
 async function loadNewsSentiment(ticker) {
     const container = document.getElementById('news-sentiment-data');
     container.innerHTML = '<p class="text-muted">🔄 Loading news sentiment...</p>';
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/api/ai/news-sentiment/${ticker}`);
-        
+
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
-        
+
         const data = await response.json();
         renderNewsSentiment(data, container);
     } catch (error) {
@@ -768,11 +768,11 @@ async function loadNewsSentiment(ticker) {
 async function loadNewsSentimentBackground(ticker) {
     try {
         const response = await fetch(`${API_BASE_URL}/api/ai/news-sentiment/${ticker}`);
-        
+
         if (!response.ok) {
             return; // Silently fail - grey dots will remain
         }
-        
+
         const data = await response.json();
         // Apply sentiment and trigger chart re-render
         applyNewsSentiment(data);
@@ -801,14 +801,14 @@ function initializeTechnicalAnalysis(ticker) {
 async function loadTechnicalAnalysis(ticker) {
     const container = document.getElementById('technical-analysis-data');
     container.innerHTML = '<p class="text-muted">🔄 Loading technical analysis...</p>';
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/api/ai/technical-analysis/${ticker}`);
-        
+
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
-        
+
         const data = await response.json();
         renderTechnicalAnalysis(data, container);
     } catch (error) {
@@ -825,14 +825,14 @@ async function loadTechnicalAnalysis(ticker) {
 // Generic fetch function
 async function fetchData(endpoint, containerId, renderFunction) {
     const container = document.getElementById(containerId);
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}${endpoint}`);
-        
+
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
-        
+
         const data = await response.json();
         renderFunction(data, container);
     } catch (error) {
@@ -856,20 +856,20 @@ function renderFundamentals(data, container) {
         hideCardIfEmpty(container);
         return;
     }
-    
+
     // Store fundamentals globally for use in other renderers
     fundamentalsData = data;
-    
+
     // Set company name and industry/sector in header if available
     const companyName = data.longName || data.shortName || data.long_name || data.short_name || '';
     const sector = data.sector || data.Sector || '';
     const industry = data.industry || data.Industry || '';
-    
+
     const nameEl = document.getElementById('company-name');
     if (nameEl) {
         nameEl.textContent = companyName;
     }
-    
+
     // Add sector/industry info in header
     const summaryEl = document.getElementById('company-summary');
     if (summaryEl) {
@@ -879,7 +879,7 @@ function renderFundamentals(data, container) {
         }
         summaryEl.textContent = summary;
     }
-    
+
     // Populate company summary box
     const summaryBox = document.getElementById('summary-content');
     if (summaryBox) {
@@ -890,14 +890,14 @@ function renderFundamentals(data, container) {
         const headquarters = data.city || '';
         const state = data.state || '';
         const country = data.country || '';
-        
+
         const locationStr = [headquarters, state, country].filter(s => s).join(', ');
-        
+
         let html = '';
         if (description) {
             html += `<p style="margin-bottom: 12px;">${escapeHtml(description)}</p>`;
         }
-        
+
         const infoItems = [];
         if (website) {
             infoItems.push(`<strong>Website:</strong> <a href="${escapeHtml(website)}" target="_blank" style="color: #3b82f6;">${escapeHtml(website)}</a>`);
@@ -911,16 +911,16 @@ function renderFundamentals(data, container) {
         if (locationStr) {
             infoItems.push(`<strong>Location:</strong> ${escapeHtml(locationStr)}`);
         }
-        
+
         if (infoItems.length > 0) {
             html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px;">' +
                 infoItems.map(item => `<div>${item}</div>`).join('') +
                 '</div>';
         }
-        
+
         summaryBox.innerHTML = html || '<p class="text-muted">No company information available</p>';
     }
-    
+
     const fields = {
         'Market Cap': formatLargeNumber(data.marketCap || data.market_cap),
         'P/E Ratio': formatNumber(data.trailingPE || data.trailing_pe),
@@ -931,7 +931,7 @@ function renderFundamentals(data, container) {
         '52 Week High': formatCurrency(data.fiftyTwoWeekHigh || data.fifty_two_week_high),
         '52 Week Low': formatCurrency(data.fiftyTwoWeekLow || data.fifty_two_week_low)
     };
-    
+
     renderTable(fields, container);
 }
 
@@ -942,30 +942,30 @@ function renderPriceHistory(data, container) {
         container.innerHTML = '<p class="text-muted">No price history available</p>';
         return;
     }
-    
+
     // Store globally for re-rendering when sentiment arrives
     window.lastPriceData = data;
-    
+
     const prices = data.data;
     const latest = prices[prices.length - 1];
     const oldest = prices[0];
     window.currentPrice = latest.Close;
-    
+
     // Calculate trend metrics
     const calcPctChange = (periodDays) => {
         if (prices.length < periodDays) return null;
         const periodStart = prices[prices.length - periodDays];
         return ((latest.Close - periodStart.Close) / periodStart.Close) * 100;
     };
-    
+
     const change1D = prices.length >= 2 ? ((latest.Close - prices[prices.length - 2].Close) / prices[prices.length - 2].Close) * 100 : null;
     const change1W = calcPctChange(5);
     const change1M = calcPctChange(21);
-    
+
     const avgVolume = prices.reduce((sum, p) => sum + (p.Volume || 0), 0) / prices.length;
     const currentVolume = latest.Volume || 0;
     const volumeChange = ((currentVolume - avgVolume) / avgVolume) * 100;
-    
+
     const trendHtml = `
         <div style="display: flex; gap: 20px; line-height: 1.6;">
             <div>
@@ -987,29 +987,29 @@ function renderPriceHistory(data, container) {
             </div>
         </div>
     `;
-    
+
     const trendEl = document.getElementById('price-trend-summary');
     if (trendEl) {
         trendEl.innerHTML = trendHtml;
     }
-    
+
     // Show latest price prominently
     document.getElementById('stock-price').innerHTML = `
         <strong>${formatCurrency(latest.Close)}</strong>
         <span class="${latest.Close >= oldest.Close ? 'text-success' : 'text-danger'}">
-            ${latest.Close >= oldest.Close ? '▲' : '▼'} 
+            ${latest.Close >= oldest.Close ? '▲' : '▼'}
             ${formatPercent((latest.Close - oldest.Close) / oldest.Close)} (121d)
         </span>
     `;
-    
+
     // Calculate price range for scaling
     const minPrice = Math.min(...prices.map(p => p.Low));
     const maxPrice = Math.max(...prices.map(p => p.High));
     const range = maxPrice - minPrice;
-    
+
     // Calculate volume range for scaling
     const maxVolume = Math.max(...prices.map(p => p.Volume || 0));
-    
+
     // Calculate technical indicators
     const sma20 = calculateSMA(prices, 20);
     const sma50 = calculateSMA(prices, 50);
@@ -1018,7 +1018,7 @@ function renderPriceHistory(data, container) {
     const { macdLine, signalLine, histogram } = calculateMACD(prices, 12, 26, 9);
     const stoch = calculateStochastic(prices, 14);
     const adx = calculateADX(prices, 14);
-    
+
     window.technicalIndicators = {
         rsi: rsi[rsi.length - 1],
         macd: macdLine[macdLine.length - 1],
@@ -1031,13 +1031,13 @@ function renderPriceHistory(data, container) {
         bbUpper: bbUpper[bbUpper.length - 1],
         bbLower: bbLower[bbLower.length - 1]
     };
-    
+
     // Render trend prediction at the top
     renderTrendPrediction();
-    
+
     // Render trading strategy
     renderTradingStrategy();
-    
+
     // Create candlestick chart with technical indicators
     const chartHtml = `
         <div style="display: flex; flex-direction: column; gap: 16px;">
@@ -1049,7 +1049,7 @@ function renderPriceHistory(data, container) {
                 <div><span style="display: inline-block; width: 14px; height: 3px; background: #f59e0b; margin-right: 6px; border-radius: 2px;"></span>SMA 50</div>
                 <div><span style="display: inline-block; width: 14px; height: 2px; background: #a78bfa; margin-right: 6px; border-radius: 1px;"></span>Bollinger Bands</div>
             </div>
-            
+
             <!-- Chart -->
             <div style="display: flex; flex-direction: column; gap: 0;">
                 <div style="display: flex; align-items: flex-end; justify-content: space-around; gap: 2px; height: 300px; padding: 16px; background: linear-gradient(to bottom, #1e293b 0%, #0f172a 100%); border-radius: 12px 12px 0 0; position: relative; box-shadow: 0 8px 16px rgba(0,0,0,0.2);">
@@ -1058,29 +1058,29 @@ function renderPriceHistory(data, container) {
                         const close = day.Close;
                         const high = day.High;
                         const low = day.Low;
-                        
+
                         // Normalize to 0-100 scale
                         const highPercent = ((high - minPrice) / range) * 100;
                         const lowPercent = ((low - minPrice) / range) * 100;
                         const openPercent = ((open - minPrice) / range) * 100;
                         const closePercent = ((close - minPrice) / range) * 100;
-                        
+
                         // Technical indicators positioning
                         const sma20Percent = sma20[idx] ? ((sma20[idx] - minPrice) / range) * 100 : null;
                         const sma50Percent = sma50[idx] ? ((sma50[idx] - minPrice) / range) * 100 : null;
                         const bbUpperPercent = bbUpper[idx] ? ((bbUpper[idx] - minPrice) / range) * 100 : null;
                         const bbLowerPercent = bbLower[idx] ? ((bbLower[idx] - minPrice) / range) * 100 : null;
-                        
+
                         // Determine color (green for up, red for down)
                         const isUp = close >= open;
                         const color = isUp ? '#22c55e' : '#ef4444';
-                        
+
                         // Body is between open and close
                         const bodyTop = Math.min(openPercent, closePercent);
                         const bodyHeight = Math.abs(closePercent - openPercent) || 1;
                         const wickTop = lowPercent;
                         const wickHeight = highPercent - lowPercent;
-                        
+
                         // Check for news on this date
                         const dateLabel = (typeof day.Date === 'string') ? day.Date.split('T')[0] : day.Date;
                         const newsOnDate = (window.newsArticles || []).filter(n => n.dateStr === dateLabel);
@@ -1089,7 +1089,7 @@ function renderPriceHistory(data, container) {
                             const newsTitle = newsOnDate.map(n => n.title).join('\\n');
                             const firstNewsLink = newsOnDate[0].link;
                             const sentiment = newsOnDate[0].sentiment || 'neutral';
-                            
+
                             // Choose emoji and color based on sentiment
                             let sentimentEmoji = '⚪'; // Grey dot for neutral/loading
                             let sentimentColor = '#9ca3af'; // grey for neutral
@@ -1100,10 +1100,10 @@ function renderPriceHistory(data, container) {
                                 sentimentEmoji = '🔴';
                                 sentimentColor = '#ef4444';
                             }
-                            
+
                             newsMarker = `<a href="${escapeHtml(firstNewsLink)}" target="_blank" style="position: absolute; top: -8px; left: 50%; transform: translateX(-50%); font-size: 18px; cursor: pointer; z-index: 10; text-decoration: none; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); color: ${sentimentColor};" title="${newsTitle.replace(/"/g, '&quot;')}">${sentimentEmoji}</a>`;
                         }
-                        
+
                         // Build indicator HTML
                         let indicatorHtml = '';
                         if (bbUpperPercent && bbLowerPercent) {
@@ -1115,7 +1115,7 @@ function renderPriceHistory(data, container) {
                         if (sma20Percent) {
                             indicatorHtml += '<div style="position: absolute; bottom: ' + sma20Percent + '%; width: 100%; height: 1px; background: #3b82f6;"></div>';
                         }
-                        
+
                         return '<div style="flex: 1; position: relative; height: 100%;" title="' + dateLabel + ': O:$' + open.toFixed(2) + ' H:$' + high.toFixed(2) + ' L:$' + low.toFixed(2) + ' C:$' + close.toFixed(2) + '">' +
                             newsMarker +
                             indicatorHtml +
@@ -1146,7 +1146,7 @@ function renderPriceHistory(data, container) {
                     })()}
                 </div>
             </div>
-            
+
             <!-- Volume Chart -->
             <div style="display: flex; flex-direction: column; gap: 0; margin-top: 4px;">
                 <div style="display: flex; align-items: flex-end; justify-content: space-around; gap: 2px; height: 80px; padding: 10px; background: #f9f9f9; border-radius: 4px 4px 0 0;">
@@ -1155,7 +1155,7 @@ function renderPriceHistory(data, container) {
                         const volumePercent = maxVolume > 0 ? (volume / maxVolume) * 100 : 0;
                         const isUp = day.Close >= day.Open;
                         const color = isUp ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)';
-                        
+
                         const dateLabel = (typeof day.Date === 'string') ? day.Date.split('T')[0] : day.Date;
                         return '<div style="flex: 1; position: relative; height: 100%;" title="' + dateLabel + ': Volume ' + volume.toLocaleString() + '">' +
                             '<div style="position: absolute; bottom: 0; width: 100%; height: ' + volumePercent + '%; background: ' + color + ';"></div>' +
@@ -1183,7 +1183,7 @@ function renderPriceHistory(data, container) {
                     })()}
                 </div>
             </div>
-            
+
             <!-- RSI Oscillator -->
             <div style="padding: 14px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                 <div style="font-size: 0.95em; margin-bottom: 8px; font-weight: 700; color: #92400e;">📊 RSI (14)</div>
@@ -1220,7 +1220,7 @@ function renderPriceHistory(data, container) {
                     })()}
                 </div>
             </div>
-            
+
             <!-- MACD Histogram -->
             <div style="padding: 14px; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                 <div style="font-size: 0.95em; margin-bottom: 8px; font-weight: 700; color: #1e40af;">📈 MACD Histogram (Count: ${histogram.length})</div>
@@ -1234,7 +1234,7 @@ function renderPriceHistory(data, container) {
                             let barHeight = (absVal / maxHist) * 40;
                             const color = val >= 0 ? '#10b981' : '#ef4444';
                             const dateLabel = (typeof prices[idx]?.Date === 'string') ? prices[idx].Date.split('T')[0] : prices[idx]?.Date || 'N/A';
-                            
+
                             if (val >= 0) {
                                 return `<div style="flex: 1; height: 100%; display: flex; align-items: center; justify-content: center;"><div style="width: 80%; height: ${barHeight}%; background: ${color}; margin-top: auto; margin-bottom: 50%; border-radius: 2px;" title="${dateLabel}: ${val.toFixed(4)}"></div></div>`;
                             } else {
@@ -1264,7 +1264,7 @@ function renderPriceHistory(data, container) {
                     })()}
                 </div>
             </div>
-            
+
             <!-- Stochastic Oscillator -->
             <div style="padding: 14px; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                 <div style="font-size: 0.95em; margin-bottom: 8px; font-weight: 700; color: #065f46;">📉 Stochastic (14)</div>
@@ -1301,7 +1301,7 @@ function renderPriceHistory(data, container) {
                     })()}
                 </div>
             </div>
-            
+
             <!-- Volume Chart -->
             <div style="display: flex; align-items: flex-end; justify-content: space-around; gap: 2px; height: 80px; padding: 10px; background: #f9f9f9; border-radius: 4px; margin-top: 4px;">
                 ${prices.map((day) => {
@@ -1309,13 +1309,13 @@ function renderPriceHistory(data, container) {
                     const volumePercent = maxVolume > 0 ? (volume / maxVolume) * 100 : 0;
                     const isUp = day.Close >= day.Open;
                     const color = isUp ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)';
-                    
+
                     return '<div style="flex: 1; position: relative; height: 100%;" title="' + day.Date + ': Volume ' + volume.toLocaleString() + '">' +
                         '<div style="position: absolute; bottom: 0; width: 100%; height: ' + volumePercent + '%; background: ' + color + ';"></div>' +
                         '</div>';
                 }).join('')}
             </div>
-            
+
             <!-- RSI Oscillator -->
             <div style="padding: 10px; background: #f9f9f9; border-radius: 4px;">
                 <div style="font-size: 0.9em; margin-bottom: 4px; font-weight: 600;">RSI (14)</div>
@@ -1331,7 +1331,7 @@ function renderPriceHistory(data, container) {
                     </div>
                 </div>
             </div>
-            
+
             <!-- MACD Histogram -->
             <div style="padding: 10px; background: #f9f9f9; border-radius: 4px;">
                 <div style="font-size: 0.9em; margin-bottom: 4px; font-weight: 600;">MACD Histogram</div>
@@ -1350,7 +1350,7 @@ function renderPriceHistory(data, container) {
                     </div>
                 </div>
             </div>
-            
+
             <!-- Stochastic Oscillator -->
             <div style="padding: 10px; background: #f9f9f9; border-radius: 4px;">
                 <div style="font-size: 0.9em; margin-bottom: 4px; font-weight: 600;">Stochastic (14)</div>
@@ -1366,7 +1366,7 @@ function renderPriceHistory(data, container) {
                     </div>
                 </div>
             </div>
-            
+
             <!-- Stats -->
             <div style="text-align: center; margin-top: 16px; font-size: 0.9em; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
                 <div><strong>Latest Close:</strong> ${formatCurrency(latest.Close)}</div>
@@ -1381,7 +1381,7 @@ function renderPriceHistory(data, container) {
             </div>
         </div>
     `;
-    
+
     container.innerHTML = chartHtml;
 }
 
@@ -1390,7 +1390,7 @@ function renderAnalystTargets(data, container) {
         hideCardIfEmpty(container);
         return;
     }
-    
+
     const fields = {
         'Current Price': formatCurrency(data.current || data.currentPrice || data.current_price),
         'Target High': formatCurrency(data.high || data.targetHighPrice || data.target_high_price),
@@ -1398,7 +1398,7 @@ function renderAnalystTargets(data, container) {
         'Target Low': formatCurrency(data.low || data.targetLowPrice || data.target_low_price),
         'Target Median': formatCurrency(data.median || data.targetMedianPrice || data.target_median_price)
     };
-    
+
     renderTable(fields, container);
 }
 
@@ -1407,7 +1407,7 @@ function renderCalendar(data, container) {
         container.innerHTML = '<p class="text-muted">No upcoming events</p>';
         return;
     }
-    
+
     // Build event list from calendar data
     const events = [];
     if (data['Dividend Date']) {
@@ -1419,19 +1419,19 @@ function renderCalendar(data, container) {
     if (data['Earnings Date'] && Array.isArray(data['Earnings Date']) && data['Earnings Date'].length > 0) {
         events.push({ event: '📊 Earnings Date', date: data['Earnings Date'][0] });
     }
-    
+
     if (events.length === 0) {
         hideCardIfEmpty(container);
         return;
     }
-    
+
     const html = events.map(event => `
         <div class="news-item">
             <div class="news-title">${event.event}</div>
             <div class="news-meta">${event.date}</div>
         </div>
     `).join('');
-    
+
     container.innerHTML = html;
 }
 
@@ -1441,7 +1441,7 @@ function renderNews(data, container) {
         hideCardIfEmpty(container);
         return;
     }
-    
+
     // Store news globally with dates for price chart markers
     window.newsArticles = items.map(item => {
         const content = item.content || item;
@@ -1457,13 +1457,13 @@ function renderNews(data, container) {
             sentiment: 'neutral' // Will be updated by sentiment analysis
         };
     }).filter(n => n.date);
-    
+
     const html = items.slice(0, 5).map(item => {
         const content = item.content || item; // Yahoo sometimes nests under content
         const title = content.title || content.headline || item.title || item.headline || 'No title';
         const source = (content.provider?.displayName || content.provider || item.publisher || item.source || 'Unknown source');
         const link = (content.canonicalUrl?.url || content.clickThroughUrl?.url || content.link || item.link || item.url || '#');
-        
+
         let dateStr = '';
         const ts = content.pubDate || content.publish_time || item.pubDate || item.providerPublishTime;
         if (ts) {
@@ -1472,13 +1472,13 @@ function renderNews(data, container) {
                 dateStr = d.toLocaleDateString();
             }
         }
-        
+
         return `<div class="news-item" id="news-${escapeHtml(dateStr.replace(/\//g, '-'))}">
             <a href="${escapeHtml(link)}" target="_blank" class="news-title">${escapeHtml(title)}</a>
             <div class="news-meta">${escapeHtml(source)}${dateStr ? ' • ' + escapeHtml(dateStr) : ''}</div>
         </div>`;
     }).join('');
-    
+
     container.innerHTML = html;
 }
 
@@ -1625,7 +1625,7 @@ function renderOptionChain(data, container) {
 
 function renderAIRecommendation(data, container) {
     const text = typeof data === 'string' ? data : JSON.stringify(data);
-    
+
     // Determine recommendation type
     let className = '';
     const upperText = text.toUpperCase();
@@ -1636,7 +1636,7 @@ function renderAIRecommendation(data, container) {
     } else if (upperText.includes('HOLD')) {
         className = 'hold';
     }
-    
+
     container.innerHTML = `<div class="recommendation-box ${className}">${escapeHtml(text)}</div>`;
 }
 
@@ -1648,17 +1648,17 @@ function renderTechnicalAnalysis(data, container) {
 // Apply sentiment to news articles without rendering UI (used during initial load)
 function applyNewsSentiment(data) {
     const text = typeof data === 'string' ? data : JSON.stringify(data);
-    
+
     // Parse sentiment from AI response
     const sentimentText = text.toLowerCase();
     let overallSentiment = 'neutral'; // default
-    
+
     if (sentimentText.includes('positive') || sentimentText.includes('bullish') || sentimentText.includes('good')) {
         overallSentiment = 'positive';
     } else if (sentimentText.includes('negative') || sentimentText.includes('bearish') || sentimentText.includes('bad')) {
         overallSentiment = 'negative';
     }
-    
+
     // Update sentiment for all news articles
     if (window.newsArticles && Array.isArray(window.newsArticles)) {
         window.newsArticles.forEach(article => {
@@ -1669,25 +1669,25 @@ function applyNewsSentiment(data) {
 
 function renderNewsSentiment(data, container) {
     const text = typeof data === 'string' ? data : JSON.stringify(data);
-    
+
     // Parse sentiment from AI response and apply to articles
     applyNewsSentiment(data);
-    
+
     // Parse sentiment again for UI rendering
     const sentimentText = text.toLowerCase();
     let overallSentiment = 'neutral'; // default
-    
+
     if (sentimentText.includes('positive') || sentimentText.includes('bullish') || sentimentText.includes('good')) {
         overallSentiment = 'positive';
     } else if (sentimentText.includes('negative') || sentimentText.includes('bearish') || sentimentText.includes('bad')) {
         overallSentiment = 'negative';
     }
-    
+
     // Render sentiment UI
     const sentimentEmoji = overallSentiment === 'positive' ? '🟢' : overallSentiment === 'negative' ? '🔴' : '⚪';
     const sentimentLabel = overallSentiment.charAt(0).toUpperCase() + overallSentiment.slice(1);
     const sentimentColor = overallSentiment === 'positive' ? '#10b981' : overallSentiment === 'negative' ? '#ef4444' : '#9ca3af';
-    
+
     container.innerHTML = `
         <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background-color: rgba(0,0,0,0.02); border-radius: 8px; border-left: 4px solid ${sentimentColor};">
             <div style="font-size: 24px;">${sentimentEmoji}</div>
@@ -1703,20 +1703,20 @@ function renderNewsSentiment(data, container) {
 function renderTrendPrediction() {
     const container = document.getElementById('trend-prediction');
     if (!container) return;
-    
+
     const ind = window.technicalIndicators || {};
     const currentPrice = window.currentPrice || 0;
-    
+
     if (!ind || (!ind.rsi && !ind.macd)) {
         container.style.display = 'none';
         return;
     }
-    
+
     // Calculate bullish/bearish signals
     let bullishSignals = 0;
     let bearishSignals = 0;
     const signals = [];
-    
+
     // RSI
     if (ind.rsi !== undefined && ind.rsi !== null) {
         if (ind.rsi < 30) {
@@ -1727,7 +1727,7 @@ function renderTrendPrediction() {
             signals.push('RSI overbought (sell signal)');
         }
     }
-    
+
     // MACD
     if (ind.macdHistogram !== undefined && ind.macdHistogram !== null) {
         if (ind.macdHistogram > 0) {
@@ -1738,7 +1738,7 @@ function renderTrendPrediction() {
             signals.push('MACD bearish crossover');
         }
     }
-    
+
     // Moving Averages
     if (currentPrice && ind.sma20 && ind.sma50) {
         if (currentPrice > ind.sma20 && ind.sma20 > ind.sma50) {
@@ -1749,7 +1749,7 @@ function renderTrendPrediction() {
             signals.push('Price below moving averages');
         }
     }
-    
+
     // Stochastic
     if (ind.stochastic !== undefined && ind.stochastic !== null) {
         if (ind.stochastic < 20) {
@@ -1760,7 +1760,7 @@ function renderTrendPrediction() {
             signals.push('Stochastic overbought');
         }
     }
-    
+
     // Determine trend
     const totalSignals = bullishSignals + bearishSignals;
     let trend = 'NEUTRAL';
@@ -1769,10 +1769,10 @@ function renderTrendPrediction() {
     let borderColor = '#3b82f6';
     let bgGradient = 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)';
     let prediction = 'The market signals are mixed. Wait for clearer direction.';
-    
+
     if (totalSignals > 0) {
         const bullishPercent = (bullishSignals / totalSignals) * 100;
-        
+
         if (bullishPercent >= 70) {
             trend = 'BULLISH';
             trendIcon = '📈';
@@ -1793,7 +1793,7 @@ function renderTrendPrediction() {
             prediction = 'Mixed signals detected. Market consolidating or transitioning.';
         }
     }
-    
+
     const html = `
         <div style="padding: 20px;">
             <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
@@ -1820,7 +1820,7 @@ function renderTrendPrediction() {
             ` : ''}
         </div>
     `;
-    
+
     container.innerHTML = html;
     container.style.borderLeftColor = borderColor;
     container.style.background = bgGradient;
@@ -1831,32 +1831,32 @@ function renderTrendPrediction() {
 async function renderTradingStrategy() {
     const container = document.getElementById('trading-strategy');
     if (!container) return;
-    
+
     const ticker = document.getElementById('stock-symbol').textContent;
     if (!ticker) {
         container.style.display = 'none';
         return;
     }
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/api/trading-strategy/${ticker}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const strategy = await response.json();
-        
+
         if (!strategy || !strategy.strategy_type) {
             container.style.display = 'none';
             return;
         }
-        
+
         // Determine colors and styling based on strategy type
         let strategyIcon = '⏸️';
         let strategyColor = '#6b7280';
         let borderColor = '#8b5cf6';
         let bgGradient = 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%)';
-        
+
         if (strategy.strategy_type === 'LONG') {
             strategyIcon = '📈';
             strategyColor = '#10b981';
@@ -1868,11 +1868,11 @@ async function renderTradingStrategy() {
             borderColor = '#ef4444';
             bgGradient = 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)';
         }
-        
+
         // Confidence badge
-        const confidenceColor = strategy.confidence === 'HIGH' ? '#10b981' : 
+        const confidenceColor = strategy.confidence === 'HIGH' ? '#10b981' :
                                 strategy.confidence === 'MEDIUM' ? '#f59e0b' : '#6b7280';
-        
+
         // Build exit targets HTML
         let targetsHtml = '';
         if (strategy.exit_targets && strategy.exit_targets.length > 0) {
@@ -1893,7 +1893,7 @@ async function renderTradingStrategy() {
                 </div>
             `;
         }
-        
+
         // Build signals HTML
         let signalsHtml = '';
         if (strategy.signals && strategy.signals.length > 0) {
@@ -1908,7 +1908,7 @@ async function renderTradingStrategy() {
                 </div>
             `;
         }
-        
+
         const html = `
             <div style="padding: 20px;">
                 <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
@@ -1929,28 +1929,28 @@ async function renderTradingStrategy() {
                         ` : ''}
                     </div>
                 </div>
-                
+
                 ${strategy.current_price ? `
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px;">
                         <div style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: 8px;">
                             <div style="font-size: 0.75em; color: #6b7280; margin-bottom: 4px;">Current Price</div>
                             <div style="font-size: 1.3em; font-weight: 700; color: #1f2937;">$${strategy.current_price.toFixed(2)}</div>
                         </div>
-                        
+
                         ${strategy.entry_target ? `
                             <div style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: 8px;">
                                 <div style="font-size: 0.75em; color: #6b7280; margin-bottom: 4px;">Entry Target</div>
                                 <div style="font-size: 1.3em; font-weight: 700; color: #3b82f6;">$${strategy.entry_target.toFixed(2)}</div>
                             </div>
                         ` : ''}
-                        
+
                         ${strategy.stop_loss ? `
                             <div style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: 8px;">
                                 <div style="font-size: 0.75em; color: #6b7280; margin-bottom: 4px;">Stop Loss</div>
                                 <div style="font-size: 1.3em; font-weight: 700; color: #ef4444;">$${strategy.stop_loss.toFixed(2)}</div>
                             </div>
                         ` : ''}
-                        
+
                         ${strategy.risk_reward_ratio ? `
                             <div style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: 8px;">
                                 <div style="font-size: 0.75em; color: #6b7280; margin-bottom: 4px;">Risk/Reward</div>
@@ -1961,17 +1961,17 @@ async function renderTradingStrategy() {
                         ` : ''}
                     </div>
                 ` : ''}
-                
+
                 ${targetsHtml}
                 ${signalsHtml}
             </div>
         `;
-        
+
         container.innerHTML = html;
         container.style.borderLeftColor = borderColor;
         container.style.background = bgGradient;
         container.style.display = 'block';
-        
+
     } catch (error) {
         console.error('Error fetching trading strategy:', error);
         container.style.display = 'none';
@@ -1989,20 +1989,20 @@ function renderTechnicalSignals(_data, container) {
     const stochSignal = ind.stochastic > 80 ? 'Overbought' : ind.stochastic < 20 ? 'Oversold' : 'Neutral';
     const adxSignal = ind.adx && ind.adx > 25 ? 'Trending' : 'Weak Trend';
     const smaSignal = (window.currentPrice || 0) > (ind.sma20 || 0) && (ind.sma20 || 0) > (ind.sma50 || 0) ? 'Bullish' : (window.currentPrice || 0) < (ind.sma20 || 0) && (ind.sma20 || 0) < (ind.sma50 || 0) ? 'Bearish' : 'Mixed';
-    
+
     const indicator = (emoji, label, value, signal, thresholds = {}) => {
-        const signalColor = signal === 'Overbought' || signal === 'Bearish' ? '#ef4444' : 
-                           signal === 'Oversold' || signal === 'Bullish' ? '#10b981' : 
+        const signalColor = signal === 'Overbought' || signal === 'Bearish' ? '#ef4444' :
+                           signal === 'Oversold' || signal === 'Bullish' ? '#10b981' :
                            signal === 'Trending' ? '#3b82f6' : '#6b7280';
-        
+
         // Determine fill percentage for visual bar
         let fillPercent = 0;
         if (thresholds.min !== undefined && thresholds.max !== undefined) {
             fillPercent = Math.max(0, Math.min(100, ((parseFloat(value) - thresholds.min) / (thresholds.max - thresholds.min)) * 100));
         }
-        
+
         const barColor = signal === 'Overbought' ? '#ef4444' : signal === 'Oversold' ? '#10b981' : '#3b82f6';
-        
+
         return `
             <div class="tech-indicator-card">
                 <div class="tech-header">
@@ -2017,7 +2017,7 @@ function renderTechnicalSignals(_data, container) {
             </div>
         `;
     };
-    
+
     const html = `
         <div class="tech-indicators-grid">
             ${indicator('📊', 'RSI (14)', ind.rsi ? ind.rsi.toFixed(1) : 'N/A', rsiSignal, {min: 0, max: 100})}
@@ -2043,7 +2043,7 @@ function renderTable(fields, container) {
                 <td class="value">${value}</td>
             </tr>
         `).join('');
-    
+
     if (rows) {
         container.innerHTML = `<table>${rows}</table>`;
     } else {
@@ -2085,16 +2085,16 @@ function escapeHtml(text) {
 async function loadAIBuys() {
     const container = document.getElementById('ai-buys-container');
     if (!container) return;
-    
+
     try {
         // Fetch both undervalued and growth stocks
         const [undervaluedResponse, growthResponse] = await Promise.all([
             fetch(`${API_BASE_URL}/api/screen-undervalued`),
             fetch(`${API_BASE_URL}/api/screen-undervalued-growth`)
         ]);
-        
+
         let stocks = [];
-        
+
         // Process undervalued stocks
         if (undervaluedResponse.ok) {
             const data = await undervaluedResponse.json();
@@ -2108,7 +2108,7 @@ async function loadAIBuys() {
                 stocks.push(...Object.keys(data).slice(0, 10));
             }
         }
-        
+
         // Process growth stocks
         if (growthResponse.ok) {
             const data = await growthResponse.json();
@@ -2122,12 +2122,12 @@ async function loadAIBuys() {
                 stocks.push(...Object.keys(data).slice(0, 10));
             }
         }
-        
+
         if (!stocks || stocks.length === 0) {
             container.innerHTML = '<div style="color: var(--text-secondary); font-size: 13px;">No recommendations available</div>';
             return;
         }
-        
+
         // Extract tickers and remove duplicates
         const tickers = Array.from(new Set(
             stocks.slice(0, 20).map(item => {
@@ -2137,7 +2137,7 @@ async function loadAIBuys() {
                 return null;
             }).filter(Boolean)
         ));
-        
+
         container.innerHTML = tickers.map(ticker => `
             <div class="ai-buy-ticker" id="ticker-box-${escapeHtml(ticker)}" onclick="handleTickerClick('${escapeHtml(ticker)}')" title="Analyze ${escapeHtml(ticker)}">
                 <span class="ticker-symbol">${escapeHtml(ticker)}</span>
@@ -2145,7 +2145,7 @@ async function loadAIBuys() {
                 <span class="dividend-badge" id="dividend-${escapeHtml(ticker)}" style="display: none; margin-left: 4px; font-size: 12px; color: #10b981;">💰</span>
             </div>
         `).join('');
-        
+
         // Fetch prices and dividend info for each ticker
         tickers.forEach(async (ticker) => {
             try {
@@ -2159,15 +2159,15 @@ async function loadAIBuys() {
                     } else if (priceEl) {
                         priceEl.textContent = '';
                     }
-                    
+
                     // Check for dividend
                     const dividendYield = priceData.dividendYield || priceData.dividend_yield;
                     const trailingAnnualDividendRate = priceData.trailingAnnualDividendRate || priceData.trailing_annual_dividend_rate;
                     const hasDividend = (dividendYield && dividendYield > 0) || (trailingAnnualDividendRate && trailingAnnualDividendRate > 0);
-                    
+
                     const tickerBox = document.getElementById(`ticker-box-${ticker}`);
                     const dividendBadge = document.getElementById(`dividend-${ticker}`);
-                    
+
                     if (hasDividend && tickerBox) {
                         // Apply green gradient background
                         tickerBox.style.background = 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)';
@@ -2200,7 +2200,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check if ticker is in URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     const tickerParam = urlParams.get('ticker');
-    
+
     if (tickerParam) {
         // Auto-search for the ticker from URL (use replaceState to avoid duplicate history)
         const ticker = tickerParam.trim().toUpperCase();
@@ -2213,3 +2213,4 @@ document.addEventListener('DOMContentLoaded', () => {
         loadAllStocks();
     }
 });
+

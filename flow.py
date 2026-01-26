@@ -5,6 +5,7 @@ This module provides functions to fetch financial data for stocks using yfinance
 perform technical and fundamental analysis, and generate AI-driven insights using
 Ollama LLM integration.
 """
+
 # pylint: disable=global-statement,import-outside-toplevel,no-member
 
 import os
@@ -27,6 +28,7 @@ os.environ.setdefault("OLLAMA_BASE_URL", _default_ollama)
 # cache the `chat` callable in `_CHAT`.
 _CHAT = None
 _CHAT_RESPONSE = None
+
 
 def ensure_ollama(host: str | None = None):
     """
@@ -69,12 +71,17 @@ def ensure_ollama(host: str | None = None):
 
     if _CHAT is None:
         from ollama import chat as _chat_fn  # pylint: disable=import-outside-toplevel,no-member
+
         try:
-            from ollama import ChatResponse as _chat_resp  # pylint: disable=import-outside-toplevel,no-member
+            from ollama import (
+                ChatResponse as _chat_resp,
+            )  # pylint: disable=import-outside-toplevel,no-member
+
             _CHAT_RESPONSE = _chat_resp
         except Exception:  # pylint: disable=broad-except
             _CHAT_RESPONSE = None
         _CHAT = _chat_fn
+
 
 # Suppress specific warnings by redirecting stderr
 class DummyFile:  # pylint: disable=too-few-public-methods
@@ -149,7 +156,7 @@ def get_price_history(ticker):
     True
     """
     try:
-        pd.set_option('display.max_rows', None)
+        pd.set_option("display.max_rows", None)
         yf_obj = yf.Ticker(ticker)
         price_history = yf_obj.history(period="121d")
         price_history_json = price_history.to_json(orient="table")
@@ -273,7 +280,7 @@ def get_quarterly_income_stmt(ticker):
             # Convert Timestamp index to string to make it JSON-serializable
             quarterly_income_stmt.index = quarterly_income_stmt.index.astype(str)
             # Orient by index so top-level keys are dates as the UI expects
-            return quarterly_income_stmt.to_dict(orient='index')
+            return quarterly_income_stmt.to_dict(orient="index")
         except Exception:  # pylint: disable=broad-except
             return quarterly_income_stmt
 
@@ -317,10 +324,7 @@ def get_option_chain(ticker):
             return option_chain.to_dict()
         except Exception:  # pylint: disable=broad-except
             try:
-                return [
-                    r._asdict() if hasattr(r, '_asdict') else dict(r)
-                    for r in option_chain
-                ]
+                return [r._asdict() if hasattr(r, "_asdict") else dict(r) for r in option_chain]
             except Exception:  # pylint: disable=broad-except
                 return option_chain
 
@@ -333,7 +337,7 @@ def get_news(ticker):
     """Retrieve news for a given ticker."""
     try:
         yf_obj = yf.Ticker(ticker)
-        news = yf_obj.get_news(count=10, tab='news')
+        news = yf_obj.get_news(count=10, tab="news")
         return news
 
     except Exception as exc:  # pylint: disable=broad-except
@@ -369,14 +373,14 @@ def get_balance_sheet(ticker):
     {'Total Assets': {...}, ...}
     """
     try:
-        pd.set_option('display.max_rows', None)
+        pd.set_option("display.max_rows", None)
         yf_obj = yf.Ticker(ticker)
         balance_sheet = yf_obj.get_balance_sheet()
         try:
             # Convert Timestamp index to string to make it JSON-serializable
             balance_sheet.index = balance_sheet.index.astype(str)
             # Orient by index so top-level keys are dates as the UI expects
-            return balance_sheet.to_dict(orient='index')
+            return balance_sheet.to_dict(orient="index")
         except Exception:  # pylint: disable=broad-except
             return balance_sheet
 
@@ -389,7 +393,7 @@ def get_screen_undervalued_large_caps():
     """Retrieve stock screen of undervalued large cap stocks."""
     try:
         screen = yf.screen("undervalued_large_caps")
-        tickers = [quote['symbol'] for quote in screen['quotes']]
+        tickers = [quote["symbol"] for quote in screen["quotes"]]
         return tickers
 
     except Exception as exc:  # pylint: disable=broad-except
@@ -432,7 +436,7 @@ def _latest_balance_sheet_slice(balance_sheet):
         try:
             frame = balance_sheet.copy()
             frame.index = frame.index.astype(str)
-            balance_sheet = frame.to_dict(orient='index')
+            balance_sheet = frame.to_dict(orient="index")
         except Exception:  # pylint: disable=broad-except
             return None, None
 
@@ -440,6 +444,7 @@ def _latest_balance_sheet_slice(balance_sheet):
         return None, None
 
     if balance_sheet and all(isinstance(v, dict) for v in balance_sheet.values()):
+
         def _period_key(key):
             try:
                 return pd.to_datetime(key)
@@ -480,15 +485,22 @@ def _summarize_balance_sheet_for_prompt(balance_sheet):
         except Exception:  # pylint: disable=broad-except
             return None
 
-    total_assets = _get_value('Total Assets', 'TotalAssets')
-    total_liabilities = _get_value('Total Liab', 'Total Liabilities', 'TotalLiab')
-    equity = _get_value('Total Stockholder Equity', 'Total Stockholders Equity', 'Stockholder Equity', 'Total Equity')
-    current_assets = _get_value('Total Current Assets', 'Current Assets')
-    current_liabilities = _get_value('Total Current Liabilities', 'Current Liabilities')
-    cash = _get_value('Cash And Cash Equivalents', 'Cash And Cash Equivalents USD', 'Cash', 'Cash Equivalents')
-    long_debt = _get_value('Long Term Debt', 'LongTermDebt')
-    short_debt = _get_value('Short Long Term Debt', 'Short Term Debt', 'Short Term Borrowings')
-    total_debt = _get_value('Total Debt')
+    total_assets = _get_value("Total Assets", "TotalAssets")
+    total_liabilities = _get_value("Total Liab", "Total Liabilities", "TotalLiab")
+    equity = _get_value(
+        "Total Stockholder Equity",
+        "Total Stockholders Equity",
+        "Stockholder Equity",
+        "Total Equity",
+    )
+    current_assets = _get_value("Total Current Assets", "Current Assets")
+    current_liabilities = _get_value("Total Current Liabilities", "Current Liabilities")
+    cash = _get_value(
+        "Cash And Cash Equivalents", "Cash And Cash Equivalents USD", "Cash", "Cash Equivalents"
+    )
+    long_debt = _get_value("Long Term Debt", "LongTermDebt")
+    short_debt = _get_value("Short Long Term Debt", "Short Term Debt", "Short Term Borrowings")
+    total_debt = _get_value("Total Debt")
 
     if total_debt is None and (long_debt is not None or short_debt is not None):
         total_debt = (long_debt or 0) + (short_debt or 0)
@@ -516,18 +528,18 @@ def _summarize_balance_sheet_for_prompt(balance_sheet):
     payload_metrics = {}
 
     for key, val in [
-        ('total_assets', total_assets),
-        ('total_liabilities', total_liabilities),
-        ('equity', equity),
-        ('current_assets', current_assets),
-        ('current_liabilities', current_liabilities),
-        ('working_capital', working_capital),
-        ('cash', cash),
-        ('total_debt', total_debt),
-        ('net_debt', net_debt),
-        ('current_ratio', current_ratio),
-        ('cash_ratio', cash_ratio),
-        ('debt_to_equity', debt_to_equity),
+        ("total_assets", total_assets),
+        ("total_liabilities", total_liabilities),
+        ("equity", equity),
+        ("current_assets", current_assets),
+        ("current_liabilities", current_liabilities),
+        ("working_capital", working_capital),
+        ("cash", cash),
+        ("total_debt", total_debt),
+        ("net_debt", net_debt),
+        ("current_ratio", current_ratio),
+        ("cash_ratio", cash_ratio),
+        ("debt_to_equity", debt_to_equity),
     ]:
         rounded = _round(val)
         if rounded is not None:
@@ -541,15 +553,15 @@ def _summarize_balance_sheet_for_prompt(balance_sheet):
 
 def _render_balance_sheet_bullets(metrics):
     """Render a deterministic four-line Graham-style balance sheet summary."""
-    current_ratio = metrics.get('current_ratio')
-    cash_ratio = metrics.get('cash_ratio')
-    working_capital = metrics.get('working_capital')
-    equity = metrics.get('equity')
-    total_assets = metrics.get('total_assets')
-    total_liabilities = metrics.get('total_liabilities')
-    debt_to_equity = metrics.get('debt_to_equity')
-    net_debt = metrics.get('net_debt')
-    total_debt = metrics.get('total_debt')
+    current_ratio = metrics.get("current_ratio")
+    cash_ratio = metrics.get("cash_ratio")
+    working_capital = metrics.get("working_capital")
+    equity = metrics.get("equity")
+    total_assets = metrics.get("total_assets")
+    total_liabilities = metrics.get("total_liabilities")
+    debt_to_equity = metrics.get("debt_to_equity")
+    net_debt = metrics.get("net_debt")
+    total_debt = metrics.get("total_debt")
 
     liquidity_bits = []
     if current_ratio is not None:
@@ -557,14 +569,20 @@ def _render_balance_sheet_bullets(metrics):
     if cash_ratio is not None:
         liquidity_bits.append(f"cash ratio {cash_ratio:.2f}")
     if working_capital is not None:
-        liquidity_bits.append("positive working capital" if working_capital > 0 else "working capital tight")
-    liquidity = ", ".join(liquidity_bits) if liquidity_bits else "insufficient data on near-term coverage"
+        liquidity_bits.append(
+            "positive working capital" if working_capital > 0 else "working capital tight"
+        )
+    liquidity = (
+        ", ".join(liquidity_bits) if liquidity_bits else "insufficient data on near-term coverage"
+    )
 
     leverage_bits = []
     if debt_to_equity is not None:
         leverage_bits.append(f"D/E {debt_to_equity:.2f}")
     if total_debt is not None:
-        leverage_bits.append("net cash" if (net_debt is not None and net_debt < 0) else "net debt present")
+        leverage_bits.append(
+            "net cash" if (net_debt is not None and net_debt < 0) else "net debt present"
+        )
     if equity is not None:
         leverage_bits.append("equity positive" if equity > 0 else "equity negative")
     leverage = ", ".join(leverage_bits) if leverage_bits else "unable to assess leverage"
@@ -581,7 +599,11 @@ def _render_balance_sheet_bullets(metrics):
     margin_line = f"Margin of Safety: {margin}"
 
     liquidity_ok = current_ratio is not None and current_ratio >= 1.5
-    leverage_ok = (debt_to_equity is None or debt_to_equity <= 1.0) and (net_debt is None or net_debt <= 0) and (equity is None or equity > 0)
+    leverage_ok = (
+        (debt_to_equity is None or debt_to_equity <= 1.0)
+        and (net_debt is None or net_debt <= 0)
+        and (equity is None or equity > 0)
+    )
     verdict = "VALUE" if liquidity_ok and leverage_ok else "INCONCLUSIVE"
     verdict_line = f"Verdict: {verdict}"
 
@@ -652,43 +674,45 @@ def get_ai_balance_sheet_analysis(ticker):
 
         summary_json = json.dumps(
             {
-                'ticker': ticker,
-                'period': period,
-                'metrics': summary_metrics,
+                "ticker": ticker,
+                "period": period,
+                "metrics": summary_metrics,
             },
-            separators=(',', ':'),
+            separators=(",", ":"),
         )
 
         ensure_ollama()
         response = _CHAT(
-            model='huihui_ai/llama3.2-abliterate:3b',
+            model="huihui_ai/llama3.2-abliterate:3b",
             messages=[
                 {
-                    'role': 'system',
-                    'content': (
-                        'You are a financial analyst following Benjamin Graham principles. '
-                        'Evaluate the given balance sheet data ONLY. '
-                        'Do NOT write code, ask questions, or provide calculations. '
-                        'Respond with exactly four labeled lines: Liquidity, Leverage, Margin of Safety, Verdict. '
-                        'The verdict must be VALUE or INCONCLUSIVE. Keep each line short.'
+                    "role": "system",
+                    "content": (
+                        "You are a financial analyst following Benjamin Graham principles. "
+                        "Evaluate the given balance sheet data ONLY. "
+                        "Do NOT write code, ask questions, or provide calculations. "
+                        "Respond with exactly four labeled lines: Liquidity, Leverage, Margin of Safety, Verdict. "
+                        "The verdict must be VALUE or INCONCLUSIVE. Keep each line short."
                     ),
                 },
                 {
-                    'role': 'user',
-                    'content': (
-                        f'Analyze this balance sheet (JSON): {summary_json}\n\n'
-                        'Respond with EXACTLY four labeled lines:\n'
-                        '1. Liquidity: [current ratio, working capital, cash]\n'
-                        '2. Leverage: [debt levels, D/E, net debt]\n'
-                        '3. Margin of Safety: [equity cushion, asset coverage]\n'
-                        '4. Verdict: VALUE or INCONCLUSIVE\n\n'
-                        'No explanations or calculations; only four labeled lines.'
+                    "role": "user",
+                    "content": (
+                        f"Analyze this balance sheet (JSON): {summary_json}\n\n"
+                        "Respond with EXACTLY four labeled lines:\n"
+                        "1. Liquidity: [current ratio, working capital, cash]\n"
+                        "2. Leverage: [debt levels, D/E, net debt]\n"
+                        "3. Margin of Safety: [equity cushion, asset coverage]\n"
+                        "4. Verdict: VALUE or INCONCLUSIVE\n\n"
+                        "No explanations or calculations; only four labeled lines."
                     ),
                 },
-            ]
+            ],
         )
 
-        balance_sheet_analysis = getattr(response, 'message', response).content  # pylint: disable=no-member
+        balance_sheet_analysis = getattr(
+            response, "message", response
+        ).content  # pylint: disable=no-member
         return _coerce_balance_sheet_response(summary_metrics, balance_sheet_analysis)
 
     except Exception as exc:  # pylint: disable=broad-except
@@ -731,11 +755,27 @@ def get_ai_fundamental_analysis(ticker):
             data = {}
 
         keys = [
-            'symbol', 'shortName', 'longName', 'marketCap', 'trailingPE', 'forwardPE',
-            'trailingEPS', 'earningsQuarterlyGrowth', 'revenue', 'regularMarketPrice',
-            'regularMarketPreviousClose', 'fiftyTwoWeekHigh', 'fiftyTwoWeekLow',
-            'totalCash', 'totalDebt', 'ebitda', 'freeCashflow', 'profitMargins',
-            'returnOnEquity', 'pegRatio', 'dividendYield'
+            "symbol",
+            "shortName",
+            "longName",
+            "marketCap",
+            "trailingPE",
+            "forwardPE",
+            "trailingEPS",
+            "earningsQuarterlyGrowth",
+            "revenue",
+            "regularMarketPrice",
+            "regularMarketPreviousClose",
+            "fiftyTwoWeekHigh",
+            "fiftyTwoWeekLow",
+            "totalCash",
+            "totalDebt",
+            "ebitda",
+            "freeCashflow",
+            "profitMargins",
+            "returnOnEquity",
+            "pegRatio",
+            "dividendYield",
         ]
 
         fundamentals_summary = {}
@@ -748,34 +788,44 @@ def get_ai_fundamental_analysis(ticker):
                     fundamentals_summary[k] = data.get(alt)
 
         # Small helpful derived field
-        if 'marketCap' in fundamentals_summary and isinstance(fundamentals_summary.get('marketCap'), (int, float)):
-            fundamentals_summary['marketCapBillions'] = round(fundamentals_summary['marketCap'] / 1e9, 2)
+        if "marketCap" in fundamentals_summary and isinstance(
+            fundamentals_summary.get("marketCap"), (int, float)
+        ):
+            fundamentals_summary["marketCapBillions"] = round(
+                fundamentals_summary["marketCap"] / 1e9, 2
+            )
 
-        fundamentals_summary_json = json.dumps({'ticker': ticker, 'fundamentals_summary': fundamentals_summary}, separators=(',', ':'), ensure_ascii=False)
+        fundamentals_summary_json = json.dumps(
+            {"ticker": ticker, "fundamentals_summary": fundamentals_summary},
+            separators=(",", ":"),
+            ensure_ascii=False,
+        )
 
         ensure_ollama()
         messages = [
             {
-                'role': 'system',
-                'content': (
-                    'You are a concise financial analyst. Produce 4–6 short, plain bullet points. '
-                    'Focus on valuation, balance-sheet strength, cash flow, and material risks. '
-                    'Keep bullets factual and succinct.'
+                "role": "system",
+                "content": (
+                    "You are a concise financial analyst. Produce 4–6 short, plain bullet points. "
+                    "Focus on valuation, balance-sheet strength, cash flow, and material risks. "
+                    "Keep bullets factual and succinct."
                 ),
             },
             {
-                'role': 'user',
-                'content': (
-                    f'Analyze this compact fundamentals JSON and respond with 4–6 concise bullets:\n{fundamentals_summary_json}'
+                "role": "user",
+                "content": (
+                    f"Analyze this compact fundamentals JSON and respond with 4–6 concise bullets:\n{fundamentals_summary_json}"
                 ),
             },
         ]
         response = _CHAT(
-            model='huihui_ai/llama3.2-abliterate:3b',
+            model="huihui_ai/llama3.2-abliterate:3b",
             messages=messages,
         )
 
-        fundamental_analysis = getattr(response, 'message', response).content  # pylint: disable=no-member
+        fundamental_analysis = getattr(
+            response, "message", response
+        ).content  # pylint: disable=no-member
         return fundamental_analysis
 
     except Exception as exc:  # pylint: disable=broad-except
@@ -830,7 +880,7 @@ def get_ai_quarterly_income_stm_analysis(ticker):
                 try:
                     frame = income_stmt.copy()
                     frame.index = frame.index.astype(str)
-                    income_stmt = frame.to_dict(orient='index')
+                    income_stmt = frame.to_dict(orient="index")
                 except Exception:
                     return None, None
 
@@ -839,10 +889,10 @@ def get_ai_quarterly_income_stm_analysis(ticker):
 
             try:
                 ordered = sorted(income_stmt.keys(), reverse=True)
-                period = ordered[0] if ordered else 'latest'
+                period = ordered[0] if ordered else "latest"
                 metrics = income_stmt.get(period, {})
             except Exception:
-                period = 'latest'
+                period = "latest"
                 metrics = income_stmt
 
             if not isinstance(metrics, dict):
@@ -869,22 +919,26 @@ def get_ai_quarterly_income_stm_analysis(ticker):
                 except Exception:
                     return None
 
-            revenue = _get_value('Total Revenue', 'Revenue')
-            gross_profit = _get_value('Gross Profit', 'GrossProfit')
-            operating_income = _get_value('Operating Income', 'OperatingIncome')
-            net_income = _get_value('Net Income', 'NetIncome', 'Net Income Common Stockholders')
-            eps = _get_value('Diluted EPS', 'Basic EPS', 'Earnings Per Share')
+            revenue = _get_value("Total Revenue", "Revenue")
+            gross_profit = _get_value("Gross Profit", "GrossProfit")
+            operating_income = _get_value("Operating Income", "OperatingIncome")
+            net_income = _get_value("Net Income", "NetIncome", "Net Income Common Stockholders")
+            eps = _get_value("Diluted EPS", "Basic EPS", "Earnings Per Share")
 
             gross_margin = None
             operating_margin = None
             net_margin = None
             if revenue not in (None, 0):
                 try:
-                    gross_margin = (gross_profit or 0) / revenue if gross_profit is not None else None
+                    gross_margin = (
+                        (gross_profit or 0) / revenue if gross_profit is not None else None
+                    )
                 except Exception:
                     gross_margin = None
                 try:
-                    operating_margin = (operating_income or 0) / revenue if operating_income is not None else None
+                    operating_margin = (
+                        (operating_income or 0) / revenue if operating_income is not None else None
+                    )
                 except Exception:
                     operating_margin = None
                 try:
@@ -894,14 +948,14 @@ def get_ai_quarterly_income_stm_analysis(ticker):
 
             payload_metrics = {}
             for key, val in [
-                ('revenue', revenue),
-                ('gross_profit', gross_profit),
-                ('operating_income', operating_income),
-                ('net_income', net_income),
-                ('eps', eps),
-                ('gross_margin', gross_margin),
-                ('operating_margin', operating_margin),
-                ('net_margin', net_margin),
+                ("revenue", revenue),
+                ("gross_profit", gross_profit),
+                ("operating_income", operating_income),
+                ("net_income", net_income),
+                ("eps", eps),
+                ("gross_margin", gross_margin),
+                ("operating_margin", operating_margin),
+                ("net_margin", net_margin),
             ]:
                 rounded = _round(val)
                 if rounded is not None:
@@ -913,12 +967,12 @@ def get_ai_quarterly_income_stm_analysis(ticker):
             return payload_metrics, period
 
         def _render_income_stmt_bullets(summary):
-            revenue = summary.get('revenue')
-            gross_margin = summary.get('gross_margin')
-            operating_margin = summary.get('operating_margin')
-            net_margin = summary.get('net_margin')
-            net_income = summary.get('net_income')
-            eps = summary.get('eps')
+            revenue = summary.get("revenue")
+            gross_margin = summary.get("gross_margin")
+            operating_margin = summary.get("operating_margin")
+            net_margin = summary.get("net_margin")
+            net_income = summary.get("net_income")
+            eps = summary.get("eps")
 
             rev_bit = f"revenue ${revenue:,.0f}" if revenue is not None else "revenue n/a"
             profit_bit = f"net ${net_income:,.0f}" if net_income is not None else "net n/a"
@@ -973,43 +1027,43 @@ def get_ai_quarterly_income_stm_analysis(ticker):
 
         summary_json = json.dumps(
             {
-                'ticker': ticker,
-                'period': period,
-                'metrics': summary_metrics,
+                "ticker": ticker,
+                "period": period,
+                "metrics": summary_metrics,
             },
-            separators=(',', ':'),
+            separators=(",", ":"),
         )
 
         ensure_ollama()
         response = _CHAT(
-            model='huihui_ai/llama3.2-abliterate:3b',
+            model="huihui_ai/llama3.2-abliterate:3b",
             messages=[
                 {
-                    'role': 'system',
-                    'content': (
-                        'You are a financial analyst following Benjamin Graham principles. '
-                        'Evaluate ONLY the provided income statement metrics. '
-                        'Do NOT write code, ask questions, or provide calculations. '
-                        'Respond with exactly four labeled lines: Revenue & Profitability, Margins, Earnings, Verdict. '
-                        'The verdict must be VALUE or INCONCLUSIVE. Keep lines concise.'
+                    "role": "system",
+                    "content": (
+                        "You are a financial analyst following Benjamin Graham principles. "
+                        "Evaluate ONLY the provided income statement metrics. "
+                        "Do NOT write code, ask questions, or provide calculations. "
+                        "Respond with exactly four labeled lines: Revenue & Profitability, Margins, Earnings, Verdict. "
+                        "The verdict must be VALUE or INCONCLUSIVE. Keep lines concise."
                     ),
                 },
                 {
-                    'role': 'user',
-                    'content': (
-                        f'Analyze this income statement (JSON): {summary_json}\n\n'
-                        'Respond with EXACTLY four labeled lines:\n'
-                        '1. Revenue & Profitability: [revenue level, net income]\n'
-                        '2. Margins: [gross, operating, net margins]\n'
-                        '3. Earnings: [EPS or note if unavailable]\n'
-                        '4. Verdict: VALUE or INCONCLUSIVE\n\n'
-                        'No explanations or calculations; only four labeled lines.'
+                    "role": "user",
+                    "content": (
+                        f"Analyze this income statement (JSON): {summary_json}\n\n"
+                        "Respond with EXACTLY four labeled lines:\n"
+                        "1. Revenue & Profitability: [revenue level, net income]\n"
+                        "2. Margins: [gross, operating, net margins]\n"
+                        "3. Earnings: [EPS or note if unavailable]\n"
+                        "4. Verdict: VALUE or INCONCLUSIVE\n\n"
+                        "No explanations or calculations; only four labeled lines."
                     ),
                 },
-            ]
+            ],
         )
 
-        ai_text = getattr(response, 'message', response).content
+        ai_text = getattr(response, "message", response).content
         return _coerce_income_stmt_response(summary_metrics, ai_text)
 
     except Exception as exc:
@@ -1022,45 +1076,49 @@ def _calculate_technical_indicators(price_df):
     try:
         if price_df is None or len(price_df) < 30:
             return ""
-        
+
         df = price_df.copy()
-        
+
         # Ensure we have the required columns
-        if 'Close' not in df.columns or 'Volume' not in df.columns:
+        if "Close" not in df.columns or "Volume" not in df.columns:
             return ""
-        
+
         indicators = []
-        
+
         # Simple Moving Averages
-        df['SMA_20'] = df['Close'].rolling(window=20).mean()
-        df['SMA_50'] = df['Close'].rolling(window=50).mean()
-        
-        sma_20_latest = df['SMA_20'].iloc[-1]
-        sma_50_latest = df['SMA_50'].iloc[-1]
-        close_latest = df['Close'].iloc[-1]
-        
+        df["SMA_20"] = df["Close"].rolling(window=20).mean()
+        df["SMA_50"] = df["Close"].rolling(window=50).mean()
+
+        sma_20_latest = df["SMA_20"].iloc[-1]
+        sma_50_latest = df["SMA_50"].iloc[-1]
+        close_latest = df["Close"].iloc[-1]
+
         if not (pd.isna(sma_20_latest) or pd.isna(sma_50_latest)):
             indicators.append(f"- 20-day SMA: ${sma_20_latest:.2f}")
             indicators.append(f"- 50-day SMA: ${sma_50_latest:.2f}")
-            
+
             if close_latest > sma_20_latest:
-                indicators.append(f"- Price is ABOVE 20-day SMA by ${close_latest - sma_20_latest:.2f}")
+                indicators.append(
+                    f"- Price is ABOVE 20-day SMA by ${close_latest - sma_20_latest:.2f}"
+                )
             else:
-                indicators.append(f"- Price is BELOW 20-day SMA by ${sma_20_latest - close_latest:.2f}")
-            
+                indicators.append(
+                    f"- Price is BELOW 20-day SMA by ${sma_20_latest - close_latest:.2f}"
+                )
+
             if sma_20_latest > sma_50_latest:
                 indicators.append("- 20-day SMA > 50-day SMA (bullish)")
             else:
                 indicators.append("- 20-day SMA < 50-day SMA (bearish)")
-        
+
         # RSI (Relative Strength Index)
-        delta = df['Close'].diff()
+        delta = df["Close"].diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
         rs = gain / loss
-        df['RSI'] = 100 - (100 / (1 + rs))
-        
-        rsi_latest = df['RSI'].iloc[-1]
+        df["RSI"] = 100 - (100 / (1 + rs))
+
+        rsi_latest = df["RSI"].iloc[-1]
         if not pd.isna(rsi_latest):
             indicators.append(f"- RSI (14): {rsi_latest:.2f}")
             if rsi_latest > 70:
@@ -1069,33 +1127,35 @@ def _calculate_technical_indicators(price_df):
                 indicators.append("  → Oversold (RSI < 30)")
             else:
                 indicators.append("  → Neutral")
-        
+
         # MACD (Moving Average Convergence Divergence)
-        ema_12 = df['Close'].ewm(span=12).mean()
-        ema_26 = df['Close'].ewm(span=26).mean()
-        df['MACD'] = ema_12 - ema_26
-        df['MACD_Signal'] = df['MACD'].ewm(span=9).mean()
-        
-        macd_latest = df['MACD'].iloc[-1]
-        signal_latest = df['MACD_Signal'].iloc[-1]
+        ema_12 = df["Close"].ewm(span=12).mean()
+        ema_26 = df["Close"].ewm(span=26).mean()
+        df["MACD"] = ema_12 - ema_26
+        df["MACD_Signal"] = df["MACD"].ewm(span=9).mean()
+
+        macd_latest = df["MACD"].iloc[-1]
+        signal_latest = df["MACD_Signal"].iloc[-1]
         if not (pd.isna(macd_latest) or pd.isna(signal_latest)):
             indicators.append(f"- MACD: {macd_latest:.4f}")
             if macd_latest > signal_latest:
                 indicators.append("  → MACD > Signal (bullish)")
             else:
                 indicators.append("  → MACD < Signal (bearish)")
-        
+
         # Bollinger Bands
-        df['BB_SMA'] = df['Close'].rolling(window=20).mean()
-        df['BB_STD'] = df['Close'].rolling(window=20).std()
-        df['BB_Upper'] = df['BB_SMA'] + (df['BB_STD'] * 2)
-        df['BB_Lower'] = df['BB_SMA'] - (df['BB_STD'] * 2)
-        
-        bb_upper = df['BB_Upper'].iloc[-1]
-        bb_lower = df['BB_Lower'].iloc[-1]
-        bb_mid = df['BB_SMA'].iloc[-1]
+        df["BB_SMA"] = df["Close"].rolling(window=20).mean()
+        df["BB_STD"] = df["Close"].rolling(window=20).std()
+        df["BB_Upper"] = df["BB_SMA"] + (df["BB_STD"] * 2)
+        df["BB_Lower"] = df["BB_SMA"] - (df["BB_STD"] * 2)
+
+        bb_upper = df["BB_Upper"].iloc[-1]
+        bb_lower = df["BB_Lower"].iloc[-1]
+        bb_mid = df["BB_SMA"].iloc[-1]
         if not (pd.isna(bb_upper) or pd.isna(bb_lower)):
-            indicators.append(f"- Bollinger Bands (20,2): Upper=${bb_upper:.2f}, Mid=${bb_mid:.2f}, Lower=${bb_lower:.2f}")
+            indicators.append(
+                f"- Bollinger Bands (20,2): Upper=${bb_upper:.2f}, Mid=${bb_mid:.2f}, Lower=${bb_lower:.2f}"
+            )
             if close_latest > bb_upper:
                 indicators.append("  → Price above upper band (potential overbought)")
             elif close_latest < bb_lower:
@@ -1103,10 +1163,10 @@ def _calculate_technical_indicators(price_df):
             else:
                 pct = (close_latest - bb_lower) / (bb_upper - bb_lower) * 100
                 indicators.append(f"  → Price {pct:.1f}% within bands")
-        
+
         # Volume analysis
-        volume_avg = df['Volume'].rolling(window=20).mean()
-        volume_latest = df['Volume'].iloc[-1]
+        volume_avg = df["Volume"].rolling(window=20).mean()
+        volume_latest = df["Volume"].iloc[-1]
         if not (pd.isna(volume_latest) or pd.isna(volume_avg.iloc[-1])):
             vol_ratio = volume_latest / volume_avg.iloc[-1]
             indicators.append(f"- Current Volume: {volume_latest:,.0f}")
@@ -1115,16 +1175,16 @@ def _calculate_technical_indicators(price_df):
                 indicators.append(f"  → Volume {vol_ratio:.1f}x average (HIGH)")
             elif vol_ratio < 0.7:
                 indicators.append(f"  → Volume {vol_ratio:.1f}x average (LOW)")
-        
+
         # Trend strength - compare recent closes
-        recent_closes = df['Close'].tail(5)
+        recent_closes = df["Close"].tail(5)
         if len(recent_closes) > 0:
             recent_high = recent_closes.max()
             recent_low = recent_closes.min()
             indicators.append(f"- 5-day High: ${recent_high:.2f}, Low: ${recent_low:.2f}")
-        
+
         return "\n".join(indicators)
-        
+
     except Exception as e:  # pylint: disable=broad-except
         print(f"Error calculating technical indicators: {e}")
         return ""
@@ -1134,49 +1194,53 @@ def get_ai_technical_analysis(ticker):
     """Perform AI-driven technical analysis on price data."""
     try:
         price_data = get_price_history(ticker)
-        
+
         # Parse the price data to get the DataFrame for indicator calculation
         if price_data is None:
             return None
-        
+
         price_dict = json.loads(price_data)
-        price_df = pd.DataFrame(price_dict['data'])
-        price_df['Date'] = pd.to_datetime(price_df['Date'])
-        price_df = price_df.sort_values('Date')
-        
+        price_df = pd.DataFrame(price_dict["data"])
+        price_df["Date"] = pd.to_datetime(price_df["Date"])
+        price_df = price_df.sort_values("Date")
+
         # Calculate technical indicators
         technical_indicators = _calculate_technical_indicators(price_df)
 
         ensure_ollama()
         response = _CHAT(
-            model='huihui_ai/llama3.2-abliterate:3b',
-                messages=[
-                    {
-                        'role': 'system',
-                        'content': ('You are a professional technical analyst. Analyze the '
-                                    'provided technical indicators and price data to identify '
-                                    'trends, support/resistance, momentum shifts, and actionable '
-                                    'signals. Be specific and data-driven.')
-                    },
-                    {
-                'role': 'user',
-                'content': (
-                    f'Analyze {ticker} technical setup based on these calculated indicators:\n\n'
-                    f'{technical_indicators}\n\n'
-                    'Based on these technical indicators, provide analysis of:\n'
-                    '1. Current trend direction and strength\n'
-                    '2. Key support and resistance levels\n'
-                    '3. Momentum signals from RSI and MACD\n'
-                    '4. Volume confirmation of price moves\n'
-                    '5. Specific technical entry and exit levels\n'
-                    '6. Risk/reward setup for trades\n'
-                    '\nBe specific. Use the indicator values provided.'
+            model="huihui_ai/llama3.2-abliterate:3b",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a professional technical analyst. Analyze the "
+                        "provided technical indicators and price data to identify "
+                        "trends, support/resistance, momentum shifts, and actionable "
+                        "signals. Be specific and data-driven."
                     ),
-                    }
-                ]
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Analyze {ticker} technical setup based on these calculated indicators:\n\n"
+                        f"{technical_indicators}\n\n"
+                        "Based on these technical indicators, provide analysis of:\n"
+                        "1. Current trend direction and strength\n"
+                        "2. Key support and resistance levels\n"
+                        "3. Momentum signals from RSI and MACD\n"
+                        "4. Volume confirmation of price moves\n"
+                        "5. Specific technical entry and exit levels\n"
+                        "6. Risk/reward setup for trades\n"
+                        "\nBe specific. Use the indicator values provided."
+                    ),
+                },
+            ],
         )
 
-        technical_analysis = getattr(response, 'message', response).content  # pylint: disable=no-member
+        technical_analysis = getattr(
+            response, "message", response
+        ).content  # pylint: disable=no-member
         return technical_analysis
 
     except Exception as exc:  # pylint: disable=broad-except
@@ -1193,19 +1257,23 @@ def get_ai_action_recommendation(ticker):
 
         ensure_ollama()
         response = _CHAT(
-            model='huihui_ai/llama3.2-abliterate:3b',
-            messages=[{
-                'role': 'user',
-                'content': (
-                    'You are an expert and experienced stock broker specializing '
-                    'in retirement accounts. Please analyze this information and '
-                    'recommend to buy, sell, or hold: '
-                    f'{ticker} {technical_analysis} {fundamental_analysis} {analyst_price_targets}'
-                ),
-            }]
+            model="huihui_ai/llama3.2-abliterate:3b",
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        "You are an expert and experienced stock broker specializing "
+                        "in retirement accounts. Please analyze this information and "
+                        "recommend to buy, sell, or hold: "
+                        f"{ticker} {technical_analysis} {fundamental_analysis} {analyst_price_targets}"
+                    ),
+                }
+            ],
         )
 
-        action_analysis = getattr(response, 'message', response).content  # pylint: disable=no-member
+        action_analysis = getattr(
+            response, "message", response
+        ).content  # pylint: disable=no-member
         return action_analysis
     except Exception as exc:  # pylint: disable=broad-except
         print(f"An error occurred while performing AI action recommendation: {exc}")
@@ -1218,20 +1286,22 @@ def get_ai_action_recommendation_sentence(ticker):
         action_analysis = get_ai_action_recommendation(ticker)
         ensure_ollama()
         response = _CHAT(
-            model='huihui_ai/llama3.2-abliterate:3b',
-            messages=[{
-                'role': 'user',
-                'content': (
-                    'You are an expert editor. Please summarize this into a single '
-                    'sentence, including the most important information needed to '
-                    'make an actionable decision about buying, selling, or holding. '
-                    f'{action_analysis}'
-                ),
-            }]
+            model="huihui_ai/llama3.2-abliterate:3b",
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        "You are an expert editor. Please summarize this into a single "
+                        "sentence, including the most important information needed to "
+                        "make an actionable decision about buying, selling, or holding. "
+                        f"{action_analysis}"
+                    ),
+                }
+            ],
         )
 
         action_recommendation_summary_sentence = getattr(
-            response, 'message', response
+            response, "message", response
         ).content  # pylint: disable=no-member
         return action_recommendation_summary_sentence
 
@@ -1246,21 +1316,23 @@ def get_ai_action_recommendation_single_word(ticker):
         action_analysis = get_ai_action_recommendation(ticker)
         ensure_ollama()
         response = _CHAT(
-            model='huihui_ai/llama3.2-abliterate:3b',
-            messages=[{
-                'role': 'user',
-                'content': (
-                    'You are producing input to a software program. Please '
-                    'summarize this into a single word: either BUY, SELL, or HOLD. '
-                    'Do not use any punctuation, use only upper case letters, and '
-                    'do not say anything other than the single word or you will '
-                    f'cause software bugs. {action_analysis}'
-                ),
-            }]
+            model="huihui_ai/llama3.2-abliterate:3b",
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        "You are producing input to a software program. Please "
+                        "summarize this into a single word: either BUY, SELL, or HOLD. "
+                        "Do not use any punctuation, use only upper case letters, and "
+                        "do not say anything other than the single word or you will "
+                        f"cause software bugs. {action_analysis}"
+                    ),
+                }
+            ],
         )
 
         action_recommendation_single_word = getattr(
-            response, 'message', response
+            response, "message", response
         ).content  # pylint: disable=no-member
         return action_recommendation_single_word
 
@@ -1275,36 +1347,38 @@ def get_ai_news_sentiment(ticker):
         news = get_news(ticker)
         if not news:
             return "No news available for analysis."
-        
+
         # Extract summaries from news articles
         summaries = []
         for article in news:
-            content = article.get('content', {})
-            summary = content.get('summary', '')
+            content = article.get("content", {})
+            summary = content.get("summary", "")
             if summary:
                 summaries.append(summary)
-        
+
         if not summaries:
             return "No news summaries available for analysis."
-        
+
         # Combine summaries for AI analysis
         combined_news = "\n".join(summaries[:5])  # Use top 5 articles
-        
+
         ensure_ollama()
         response = _CHAT(
-            model='huihui_ai/llama3.2-abliterate:3b',
-            messages=[{
-                'role': 'user',
-                'content': (
-                    'Based on the following recent news summaries, determine if the overall '
-                    'sentiment is good or bad for investors. Respond in a single sentence '
-                    'summarizing whether the news is positive, negative, or neutral for the stock. '
-                    f'News summaries:\n{combined_news}'
-                ),
-            }]
+            model="huihui_ai/llama3.2-abliterate:3b",
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        "Based on the following recent news summaries, determine if the overall "
+                        "sentiment is good or bad for investors. Respond in a single sentence "
+                        "summarizing whether the news is positive, negative, or neutral for the stock. "
+                        f"News summaries:\n{combined_news}"
+                    ),
+                }
+            ],
         )
 
-        sentiment = getattr(response, 'message', response).content
+        sentiment = getattr(response, "message", response).content
         return sentiment
 
     except Exception as exc:  # pylint: disable=broad-except
@@ -1322,24 +1396,26 @@ def get_ai_full_report(ticker):
 
         ensure_ollama()
         response = _CHAT(
-            model='huihui_ai/llama3.2-abliterate:3b',
-            messages=[{
-                'role': 'user',
-                'content': (
-                    'I am seeking an expert-level analysis of my recent financial '
-                    'report, requiring a high degree of technical knowledge and '
-                    'experience in public company valuation. Please provide a '
-                    'detailed breakdown of revenue growth, profitability, cash flow, '
-                    'or balance sheet trends, along with recommendations for '
-                    'improvement. Ensure that your analysis is grounded in the '
-                    'latest industry research and best practices. '
-                    f'{ticker} {fundamental_analysis} {technical_analysis} '
-                    f'{action_analysis} {analyst_price_targets}'
-                ),
-            }]
+            model="huihui_ai/llama3.2-abliterate:3b",
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        "I am seeking an expert-level analysis of my recent financial "
+                        "report, requiring a high degree of technical knowledge and "
+                        "experience in public company valuation. Please provide a "
+                        "detailed breakdown of revenue growth, profitability, cash flow, "
+                        "or balance sheet trends, along with recommendations for "
+                        "improvement. Ensure that your analysis is grounded in the "
+                        "latest industry research and best practices. "
+                        f"{ticker} {fundamental_analysis} {technical_analysis} "
+                        f"{action_analysis} {analyst_price_targets}"
+                    ),
+                }
+            ],
         )
 
-        full_report = getattr(response, 'message', response).content  # pylint: disable=no-member
+        full_report = getattr(response, "message", response).content  # pylint: disable=no-member
         return full_report
 
     except Exception as exc:  # pylint: disable=broad-except
@@ -1349,12 +1425,12 @@ def get_ai_full_report(ticker):
 
 def get_trading_strategy(ticker):
     """Generate trading strategy with entry/exit targets, stop loss, and timeframe.
-    
+
     This function integrates:
     - Current price and technical indicators
     - Analyst price targets and estimates
     - Risk management parameters
-    
+
     Returns a JSON object with:
     - current_price: Current stock price
     - entry_target: Recommended entry price
@@ -1370,78 +1446,98 @@ def get_trading_strategy(ticker):
         # Gather necessary data
         price_data = get_price_history(ticker)
         analyst_targets = get_analyst_price_targets(ticker)
-        
+
         # Parse price data
         if price_data is None:
             # Return a minimal response when data is unavailable
-            return json.dumps({
-                "ticker": ticker,
-                "strategy_type": "WAIT",
-                "confidence": "LOW",
-                "signals": ["Insufficient price data available"],
-                "error": "Unable to fetch price history for this ticker"
-            }, default=str)
-        
+            return json.dumps(
+                {
+                    "ticker": ticker,
+                    "strategy_type": "WAIT",
+                    "confidence": "LOW",
+                    "signals": ["Insufficient price data available"],
+                    "error": "Unable to fetch price history for this ticker",
+                },
+                default=str,
+            )
+
         price_dict = json.loads(price_data)
-        if not price_dict.get('data') or len(price_dict['data']) < 20:
+        if not price_dict.get("data") or len(price_dict["data"]) < 20:
             # Need at least 20 days of data for indicators
-            return json.dumps({
-                "ticker": ticker,
-                "strategy_type": "WAIT",
-                "confidence": "LOW",
-                "signals": ["Insufficient historical data"],
-                "error": "Need at least 20 days of price history"
-            }, default=str)
-        
+            return json.dumps(
+                {
+                    "ticker": ticker,
+                    "strategy_type": "WAIT",
+                    "confidence": "LOW",
+                    "signals": ["Insufficient historical data"],
+                    "error": "Need at least 20 days of price history",
+                },
+                default=str,
+            )
+
         price_dict = json.loads(price_data)
-        price_df = pd.DataFrame(price_dict['data'])
-        price_df['Date'] = pd.to_datetime(price_df['Date'])
-        price_df = price_df.sort_values('Date')
-        
+        price_df = pd.DataFrame(price_dict["data"])
+        price_df["Date"] = pd.to_datetime(price_df["Date"])
+        price_df = price_df.sort_values("Date")
+
         # Get current price
-        current_price = float(price_df['Close'].iloc[-1])
-        
+        current_price = float(price_df["Close"].iloc[-1])
+
         # Calculate technical indicators
         technical_indicators = _calculate_technical_indicators(price_df)
-        
+
         # Extract key technical values
         df = price_df.copy()
-        
+
         # SMAs
-        df['SMA_20'] = df['Close'].rolling(window=20).mean()
-        df['SMA_50'] = df['Close'].rolling(window=50).mean()
-        sma_20 = float(df['SMA_20'].iloc[-1]) if not pd.isna(df['SMA_20'].iloc[-1]) else current_price
-        sma_50 = float(df['SMA_50'].iloc[-1]) if not pd.isna(df['SMA_50'].iloc[-1]) else current_price
-        
+        df["SMA_20"] = df["Close"].rolling(window=20).mean()
+        df["SMA_50"] = df["Close"].rolling(window=50).mean()
+        sma_20 = (
+            float(df["SMA_20"].iloc[-1]) if not pd.isna(df["SMA_20"].iloc[-1]) else current_price
+        )
+        sma_50 = (
+            float(df["SMA_50"].iloc[-1]) if not pd.isna(df["SMA_50"].iloc[-1]) else current_price
+        )
+
         # RSI
-        delta = df['Close'].diff()
+        delta = df["Close"].diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
         rs = gain / loss
-        df['RSI'] = 100 - (100 / (1 + rs))
-        rsi = float(df['RSI'].iloc[-1]) if not pd.isna(df['RSI'].iloc[-1]) else 50
-        
+        df["RSI"] = 100 - (100 / (1 + rs))
+        rsi = float(df["RSI"].iloc[-1]) if not pd.isna(df["RSI"].iloc[-1]) else 50
+
         # Bollinger Bands
-        df['BB_SMA'] = df['Close'].rolling(window=20).mean()
-        df['BB_STD'] = df['Close'].rolling(window=20).std()
-        df['BB_Upper'] = df['BB_SMA'] + (df['BB_STD'] * 2)
-        df['BB_Lower'] = df['BB_SMA'] - (df['BB_STD'] * 2)
-        bb_upper = float(df['BB_Upper'].iloc[-1]) if not pd.isna(df['BB_Upper'].iloc[-1]) else current_price * 1.05
-        bb_lower = float(df['BB_Lower'].iloc[-1]) if not pd.isna(df['BB_Lower'].iloc[-1]) else current_price * 0.95
-        
+        df["BB_SMA"] = df["Close"].rolling(window=20).mean()
+        df["BB_STD"] = df["Close"].rolling(window=20).std()
+        df["BB_Upper"] = df["BB_SMA"] + (df["BB_STD"] * 2)
+        df["BB_Lower"] = df["BB_SMA"] - (df["BB_STD"] * 2)
+        bb_upper = (
+            float(df["BB_Upper"].iloc[-1])
+            if not pd.isna(df["BB_Upper"].iloc[-1])
+            else current_price * 1.05
+        )
+        bb_lower = (
+            float(df["BB_Lower"].iloc[-1])
+            if not pd.isna(df["BB_Lower"].iloc[-1])
+            else current_price * 0.95
+        )
+
         # MACD
-        ema_12 = df['Close'].ewm(span=12).mean()
-        ema_26 = df['Close'].ewm(span=26).mean()
-        df['MACD'] = ema_12 - ema_26
-        df['MACD_Signal'] = df['MACD'].ewm(span=9).mean()
-        macd = float(df['MACD'].iloc[-1]) if not pd.isna(df['MACD'].iloc[-1]) else 0
-        macd_signal = float(df['MACD_Signal'].iloc[-1]) if not pd.isna(df['MACD_Signal'].iloc[-1]) else 0
-        
+        ema_12 = df["Close"].ewm(span=12).mean()
+        ema_26 = df["Close"].ewm(span=26).mean()
+        df["MACD"] = ema_12 - ema_26
+        df["MACD_Signal"] = df["MACD"].ewm(span=9).mean()
+        macd = float(df["MACD"].iloc[-1]) if not pd.isna(df["MACD"].iloc[-1]) else 0
+        macd_signal = (
+            float(df["MACD_Signal"].iloc[-1]) if not pd.isna(df["MACD_Signal"].iloc[-1]) else 0
+        )
+
         # Determine signals
         signals = []
         bullish_count = 0
         bearish_count = 0
-        
+
         # RSI signals
         if rsi < 30:
             signals.append("RSI oversold - potential buy")
@@ -1455,7 +1551,7 @@ def get_trading_strategy(ticker):
         elif rsi > 60:
             signals.append("RSI approaching overbought")
             bearish_count += 1
-        
+
         # Moving average signals
         if current_price > sma_20 > sma_50:
             signals.append("Price above both SMAs - bullish trend")
@@ -1469,7 +1565,7 @@ def get_trading_strategy(ticker):
         elif current_price < sma_20:
             signals.append("Price below 20-day SMA")
             bearish_count += 1
-        
+
         # MACD signals
         if macd > macd_signal:
             signals.append("MACD bullish crossover")
@@ -1477,7 +1573,7 @@ def get_trading_strategy(ticker):
         else:
             signals.append("MACD bearish crossover")
             bearish_count += 1
-        
+
         # Bollinger Bands signals
         if current_price < bb_lower:
             signals.append("Price below lower Bollinger Band - oversold")
@@ -1485,19 +1581,19 @@ def get_trading_strategy(ticker):
         elif current_price > bb_upper:
             signals.append("Price above upper Bollinger Band - overbought")
             bearish_count += 1
-        
+
         # Parse analyst targets if available
         analyst_high = None
         analyst_low = None
         analyst_mean = None
         analyst_current = None
-        
+
         if analyst_targets and isinstance(analyst_targets, dict):
-            analyst_high = analyst_targets.get('high')
-            analyst_low = analyst_targets.get('low')
-            analyst_mean = analyst_targets.get('mean')
-            analyst_current = analyst_targets.get('current')
-        
+            analyst_high = analyst_targets.get("high")
+            analyst_low = analyst_targets.get("low")
+            analyst_mean = analyst_targets.get("mean")
+            analyst_current = analyst_targets.get("current")
+
         # Determine strategy type and confidence
         total_signals = bullish_count + bearish_count
         if total_signals == 0:
@@ -1514,74 +1610,98 @@ def get_trading_strategy(ticker):
             else:
                 strategy_type = "WAIT"
                 confidence = "LOW"
-        
+
         # Calculate entry, exit, and stop loss levels
         if strategy_type == "LONG":
             # Entry slightly above current support
             entry_target = round(max(bb_lower, sma_20 * 0.99), 2)
-            
+
             # Stop loss below key support
             stop_loss = round(min(bb_lower * 0.98, sma_50 * 0.97), 2)
-            
+
             # Exit targets
             conservative_target = round(current_price * 1.05, 2)  # 5% gain
             moderate_target = round(current_price * 1.10, 2)  # 10% gain
             aggressive_target = round(current_price * 1.20, 2)  # 20% gain
-            
+
             # Use analyst targets if available and reasonable
             if analyst_mean and analyst_mean > current_price:
                 moderate_target = round(analyst_mean, 2)
             if analyst_high and analyst_high > current_price:
                 aggressive_target = round(min(analyst_high, current_price * 1.30), 2)
-            
+
             exit_targets = [
-                {"level": "conservative", "price": conservative_target, "gain_pct": round(((conservative_target / current_price) - 1) * 100, 1)},
-                {"level": "moderate", "price": moderate_target, "gain_pct": round(((moderate_target / current_price) - 1) * 100, 1)},
-                {"level": "aggressive", "price": aggressive_target, "gain_pct": round(((aggressive_target / current_price) - 1) * 100, 1)}
+                {
+                    "level": "conservative",
+                    "price": conservative_target,
+                    "gain_pct": round(((conservative_target / current_price) - 1) * 100, 1),
+                },
+                {
+                    "level": "moderate",
+                    "price": moderate_target,
+                    "gain_pct": round(((moderate_target / current_price) - 1) * 100, 1),
+                },
+                {
+                    "level": "aggressive",
+                    "price": aggressive_target,
+                    "gain_pct": round(((aggressive_target / current_price) - 1) * 100, 1),
+                },
             ]
-            
+
             timeframe = "1-3 months" if confidence == "HIGH" else "3-6 months"
-            
+
         elif strategy_type == "SHORT":
             # Entry slightly below current resistance
             entry_target = round(min(bb_upper, sma_20 * 1.01), 2)
-            
+
             # Stop loss above key resistance
             stop_loss = round(max(bb_upper * 1.02, sma_50 * 1.03), 2)
-            
+
             # Exit targets (for short positions, lower is better)
             conservative_target = round(current_price * 0.95, 2)  # 5% drop
             moderate_target = round(current_price * 0.90, 2)  # 10% drop
             aggressive_target = round(current_price * 0.80, 2)  # 20% drop
-            
+
             # Use analyst targets if available and reasonable
             if analyst_mean and analyst_mean < current_price:
                 moderate_target = round(analyst_mean, 2)
             if analyst_low and analyst_low < current_price:
                 aggressive_target = round(max(analyst_low, current_price * 0.70), 2)
-            
+
             exit_targets = [
-                {"level": "conservative", "price": conservative_target, "gain_pct": round(((current_price / conservative_target) - 1) * 100, 1)},
-                {"level": "moderate", "price": moderate_target, "gain_pct": round(((current_price / moderate_target) - 1) * 100, 1)},
-                {"level": "aggressive", "price": aggressive_target, "gain_pct": round(((current_price / aggressive_target) - 1) * 100, 1)}
+                {
+                    "level": "conservative",
+                    "price": conservative_target,
+                    "gain_pct": round(((current_price / conservative_target) - 1) * 100, 1),
+                },
+                {
+                    "level": "moderate",
+                    "price": moderate_target,
+                    "gain_pct": round(((current_price / moderate_target) - 1) * 100, 1),
+                },
+                {
+                    "level": "aggressive",
+                    "price": aggressive_target,
+                    "gain_pct": round(((current_price / aggressive_target) - 1) * 100, 1),
+                },
             ]
-            
+
             timeframe = "1-2 months" if confidence == "HIGH" else "2-4 months"
-            
+
         else:  # WAIT
             entry_target = round(current_price, 2)
             stop_loss = None
             exit_targets = []
             timeframe = "Wait for clearer signals"
-        
+
         # Calculate risk/reward ratio
         risk_reward_ratio = None
         if stop_loss and len(exit_targets) > 0:
             risk = abs(current_price - stop_loss)
-            reward = abs(exit_targets[1]['price'] - current_price)  # Use moderate target
+            reward = abs(exit_targets[1]["price"] - current_price)  # Use moderate target
             if risk > 0:
                 risk_reward_ratio = round(reward / risk, 2)
-        
+
         # Build result
         result = {
             "ticker": ticker,
@@ -1599,60 +1719,60 @@ def get_trading_strategy(ticker):
                 "sma_50": round(sma_50, 2),
                 "rsi": round(rsi, 1),
                 "bb_upper": round(bb_upper, 2),
-                "bb_lower": round(bb_lower, 2)
+                "bb_lower": round(bb_lower, 2),
             },
-            "analyst_targets": {
-                "high": analyst_high,
-                "mean": analyst_mean,
-                "low": analyst_low,
-                "current": analyst_current
-            } if analyst_targets else None
+            "analyst_targets": (
+                {
+                    "high": analyst_high,
+                    "mean": analyst_mean,
+                    "low": analyst_low,
+                    "current": analyst_current,
+                }
+                if analyst_targets
+                else None
+            ),
         }
-        
+
         return json.dumps(result, default=str)
-        
+
     except Exception as exc:  # pylint: disable=broad-except
         print(f"An error occurred while generating trading strategy: {exc}")
         # Return a WAIT strategy on error instead of None
-        return json.dumps({
-            "ticker": ticker,
-            "strategy_type": "WAIT",
-            "confidence": "LOW",
-            "signals": ["Error generating strategy"],
-            "error": str(exc)
-        }, default=str)
-
+        return json.dumps(
+            {
+                "ticker": ticker,
+                "strategy_type": "WAIT",
+                "confidence": "LOW",
+                "signals": ["Error generating strategy"],
+                "error": str(exc),
+            },
+            default=str,
+        )
 
 
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Run oobir analysis functions on a ticker"
-    )
+    parser = argparse.ArgumentParser(description="Run oobir analysis functions on a ticker")
     parser.add_argument("ticker", nargs="?", help="Ticker symbol (e.g. AAPL)")
     parser.add_argument(
         "func",
         nargs="?",
         help="Function to call (default: get_ai_fundamental_analysis)",
-        default="get_ai_fundamental_analysis"
+        default="get_ai_fundamental_analysis",
     )
+    parser.add_argument("--host", help="Override OLLAMA host URL (e.g. http://192.168.1.248:11434)")
     parser.add_argument(
-        "--host",
-        help="Override OLLAMA host URL (e.g. http://192.168.1.248:11434)"
-    )
-    parser.add_argument(
-        "--list",
-        action="store_true",
-        help="List available 'get_' functions and exit"
+        "--list", action="store_true", help="List available 'get_' functions and exit"
     )
     args = parser.parse_args()
 
     if args.list:
         current_module = sys.modules[__name__]
         funcs = [
-            name for name, obj in inspect.getmembers(current_module, inspect.isfunction)
-            if name.startswith('get_')
+            name
+            for name, obj in inspect.getmembers(current_module, inspect.isfunction)
+            if name.startswith("get_")
         ]
         for f in sorted(funcs):
             print(f)
@@ -1670,7 +1790,7 @@ if __name__ == "__main__":
 
     func = getattr(current_module, func_name)
     # initialize ollama client with optional CLI host override
-    ensure_ollama(getattr(args, 'host', None))
+    ensure_ollama(getattr(args, "host", None))
     try:
         result = func(args.ticker)
         # Print results sensibly

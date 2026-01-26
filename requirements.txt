@@ -1,9 +1,29 @@
-yfinance>=0.2.18
-pandas>=1.5.3
-numpy>=1.25.0
-requests>=2.31.0
-ollama>=0.1.0
-fastapi>=0.104.0
-uvicorn>=0.24.0
+# Stock market data
+yfinance>=1.1.0
+
+# Data processing and numerical computing
+pandas>=3.0.0
+numpy>=2.4.0
+
+# HTTP requests and utilities
+requests>=2.32.0
+python-dateutil>=2.9.0
+pytz>=2025.0
+
+# AI/LLM integration
+ollama>=0.6.0
+
+# Web framework and server
+fastapi>=0.128.0
+uvicorn>=0.40.0
+pydantic>=2.12.0
+starlette>=0.50.0
+
+# Database
 psycopg2-binary>=2.9.9
+peewee>=3.19.0
+
+# Utilities
+beautifulsoup4>=4.14.0
+tqdm>=4.67.0
 

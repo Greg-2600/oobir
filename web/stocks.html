@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Screener - OOBIR</title>
-    <link rel="stylesheet" href="styles.css">
-    <style>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Stock Screener - OOBIR</title>
+        <link rel="stylesheet" href="styles.css">
+        <style>
         .stocks-page {
             max-width: 1400px;
             margin: 0 auto;
@@ -192,25 +192,23 @@
             color: #9ca3af;
             font-size: 0.85em;
         }
-    </style>
-</head>
-<body>
-    <div class="stocks-page">
-        <div class="stocks-header">
-            <h1>📊 AI Selected Stocks</h1>
-            <a href="/" class="logo-link">OOBIR</a>
-        </div>
-
-        <div id="stocks-container">
-            <div class="loading-state">
-                <div class="spinner"></div>
-                <p>Loading stock data...</p>
+        </style>
+    </head>
+    <body>
+        <div class="stocks-page">
+            <div class="stocks-header">
+                <h1>📊 AI Selected Stocks</h1>
+                <a href="/" class="logo-link">OOBIR</a>
+            </div>
+            <div id="stocks-container">
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Loading stock data...</p>
+                </div>
             </div>
         </div>
-    </div>
-
-    <script src="config.js"></script>
-    <script>
+        <script src="config.js"></script>
+        <script>
         const API_BASE_URL = typeof CONFIG !== 'undefined' ? CONFIG.API_BASE_URL : 'http://localhost:8000';
 
         // Escape HTML to prevent XSS
@@ -616,6 +614,6 @@
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', loadAllStocks);
-    </script>
-</body>
+        </script>
+    </body>
 </html>

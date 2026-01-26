@@ -1,4 +1,18 @@
+# Testing
 pytest>=7.4.0
-pylint>=3.0.0
+
+# Code quality - Linting and formatting
+pylint>=4.0.0
+black>=26.0.0
+isort>=7.0.0
+flake8>=7.3.0
+mypy>=1.0.0
+
+# Code formatting and analysis
+djlint>=1.36.0
+
+# Web UI testing
 selenium>=4.15.0
 webdriver-manager>=4.0.0
+
+# Type checking
