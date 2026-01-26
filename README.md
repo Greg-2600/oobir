@@ -822,7 +822,7 @@ Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model installed.
 
 ### Comprehensive Test Coverage
 
-OOBIR employs a rigorous testing strategy with **66 passing tests** achieving 100% endpoint coverage:
+OOBIR employs a rigorous testing strategy with **86 passing tests** achieving 100% endpoint coverage:
 
 #### Test Architecture
 - **Unit Tests**: Individual function testing with mocked external dependencies
@@ -838,8 +838,9 @@ OOBIR employs a rigorous testing strategy with **66 passing tests** achieving 10
 | Data Endpoints | 13 | All data retrieval functions |
 | AI Analysis Endpoints | 38 | All AI analysis functions + news sentiment |
 | Technical Indicators | 2 | Indicator calculations + AI prompt integration |
+| Trading Strategy | 20 | Strategy generation, API endpoint, edge cases, integration |
 | Web UI Integration | 13 | API format validation, CORS, error handling |
-| **Total** | **66** | **100% of 24 API endpoints + Web UI** |
+| **Total** | **86** | **100% of 25 API endpoints + Web UI + Strategy** |
 
 #### Test Execution
 
@@ -891,6 +892,14 @@ docker compose exec app pytest tests/ -v
 - Error handling and fallback behavior
 - **All AI tests mock database caching**: Cache mocks simulate cache misses and verify AI response caching
 
+**tests/test_trading_strategy.py** (20 tests)
+- **Unit Tests (10 tests)**: LONG strategy detection, SHORT strategy detection, WAIT strategy detection, insufficient data handling, None data handling, exception handling, technical levels calculation, analyst targets integration, exit target gain calculations, confidence level validation
+- **API Endpoint Tests (6 tests)**: Basic endpoint functionality, cache hit verification, invalid ticker handling, API error handling, multi-symbol support
+- **Integration Tests (3 tests)**: Signal consistency with strategy type, JSON serialization validation, comprehensive response structure validation
+- **Edge Cases Covered**: Invalid tickers, insufficient price history (<20 days), missing analyst targets, exception handling, graceful WAIT strategy fallback
+- **Technical Indicators Tested**: RSI, SMA (20/50), MACD, Bollinger Bands, Volume analysis
+- **All trading strategy tests mock dependencies**: yfinance, analyst targets, database cache
+
 ### Run All Tests
 
 ```bash
@@ -900,6 +909,9 @@ pytest tests/ -v
 
 # Using Docker
 docker compose exec app pytest tests/ -v
+
+# Run trading strategy tests specifically
+pytest tests/test_trading_strategy.py -v
 ```
 
 ### Test Structure
@@ -907,16 +919,19 @@ docker compose exec app pytest tests/ -v
 - `tests/test_data_endpoints.py` - 13 tests for data endpoints
 - `tests/test_ai_analysis_endpoints.py` - 38 tests for AI endpoints
 - `tests/test_technical_indicators.py` - 2 tests for technical indicators
+- `tests/test_trading_strategy.py` - 20 tests for trading strategy feature
 - `tests/test_web_ui_integration.py` - 13 tests for Web UI integration
 - `tests/scripts/` - Manual testing scripts and utilities
 
 ### Test Coverage
 
-- ✅ **66 tests total** (13 data + 38 AI + 2 indicators + 13 Web UI)
-- ✅ All 24 API endpoints tested
+- ✅ **86 tests total** (13 data + 38 AI + 2 indicators + 20 trading + 13 Web UI)
+- ✅ All 25 API endpoints tested
+- ✅ Trading strategy generation fully tested (LONG, SHORT, WAIT scenarios + edge cases)
 - ✅ Web UI integration validated
 - ✅ Success and error paths verified
 - ✅ Proper mocking of external dependencies (Ollama, yfinance, SQLite cache)
+- ✅ Comprehensive edge case handling verified
 - ✅ Database caching behavior verified in all endpoint tests
 - ✅ Cache mocks return `None` to simulate cache misses and test full data flow
 - ✅ Tests verify `set_cached_data()` is called exactly once per successful request
