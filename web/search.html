@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Search - OOBIR</title>
-    <!DOCTYPE html>
-    <html lang="en">
     <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width,initial-scale=1" />
-        <title>OOBIR Search</title>
-        <link rel="stylesheet" href="styles.css">
-        <style>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Search - OOBIR</title>
+        <!DOCTYPE html>
+        <html lang="en">
+            <head>
+                <meta charset="utf-8" />
+                <meta name="viewport" content="width=device-width,initial-scale=1" />
+                <title>OOBIR Search</title>
+                <link rel="stylesheet" href="styles.css">
+                <style>
             html,body{height:100%;margin:0;font-family:Arial,Helvetica,sans-serif;background:#fff;color:#202124}
             .google-like {
                 height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -32,30 +32,36 @@
             .link-pill.primary{color:#fff;background:linear-gradient(180deg,#2b7cff,#1a73e8);border-color:rgba(26,115,232,0.12);box-shadow:0 8px 20px rgba(26,115,232,0.12)}
             .link-pill:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(16,24,40,0.12)}
             @media (max-width:520px){.brand{font-size:40px}.search-wrap{padding:0 12px}.link-pill{width:100%;justify-content:center}}
-        </style>
-    </head>
-    <body>
-        <main class="google-like">
-            <div class="brand">OOBIR<span class="dot">.</span></div>
-
-            <div class="search-wrap">
-                <form id="search-form" class="search-box" role="search" aria-label="Search stocks">
-                    <input id="q" name="q" class="search-input" type="search" placeholder="Search ticker or company" autocomplete="off" />
-                </form>
-
-                <div class="search-actions">
-                    <button id="search-btn" class="btn primary">Search</button>
-                    <button id="lucky-btn" class="btn">Surprise me</button>
-                </div>
-
-                <div class="link-row" aria-label="Quick links">
-                    <a class="link-pill primary" href="index.html">Stock Screen</a>
-                    <a class="link-pill secondary" href="markets.html">Market Indexes</a>
-                </div>
-            </div>
-        </main>
-
-        <script>
+                </style>
+            </head>
+            <body>
+                <main class="google-like">
+                    <div class="brand">
+                        OOBIR<span class="dot">.</span>
+                    </div>
+                    <div class="search-wrap">
+                        <form id="search-form"
+                              class="search-box"
+                              role="search"
+                              aria-label="Search stocks">
+                            <input id="q"
+                                   name="q"
+                                   class="search-input"
+                                   type="search"
+                                   placeholder="Search ticker or company"
+                                   autocomplete="off" />
+                        </form>
+                        <div class="search-actions">
+                            <button id="search-btn" class="btn primary">Search</button>
+                            <button id="lucky-btn" class="btn">Surprise me</button>
+                        </div>
+                        <div class="link-row" aria-label="Quick links">
+                            <a class="link-pill primary" href="index.html">Stock Screen</a>
+                            <a class="link-pill secondary" href="markets.html">Market Indexes</a>
+                        </div>
+                    </div>
+                </main>
+                <script>
             (function(){
                 const form = document.getElementById('search-form');
                 const input = document.getElementById('q');
@@ -88,7 +94,7 @@
 
                 input.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); goToTicker(input.value.trim()); } });
             })();
-        </script>
-    </body>
-    </html>
-        </div>
+                </script>
+            </body>
+        </html>
+    </div>
