@@ -16,6 +16,7 @@ import numpy as np
 import flow
 import db  # Database caching layer
 
+
 # Helper to convert non-JSON-serializable objects to strings
 def serialize_value(obj):  # pylint: disable=too-many-return-statements
     """Recursively convert non-JSON-serializable objects to strings."""
@@ -34,16 +35,16 @@ def serialize_value(obj):  # pylint: disable=too-many-return-statements
         return float(obj)  # Convert numpy floats to Python float
     if isinstance(obj, (int, np.integer)):
         return int(obj)  # Convert numpy ints to Python int
-    if hasattr(obj, 'isoformat'):  # pandas Timestamp, datetime-like
+    if hasattr(obj, "isoformat"):  # pandas Timestamp, datetime-like
         return obj.isoformat()
     if isinstance(obj, (pd.Timestamp, pd.Timedelta)):
         return str(obj)
     return obj
 
+
 # Initialize logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="OOBIR Stock Analysis API",
     description="REST API for stock analysis and AI recommendations",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # CORS for web UI (allow local and LAN UI origins)
@@ -72,12 +73,13 @@ app.add_middleware(
     allow_origins=allowed_origins + ["*"],  # permissive during development
     allow_credentials=False,
     allow_methods=["GET"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
 
 # Set Ollama host from environment or use default
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
 logger.info("Ollama host configured: %s", OLLAMA_HOST)
+
 
 # Initialize database connection pool on startup
 @app.on_event("startup")
@@ -103,11 +105,11 @@ def cache_info():
 def flush_cache(endpoint: str = None, symbol: str = None):
     """
     Clear cache entries.
-    
+
     Query Parameters:
         endpoint: Optional endpoint name to clear (e.g., 'price-history')
         symbol: Optional stock symbol to clear (e.g., 'AAPL')
-    
+
     If both are omitted, entire cache is cleared.
     """
     count = db.clear_cache(endpoint=endpoint, symbol=symbol)
@@ -135,7 +137,7 @@ def root():
         "message": "OOBIR Stock Analysis API",
         "docs": "/docs",
         "redoc": "/redoc",
-        "ollama_host": OLLAMA_HOST
+        "ollama_host": OLLAMA_HOST,
     }
 
 
@@ -143,11 +145,7 @@ def root():
 def health_check():
     """Basic health check endpoint."""
     logger.info("Health check requested")
-    return {
-        "status": "healthy",
-        "service": "oobir-api",
-        "ollama_configured": OLLAMA_HOST
-    }
+    return {"status": "healthy", "service": "oobir-api", "ollama_configured": OLLAMA_HOST}
 
 
 @app.get("/health/ollama")
@@ -156,6 +154,7 @@ def health_check_ollama():
     logger.info("Ollama health check requested")
     try:
         import requests  # pylint: disable=import-outside-toplevel
+
         response = requests.get(f"{OLLAMA_HOST}/api/tags", timeout=5)
         if response.status_code == 200:
             logger.info("Ollama health check: OK")
@@ -163,7 +162,7 @@ def health_check_ollama():
                 "status": "healthy",
                 "ollama_host": OLLAMA_HOST,
                 "ollama_reachable": True,
-                "ollama_response_code": 200
+                "ollama_response_code": 200,
             }
         logger.warning("Ollama returned non-200: %s", response.status_code)
         return JSONResponse(
@@ -173,8 +172,8 @@ def health_check_ollama():
                 "ollama_host": OLLAMA_HOST,
                 "ollama_reachable": True,
                 "ollama_response_code": response.status_code,
-                "error": "Ollama returned unexpected status code"
-            }
+                "error": "Ollama returned unexpected status code",
+            },
         )
     except requests.exceptions.Timeout:  # pylint: disable=broad-except
         logger.error("Ollama health check timeout: %s", OLLAMA_HOST)
@@ -184,8 +183,8 @@ def health_check_ollama():
                 "status": "unhealthy",
                 "ollama_host": OLLAMA_HOST,
                 "ollama_reachable": False,
-                "error": "Timeout connecting to Ollama"
-            }
+                "error": "Timeout connecting to Ollama",
+            },
         )
     except requests.exceptions.ConnectionError as exc:
         logger.error("Ollama health check connection error: %s", str(exc))
@@ -195,31 +194,27 @@ def health_check_ollama():
                 "status": "unhealthy",
                 "ollama_host": OLLAMA_HOST,
                 "ollama_reachable": False,
-                "error": f"Cannot connect to Ollama: {str(exc)}"
-            }
+                "error": f"Cannot connect to Ollama: {str(exc)}",
+            },
         )
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Ollama health check failed: %s", str(exc))
         return JSONResponse(
             status_code=503,
-            content={
-                "status": "unhealthy",
-                "ollama_host": OLLAMA_HOST,
-                "error": str(exc)
-            }
+            content={"status": "unhealthy", "ollama_host": OLLAMA_HOST, "error": str(exc)},
         )
 
 
 def with_cache(endpoint: str, symbol: str, flow_function, *args, **kwargs):
     """
     Wrapper to check cache before calling flow function.
-    
+
     Args:
         endpoint: Endpoint name for cache key
         symbol: Stock ticker symbol
         flow_function: Function from flow.py to call if cache miss
         *args, **kwargs: Arguments to pass to flow_function
-        
+
     Returns:
         Cached data or fresh data from flow_function
     """
@@ -228,19 +223,19 @@ def with_cache(endpoint: str, symbol: str, flow_function, *args, **kwargs):
     if cached_data is not None:
         logger.info(f"Returning cached data for {endpoint}/{symbol}")
         return cached_data
-    
+
     # Cache miss - call the actual function
     logger.info(f"Cache miss for {endpoint}/{symbol}, fetching fresh data")
     result = flow_function(symbol, *args, **kwargs)
-    
+
     # Parse JSON string if needed
     if isinstance(result, str):
         result = json.loads(result)
-    
+
     # Serialize and cache the result
     serialized_result = serialize_value(result)
     db.set_cached_data(endpoint, serialized_result, symbol)
-    
+
     return serialized_result
 
 
@@ -252,7 +247,7 @@ def with_ai_cache(endpoint: str, symbol: str, flow_function, *args, **kwargs):
         return cached_data
 
     logger.info("Cache miss for %s/%s, calling AI model", endpoint, symbol)
-    
+
     # Ensure Ollama is reachable before invoking
     flow.ensure_ollama(OLLAMA_HOST)
 
@@ -261,12 +256,12 @@ def with_ai_cache(endpoint: str, symbol: str, flow_function, *args, **kwargs):
         logger.error("AI endpoint %s returned None for %s", endpoint, symbol)
         raise HTTPException(
             status_code=503,
-            detail="AI service unavailable - Ollama connection failed or returned no response"
+            detail="AI service unavailable - Ollama connection failed or returned no response",
         ) from None
-    
+
     # AI functions return plain strings, not JSON strings
     # Only attempt JSON parsing if it looks like JSON (starts with { or [)
-    if isinstance(result, str) and result.strip().startswith(('{', '[')):
+    if isinstance(result, str) and result.strip().startswith(("{", "[")):
         try:
             result = json.loads(result)
         except json.JSONDecodeError:
@@ -282,6 +277,7 @@ def with_ai_cache(endpoint: str, symbol: str, flow_function, *args, **kwargs):
 # ============================================================================
 # Data Endpoints
 # ============================================================================
+
 
 @app.get("/api/fundamentals/{symbol}")
 def get_fundamentals(symbol: str):
@@ -393,14 +389,14 @@ def get_screen_undervalued_large_caps():
         if cached_data is not None:
             logger.info("Returning cached data for screen-undervalued")
             return JSONResponse(content=cached_data)
-        
+
         # Cache miss - fetch fresh data
         logger.info("Cache miss for screen-undervalued, fetching fresh data")
         result = flow.get_screen_undervalued_large_caps()
-        
+
         # Cache the result
         db.set_cached_data("screen-undervalued", result, "ALL")
-        
+
         return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error fetching undervalued screen: %s", str(exc))
@@ -410,6 +406,7 @@ def get_screen_undervalued_large_caps():
 # ============================================================================
 # Cache Management Endpoints
 # ============================================================================
+
 
 @app.get("/api/cache/stats")
 def get_cache_stats():
@@ -429,11 +426,13 @@ def clear_symbol_cache(symbol: str):
     logger.info("Clearing cache for %s", symbol)
     try:
         deleted_count = db.clear_symbol_cache(symbol)
-        return JSONResponse(content={
-            "symbol": symbol,
-            "deleted_entries": deleted_count,
-            "message": f"Cleared {deleted_count} cache entries for {symbol}"
-        })
+        return JSONResponse(
+            content={
+                "symbol": symbol,
+                "deleted_entries": deleted_count,
+                "message": f"Cleared {deleted_count} cache entries for {symbol}",
+            }
+        )
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error clearing cache for %s: %s", symbol, str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -445,10 +444,12 @@ def clear_expired_cache():
     logger.info("Clearing expired cache entries")
     try:
         deleted_count = db.clear_expired_cache()
-        return JSONResponse(content={
-            "deleted_entries": deleted_count,
-            "message": f"Cleared {deleted_count} expired cache entries"
-        })
+        return JSONResponse(
+            content={
+                "deleted_entries": deleted_count,
+                "message": f"Cleared {deleted_count} expired cache entries",
+            }
+        )
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error clearing expired cache: %s", str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -457,6 +458,7 @@ def clear_expired_cache():
 # ============================================================================
 # AI Analysis Endpoints (requires Ollama)
 # ============================================================================
+
 
 @app.get("/api/ai/fundamental-analysis/{symbol}")
 def get_ai_fundamental_analysis(symbol: str):
@@ -478,7 +480,9 @@ def get_ai_balance_sheet_analysis(symbol: str):
     """Get AI analysis of balance sheet for a stock."""
     logger.info("AI balance sheet analysis requested for %s", symbol)
     try:
-        result = with_ai_cache("ai-balance-sheet-analysis", symbol, flow.get_ai_balance_sheet_analysis)
+        result = with_ai_cache(
+            "ai-balance-sheet-analysis", symbol, flow.get_ai_balance_sheet_analysis
+        )
         logger.info("Successfully generated AI balance sheet analysis for %s", symbol)
         return JSONResponse(content=result)
     except HTTPException:
@@ -493,7 +497,9 @@ def get_ai_quarterly_income_stm_analysis(symbol: str):
     """Get AI analysis of income statement for a stock."""
     logger.info("AI income statement analysis requested for %s", symbol)
     try:
-        result = with_ai_cache("ai-income-stmt-analysis", symbol, flow.get_ai_quarterly_income_stm_analysis)
+        result = with_ai_cache(
+            "ai-income-stmt-analysis", symbol, flow.get_ai_quarterly_income_stm_analysis
+        )
         logger.info("Successfully generated AI income statement analysis for %s", symbol)
         return JSONResponse(content=result)
     except HTTPException:
@@ -523,7 +529,9 @@ def get_ai_action_recommendation(symbol: str):
     """Get AI action recommendation (buy/sell/hold) for a stock."""
     logger.info("AI action recommendation requested for %s", symbol)
     try:
-        result = with_ai_cache("ai-action-recommendation", symbol, flow.get_ai_action_recommendation)
+        result = with_ai_cache(
+            "ai-action-recommendation", symbol, flow.get_ai_action_recommendation
+        )
         logger.info("Successfully generated AI action recommendation for %s", symbol)
         return JSONResponse(content=result)
     except HTTPException:
@@ -538,7 +546,9 @@ def get_ai_action_recommendation_sentence(symbol: str):
     """Get AI action recommendation with reasoning for a stock."""
     logger.info("AI action recommendation sentence requested for %s", symbol)
     try:
-        result = with_ai_cache("ai-action-recommendation-sentence", symbol, flow.get_ai_action_recommendation_sentence)
+        result = with_ai_cache(
+            "ai-action-recommendation-sentence", symbol, flow.get_ai_action_recommendation_sentence
+        )
         logger.info("Successfully generated AI action recommendation sentence for %s", symbol)
         return JSONResponse(content=result)
     except HTTPException:
@@ -553,7 +563,9 @@ def get_ai_action_recommendation_single_word(symbol: str):
     """Get AI action recommendation as a single word for a stock."""
     logger.info("AI action recommendation word requested for %s", symbol)
     try:
-        result = with_ai_cache("ai-action-recommendation-word", symbol, flow.get_ai_action_recommendation_single_word)
+        result = with_ai_cache(
+            "ai-action-recommendation-word", symbol, flow.get_ai_action_recommendation_single_word
+        )
         logger.info("Successfully generated AI action recommendation word for %s", symbol)
         return JSONResponse(content=result)
     except HTTPException:
@@ -608,4 +620,5 @@ def get_trading_strategy(symbol: str):
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

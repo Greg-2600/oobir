@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Markets - OOBIR</title>
-    <link rel="stylesheet" href="styles.css">
-    <style>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Markets - OOBIR</title>
+        <link rel="stylesheet" href="styles.css">
+        <style>
         .stocks-page {
             max-width: 1400px;
             margin: 0 auto;
@@ -99,293 +99,275 @@
         @media (max-width: 768px) {
             .stocks-grid { grid-template-columns: 1fr; }
         }
-    </style>
-</head>
-<body>
-    <div class="stocks-page">
-        <div class="stocks-header">
-            <h1>🌐 International Market Indexes</h1>
-            <a href="/" class="logo-link">OOBIR</a>
-        </div>
-
-        <div class="stocks-grid" id="markets-grid">
-            <!-- US indexes first -->
-            <div class="stock-card" data-ticker="^GSPC">
-                <div>
-                    <div class="stock-card-header">
-                        <div>
-                            <div class="stock-name">S&amp;P 500</div>
-                            <div class="stock-ticker">^GSPC</div>
-                        </div>
-                        <div style="text-align:right;">
-                            <span class="flag-large">🇺🇸</span>
-                            <div class="stock-price">—</div>
-                        </div>
-                    </div>
-                    <div class="mini-chart" data-container-id="chart-^GSPC">Loading...</div>
-                </div>
+        </style>
+    </head>
+    <body>
+        <div class="stocks-page">
+            <div class="stocks-header">
+                <h1>🌐 International Market Indexes</h1>
+                <a href="/" class="logo-link">OOBIR</a>
             </div>
-
-            <div class="stock-card" data-ticker="^DJI">
-                <div>
-                    <div class="stock-card-header">
-                        <div>
-                            <div class="stock-name">Dow Jones Industrial Average</div>
-                            <div class="stock-ticker">^DJI</div>
+            <div class="stocks-grid" id="markets-grid">
+                <!-- US indexes first -->
+                <div class="stock-card" data-ticker="^GSPC">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">S&amp;P 500</div>
+                                <div class="stock-ticker">^GSPC</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <span class="flag-large">🇺🇸</span>
+                                <div class="stock-price">—</div>
+                            </div>
                         </div>
-                        <div style="text-align:right;">
-                            <span class="flag-large">🇺🇸</span>
-                            <div class="stock-price">—</div>
-                        </div>
+                        <div class="mini-chart" data-container-id="chart-^GSPC">Loading...</div>
                     </div>
-                    <div class="mini-chart" data-container-id="chart-^DJI">Loading...</div>
                 </div>
-            </div>
-
-            <div class="stock-card" data-ticker="^IXIC">
-                <div>
-                    <div class="stock-card-header">
-                        <div>
-                            <div class="stock-name">Nasdaq Composite</div>
-                            <div class="stock-ticker">^IXIC</div>
+                <div class="stock-card" data-ticker="^DJI">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Dow Jones Industrial Average</div>
+                                <div class="stock-ticker">^DJI</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <span class="flag-large">🇺🇸</span>
+                                <div class="stock-price">—</div>
+                            </div>
                         </div>
-                        <div style="text-align:right;">
-                            <span class="flag-large">🇺🇸</span>
-                            <div class="stock-price">—</div>
-                        </div>
+                        <div class="mini-chart" data-container-id="chart-^DJI">Loading...</div>
                     </div>
-                    <div class="mini-chart" data-container-id="chart-^IXIC">Loading...</div>
                 </div>
-            </div>
-
-            <div class="stock-card" data-ticker="^RUT">
-                <div>
-                    <div class="stock-card-header">
-                        <div>
-                            <div class="stock-name">Russell 2000</div>
-                            <div class="stock-ticker">^RUT</div>
+                <div class="stock-card" data-ticker="^IXIC">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Nasdaq Composite</div>
+                                <div class="stock-ticker">^IXIC</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <span class="flag-large">🇺🇸</span>
+                                <div class="stock-price">—</div>
+                            </div>
                         </div>
-                        <div style="text-align:right;">
-                            <span class="flag-large">🇺🇸</span>
-                            <div class="stock-price">—</div>
-                        </div>
+                        <div class="mini-chart" data-container-id="chart-^IXIC">Loading...</div>
                     </div>
-                    <div class="mini-chart" data-container-id="chart-^RUT">Loading...</div>
                 </div>
-            </div>
-
-            <!-- Non-US markets sorted by estimated market-cap size -->
-            <div class="stock-card" data-ticker="000001.SS">
-                <div>
-                    <div class="stock-card-header">
-                        <div>
-                            <div class="stock-name">Shanghai Composite</div>
-                            <div class="stock-ticker">000001.SS</div>
+                <div class="stock-card" data-ticker="^RUT">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Russell 2000</div>
+                                <div class="stock-ticker">^RUT</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <span class="flag-large">🇺🇸</span>
+                                <div class="stock-price">—</div>
+                            </div>
                         </div>
-                        <div style="text-align:right;">
-                            <span class="flag-large">🇨🇳</span>
-                            <div class="stock-price">—</div>
-                        </div>
+                        <div class="mini-chart" data-container-id="chart-^RUT">Loading...</div>
                     </div>
-                    <div class="mini-chart" data-container-id="chart-000001.SS">Loading...</div>
                 </div>
-            </div>
-
-            <div class="stock-card" data-ticker="^N225">
-                <div>
-                    <div class="stock-card-header">
-                        <div>
-                            <div class="stock-name">Nikkei 225</div>
-                            <div class="stock-ticker">^N225</div>
+                <!-- Non-US markets sorted by estimated market-cap size -->
+                <div class="stock-card" data-ticker="000001.SS">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Shanghai Composite</div>
+                                <div class="stock-ticker">000001.SS</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <span class="flag-large">🇨🇳</span>
+                                <div class="stock-price">—</div>
+                            </div>
                         </div>
-                        <div style="text-align:right;">
-                            <span class="flag-large">🇯🇵</span>
-                            <div class="stock-price">—</div>
-                        </div>
+                        <div class="mini-chart" data-container-id="chart-000001.SS">Loading...</div>
                     </div>
-                    <div class="mini-chart" data-container-id="chart-^N225">Loading...</div>
                 </div>
-            </div>
-
-            <div class="stock-card" data-ticker="^FTSE">
-                <div>
-                    <div class="stock-card-header">
-                        <div>
-                            <div class="stock-name">FTSE 100</div>
-                            <div class="stock-ticker">^FTSE</div>
+                <div class="stock-card" data-ticker="^N225">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Nikkei 225</div>
+                                <div class="stock-ticker">^N225</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <span class="flag-large">🇯🇵</span>
+                                <div class="stock-price">—</div>
+                            </div>
                         </div>
-                        <div style="text-align:right;">
-                            <span class="flag-large">🇬🇧</span>
-                            <div class="stock-price">—</div>
-                        </div>
+                        <div class="mini-chart" data-container-id="chart-^N225">Loading...</div>
                     </div>
-                    <div class="mini-chart" data-container-id="chart-^FTSE">Loading...</div>
                 </div>
-            </div>
-
-            <div class="stock-card" data-ticker="^STOXX50E">
-                <div>
-                    <div class="stock-card-header">
-                        <div>
-                            <div class="stock-name">Euro Stoxx 50</div>
-                            <div class="stock-ticker">^STOXX50E</div>
+                <div class="stock-card" data-ticker="^FTSE">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">FTSE 100</div>
+                                <div class="stock-ticker">^FTSE</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <span class="flag-large">🇬🇧</span>
+                                <div class="stock-price">—</div>
+                            </div>
                         </div>
-                        <div style="text-align:right;">
-                            <span class="flag-large">🇪🇺</span>
-                            <div class="stock-price">—</div>
-                        </div>
+                        <div class="mini-chart" data-container-id="chart-^FTSE">Loading...</div>
                     </div>
-                    <div class="mini-chart" data-container-id="chart-^STOXX50E">Loading...</div>
                 </div>
-            </div>
-
-            <div class="stock-card" data-ticker="^FCHI">
-                <div>
-                    <div class="stock-card-header">
-                        <div>
-                            <div class="stock-name">CAC 40</div>
-                            <div class="stock-ticker">^FCHI</div>
+                <div class="stock-card" data-ticker="^STOXX50E">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Euro Stoxx 50</div>
+                                <div class="stock-ticker">^STOXX50E</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <span class="flag-large">🇪🇺</span>
+                                <div class="stock-price">—</div>
+                            </div>
                         </div>
-                        <div style="text-align:right;">
-                            <span class="flag-large">🇫🇷</span>
-                            <div class="stock-price">—</div>
-                        </div>
+                        <div class="mini-chart" data-container-id="chart-^STOXX50E">Loading...</div>
                     </div>
-                    <div class="mini-chart" data-container-id="chart-^FCHI">Loading...</div>
                 </div>
-            </div>
-
-            <div class="stock-card" data-ticker="^GDAXI">
-                <div>
-                    <div class="stock-card-header">
-                        <div>
-                            <div class="stock-name">DAX</div>
-                            <div class="stock-ticker">^GDAXI</div>
+                <div class="stock-card" data-ticker="^FCHI">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">CAC 40</div>
+                                <div class="stock-ticker">^FCHI</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <span class="flag-large">🇫🇷</span>
+                                <div class="stock-price">—</div>
+                            </div>
                         </div>
-                        <div style="text-align:right;">
-                            <span class="flag-large">🇩🇪</span>
-                            <div class="stock-price">—</div>
-                        </div>
+                        <div class="mini-chart" data-container-id="chart-^FCHI">Loading...</div>
                     </div>
-                    <div class="mini-chart" data-container-id="chart-^GDAXI">Loading...</div>
                 </div>
-            </div>
-
-            <div class="stock-card" data-ticker="^NSEI">
-                <div>
-                    <div class="stock-card-header">
-                        <div>
-                            <div class="stock-name">Nifty 50</div>
-                            <div class="stock-ticker">^NSEI</div>
+                <div class="stock-card" data-ticker="^GDAXI">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">DAX</div>
+                                <div class="stock-ticker">^GDAXI</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <span class="flag-large">🇩🇪</span>
+                                <div class="stock-price">—</div>
+                            </div>
                         </div>
-                        <div style="text-align:right;">
-                            <span class="flag-large">🇮🇳</span>
-                            <div class="stock-price">—</div>
-                        </div>
+                        <div class="mini-chart" data-container-id="chart-^GDAXI">Loading...</div>
                     </div>
-                    <div class="mini-chart" data-container-id="chart-^NSEI">Loading...</div>
                 </div>
-            </div>
-
-            <div class="stock-card" data-ticker="^BSESN">
-                <div>
-                    <div class="stock-card-header">
-                        <div>
-                            <div class="stock-name">BSE Sensex</div>
-                            <div class="stock-ticker">^BSESN</div>
+                <div class="stock-card" data-ticker="^NSEI">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Nifty 50</div>
+                                <div class="stock-ticker">^NSEI</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <span class="flag-large">🇮🇳</span>
+                                <div class="stock-price">—</div>
+                            </div>
                         </div>
-                        <div style="text-align:right;">
-                            <span class="flag-large">🇮🇳</span>
-                            <div class="stock-price">—</div>
-                        </div>
+                        <div class="mini-chart" data-container-id="chart-^NSEI">Loading...</div>
                     </div>
-                    <div class="mini-chart" data-container-id="chart-^BSESN">Loading...</div>
                 </div>
-            </div>
-
-            <div class="stock-card" data-ticker="^GSPTSE">
-                <div>
-                    <div class="stock-card-header">
-                        <div>
-                            <div class="stock-name">S&amp;P/TSX Composite</div>
-                            <div class="stock-ticker">^GSPTSE</div>
+                <div class="stock-card" data-ticker="^BSESN">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">BSE Sensex</div>
+                                <div class="stock-ticker">^BSESN</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <span class="flag-large">🇮🇳</span>
+                                <div class="stock-price">—</div>
+                            </div>
                         </div>
-                        <div style="text-align:right;">
-                            <span class="flag-large">🇨🇦</span>
-                            <div class="stock-price">—</div>
-                        </div>
+                        <div class="mini-chart" data-container-id="chart-^BSESN">Loading...</div>
                     </div>
-                    <div class="mini-chart" data-container-id="chart-^GSPTSE">Loading...</div>
                 </div>
-            </div>
-
-            <div class="stock-card" data-ticker="^HSI">
-                <div>
-                    <div class="stock-card-header">
-                        <div>
-                            <div class="stock-name">Hang Seng</div>
-                            <div class="stock-ticker">^HSI</div>
+                <div class="stock-card" data-ticker="^GSPTSE">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">S&amp;P/TSX Composite</div>
+                                <div class="stock-ticker">^GSPTSE</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <span class="flag-large">🇨🇦</span>
+                                <div class="stock-price">—</div>
+                            </div>
                         </div>
-                        <div style="text-align:right;">
-                            <span class="flag-large">🇭🇰</span>
-                            <div class="stock-price">—</div>
-                        </div>
+                        <div class="mini-chart" data-container-id="chart-^GSPTSE">Loading...</div>
                     </div>
-                    <div class="mini-chart" data-container-id="chart-^HSI">Loading...</div>
                 </div>
-            </div>
-
-            <div class="stock-card" data-ticker="^KS11">
-                <div>
-                    <div class="stock-card-header">
-                        <div>
-                            <div class="stock-name">KOSPI</div>
-                            <div class="stock-ticker">^KS11</div>
+                <div class="stock-card" data-ticker="^HSI">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Hang Seng</div>
+                                <div class="stock-ticker">^HSI</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <span class="flag-large">🇭🇰</span>
+                                <div class="stock-price">—</div>
+                            </div>
                         </div>
-                        <div style="text-align:right;">
-                            <span class="flag-large">🇰🇷</span>
-                            <div class="stock-price">—</div>
-                        </div>
+                        <div class="mini-chart" data-container-id="chart-^HSI">Loading...</div>
                     </div>
-                    <div class="mini-chart" data-container-id="chart-^KS11">Loading...</div>
                 </div>
-            </div>
-
-            <div class="stock-card" data-ticker="^AXJO">
-                <div>
-                    <div class="stock-card-header">
-                        <div>
-                            <div class="stock-name">ASX 200</div>
-                            <div class="stock-ticker">^AXJO</div>
+                <div class="stock-card" data-ticker="^KS11">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">KOSPI</div>
+                                <div class="stock-ticker">^KS11</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <span class="flag-large">🇰🇷</span>
+                                <div class="stock-price">—</div>
+                            </div>
                         </div>
-                        <div style="text-align:right;">
-                            <span class="flag-large">🇦🇺</span>
-                            <div class="stock-price">—</div>
-                        </div>
+                        <div class="mini-chart" data-container-id="chart-^KS11">Loading...</div>
                     </div>
-                    <div class="mini-chart" data-container-id="chart-^AXJO">Loading...</div>
                 </div>
-            </div>
-
-            <div class="stock-card" data-ticker="^BVSP">
-                <div>
-                    <div class="stock-card-header">
-                        <div>
-                            <div class="stock-name">Bovespa</div>
-                            <div class="stock-ticker">^BVSP</div>
+                <div class="stock-card" data-ticker="^AXJO">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">ASX 200</div>
+                                <div class="stock-ticker">^AXJO</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <span class="flag-large">🇦🇺</span>
+                                <div class="stock-price">—</div>
+                            </div>
                         </div>
-                        <div style="text-align:right;">
-                            <span class="flag-large">🇧🇷</span>
-                            <div class="stock-price">—</div>
-                        </div>
+                        <div class="mini-chart" data-container-id="chart-^AXJO">Loading...</div>
                     </div>
-                    <div class="mini-chart" data-container-id="chart-^BVSP">Loading...</div>
+                </div>
+                <div class="stock-card" data-ticker="^BVSP">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Bovespa</div>
+                                <div class="stock-ticker">^BVSP</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <span class="flag-large">🇧🇷</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-^BVSP">Loading...</div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-
-    <script>
+        <script>
         // Navigate to index with ticker query when a card is clicked
         document.getElementById('markets-grid').addEventListener('click', function(e){
             let el = e.target;
@@ -553,6 +535,6 @@
         // Run after DOM ready
         if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadMarketCharts);
         else loadMarketCharts();
-    </script>
-</body>
+        </script>
+    </body>
 </html>

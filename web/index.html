@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OOBIR - Stock Analysis Platform</title>
-    <link rel="stylesheet" href="styles.css">
-    <style>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>OOBIR - Stock Analysis Platform</title>
+        <link rel="stylesheet" href="styles.css">
+        <style>
         .unified-page {
             min-height: 100vh;
             background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
@@ -184,65 +184,80 @@
                 grid-template-columns: 1fr;
             }
         }
-    </style>
-</head>
-<body>
-    <div id="unified-page" class="unified-page">
-        <!-- Header -->
-        <div class="unified-header">
-            <div class="unified-header-content">
-                <div class="unified-logo" onclick="window.location.href='search.html'; return false;">OOBIR</div>
-                <form id="search-form" class="search-form unified-search-bar">
-                    <input 
-                        type="text" 
-                        id="ticker-input" 
-                        class="search-input" 
-                        placeholder="Search stocks... (e.g., AAPL, MSFT)"
-                        autocomplete="off"
-                    >
-                    <button type="submit" class="search-button">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <path d="m21 21-4.35-4.35"></path>
-                        </svg>
-                    </button>
-                </form>
+        </style>
+    </head>
+    <body>
+        <div id="unified-page" class="unified-page">
+            <!-- Header -->
+            <div class="unified-header">
+                <div class="unified-header-content">
+                    <div class="unified-logo"
+                         onclick="window.location.href='search.html'; return false;">OOBIR</div>
+                    <form id="search-form" class="search-form unified-search-bar">
+                        <input type="text"
+                               id="ticker-input"
+                               class="search-input"
+                               placeholder="Search stocks... (e.g., AAPL, MSFT)"
+                               autocomplete="off">
+                        <button type="submit" class="search-button">
+                            <svg width="20"
+                                 height="20"
+                                 viewBox="0 0 24 24"
+                                 fill="none"
+                                 stroke="currentColor"
+                                 stroke-width="2">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <path d="m21 21-4.35-4.35"></path>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
             </div>
-        </div>
-
-        <!-- Main Content -->
-        <div class="unified-content">
-            <div id="error-message" class="error-message"></div>
-            
-            <!-- Stocks Grid -->
-            <div class="stocks-grid-section">
-                <h2>📊 Market Screener</h2>
-                <div class="stocks-grid" id="stocks-grid">
-                    <div style="text-align: center; padding: 40px; color: #6b7280; grid-column: 1/-1;">
-                        <div style="width: 40px; height: 40px; border: 3px solid #f3f4f6; border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
-                        <p>Loading stocks...</p>
+            <!-- Main Content -->
+            <div class="unified-content">
+                <div id="error-message" class="error-message"></div>
+                <!-- Stocks Grid -->
+                <div class="stocks-grid-section">
+                    <h2>📊 Market Screener</h2>
+                    <div class="stocks-grid" id="stocks-grid">
+                        <div style="text-align: center;
+                                    padding: 40px;
+                                    color: #6b7280;
+                                    grid-column: 1/-1">
+                            <div style="width: 40px;
+                                        height: 40px;
+                                        border: 3px solid #f3f4f6;
+                                        border-top-color: #3b82f6;
+                                        border-radius: 50%;
+                                        animation: spin 1s linear infinite;
+                                        margin: 0 auto 20px"></div>
+                            <p>Loading stocks...</p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-
         <!-- Results Page -->
         <div id="results-page" class="results-page hidden">
             <header class="results-header">
                 <div class="header-left">
-                    <h2 class="logo-small" onclick="window.location.href='search.html'; return false;" style="cursor: pointer;">OOBIR</h2>
+                    <h2 class="logo-small"
+                        onclick="window.location.href='search.html'; return false;"
+                        style="cursor: pointer">OOBIR</h2>
                 </div>
                 <div class="header-center">
                     <form id="search-form-compact" class="search-form-compact">
-                        <input 
-                            type="text" 
-                            id="ticker-input-compact" 
-                            class="search-input-compact" 
-                            placeholder="Search ticker (e.g., BRK-A, ^GSPC)..."
-                        >
+                        <input type="text"
+                               id="ticker-input-compact"
+                               class="search-input-compact"
+                               placeholder="Search ticker (e.g., BRK-A, ^GSPC)...">
                         <button type="submit" class="search-button-compact">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg width="16"
+                                 height="16"
+                                 viewBox="0 0 24 24"
+                                 fill="none"
+                                 stroke="currentColor"
+                                 stroke-width="2">
                                 <circle cx="11" cy="11" r="8"></circle>
                                 <path d="m21 21-4.35-4.35"></path>
                             </svg>
@@ -250,51 +265,73 @@
                     </form>
                 </div>
                 <div class="header-right">
-                    <button id="export-pdf-button" class="export-pdf-button" title="Export page to PDF">Export PDF</button>
+                    <button id="export-pdf-button"
+                            class="export-pdf-button"
+                            title="Export page to PDF">Export PDF</button>
                 </div>
             </header>
-
             <div class="results-content">
                 <div id="loading-spinner" class="loading-spinner">
                     <div class="spinner"></div>
-                    <p>Loading data for <span id="loading-ticker"></span>...</p>
+                    <p>
+                        Loading data for <span id="loading-ticker"></span>...
+                    </p>
                 </div>
-
                 <div id="results-container" class="hidden">
                     <!-- Stock Header -->
-                    <div class="stock-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div class="stock-header"
+                         style="display: flex;
+                                justify-content: space-between;
+                                align-items: flex-start">
                         <div>
-                            <div style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;">
+                            <div style="display: flex;
+                                        align-items: baseline;
+                                        gap: 12px;
+                                        flex-wrap: wrap">
                                 <h1 id="stock-symbol"></h1>
                                 <span id="company-name" style="font-size: 1.1em; color: #666;"></span>
                             </div>
-                            <div id="company-summary" style="font-size: 0.9em; color: #999; margin-top: 4px;"></div>
+                            <div id="company-summary"
+                                 style="font-size: 0.9em;
+                                        color: #999;
+                                        margin-top: 4px"></div>
                             <div id="stock-price" class="stock-price"></div>
                         </div>
-                        <div id="price-trend-summary" style="text-align: right; font-size: 0.9em; color: #666; min-width: 200px;"></div>
+                        <div id="price-trend-summary"
+                             style="text-align: right;
+                                    font-size: 0.9em;
+                                    color: #666;
+                                    min-width: 200px"></div>
                     </div>
-
                     <!-- Trend Prediction Banner -->
-                    <div id="trend-prediction" class="card" style="margin-bottom: 20px; border-left: 4px solid #3b82f6; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);">
+                    <div id="trend-prediction"
+                         class="card"
+                         style="margin-bottom: 20px;
+                                border-left: 4px solid #3b82f6;
+                                background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)">
                         <div style="padding: 20px;">
                             <div class="loading-placeholder">Analyzing trend...</div>
                         </div>
                     </div>
-
                     <!-- Trading Strategy Card -->
-                    <div id="trading-strategy" class="card" style="margin-bottom: 20px; border-left: 4px solid #8b5cf6; background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);">
+                    <div id="trading-strategy"
+                         class="card"
+                         style="margin-bottom: 20px;
+                                border-left: 4px solid #8b5cf6;
+                                background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%)">
                         <div style="padding: 20px;">
                             <div class="loading-placeholder">Generating trading strategy...</div>
                         </div>
                     </div>
-
                     <!-- Company Summary Box -->
-                    <div class="card" id="company-summary-box" style="background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%); border-left: 4px solid #3b82f6;">
+                    <div class="card"
+                         id="company-summary-box"
+                         style="background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
+                                border-left: 4px solid #3b82f6">
                         <div id="summary-content" style="line-height: 1.6; color: #333;">
                             <div class="loading-placeholder"></div>
                         </div>
                     </div>
-
                     <!-- Price History Chart - FEATURED -->
                     <div class="card highlight-card">
                         <h2>📈 Price History (121 Days)</h2>
@@ -302,7 +339,6 @@
                             <div class="loading-placeholder"></div>
                         </div>
                     </div>
-
                     <!-- Data Grid -->
                     <div class="data-grid">
                         <!-- Fundamentals -->
@@ -312,7 +348,6 @@
                                 <div class="loading-placeholder"></div>
                             </div>
                         </div>
-
                         <!-- Analyst Targets -->
                         <div class="card">
                             <h3>🎯 Analyst Targets</h3>
@@ -320,7 +355,6 @@
                                 <div class="loading-placeholder"></div>
                             </div>
                         </div>
-
                         <!-- Calendar Events -->
                         <div class="card">
                             <h3>📅 Calendar Events</h3>
@@ -328,7 +362,6 @@
                                 <div class="loading-placeholder"></div>
                             </div>
                         </div>
-
                         <!-- News -->
                         <div class="card">
                             <h3>📰 News</h3>
@@ -336,7 +369,6 @@
                                 <div class="loading-placeholder"></div>
                             </div>
                         </div>
-
                         <!-- Option Chain -->
                         <div class="card">
                             <h3>📊 Option Chain</h3>
@@ -344,7 +376,6 @@
                                 <div class="loading-placeholder"></div>
                             </div>
                         </div>
-
                         <!-- Technical Signals -->
                         <div class="card">
                             <h3>📈 Technical Signals</h3>
@@ -353,7 +384,6 @@
                             </div>
                         </div>
                     </div>
-
                     <!-- AI Analysis Section (Bottom) -->
                     <div style="margin-top: 32px;">
                         <h2 style="font-size: 1.5em; margin-bottom: 16px;">🧠 AI Analysis</h2>
@@ -365,7 +395,6 @@
                                     <div class="loading-placeholder"></div>
                                 </div>
                             </div>
-
                             <!-- Technical Analysis -->
                             <div class="card">
                                 <h3>🔧 Technical Analysis</h3>
@@ -373,7 +402,6 @@
                                     <div class="loading-placeholder"></div>
                                 </div>
                             </div>
-
                             <!-- News & Sentiment -->
                             <div class="card">
                                 <h3>📰 News & Sentiment</h3>
@@ -387,7 +415,6 @@
             </div>
         </div>
     </div>
-
     <script src="config.js?v=8"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
