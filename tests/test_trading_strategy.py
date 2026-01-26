@@ -7,20 +7,29 @@ This module tests:
 - Integration with caching layer
 """
 
+"""Comprehensive tests for trading strategy feature.
+
+This module tests:
+- get_trading_strategy() function with various market conditions
+- /api/trading-strategy/{symbol} API endpoint
+- Edge cases: invalid tickers, insufficient data, error handling
+- Integration with caching layer
+"""
+
 import json
-import unittest
-from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock
 import sys
 import os
+import unittest
+from datetime import datetime, timedelta
+from unittest.mock import patch
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import pandas as pd
+from fastapi.testclient import TestClient
+
 import flow
 import flow_api
-from fastapi.testclient import TestClient
 
 
 class TestTradingStrategyFunction(unittest.TestCase):
@@ -38,9 +47,11 @@ class TestTradingStrategyFunction(unittest.TestCase):
             trend: "uptrend", "downtrend", or "sideways"
             volatility: Multiplier for price volatility (1.0 = normal)
         """
+        import random
+
         base_date = datetime(2024, 1, 1)
         data = []
-        
+
         base_price = 100.0
         for i in range(days):
             if trend == "uptrend":
@@ -49,13 +60,12 @@ class TestTradingStrategyFunction(unittest.TestCase):
                 price = base_price - (i * 0.5)
             else:  # sideways
                 price = base_price + (5 * (i % 10))
-            
+
             # Add some volatility
-            import random
             random.seed(i)  # Deterministic for reproducibility
             daily_change = random.uniform(-2, 2) * volatility
             close = price + daily_change
-            
+
             data.append({
                 "Date": (base_date + timedelta(days=i)).isoformat(),
                 "Open": round(close - 0.5, 2),
@@ -293,16 +303,22 @@ class TestTradingStrategyFunction(unittest.TestCase):
 
     @patch('flow.get_analyst_price_targets')
     @patch('flow.get_price_history')
-    def test_confidence_matches_signal_strength(self, mock_price_history, mock_analyst_targets):
+    def test_confidence_matches_signal_strength(
+        self, mock_price_history, mock_analyst_targets
+    ):
         """Test that confidence level matches signal strength."""
-        mock_price_history.return_value = self._create_sample_price_data(days=60, trend="uptrend", volatility=0.3)
-        mock_analyst_targets.return_value = {"mean": 150.0}  # Strong bullish analyst target
-        
+        sample_data = self._create_sample_price_data(
+            days=60, trend="uptrend", volatility=0.3
+        )
+        mock_price_history.return_value = sample_data
+        mock_analyst_targets.return_value = {"mean": 150.0}
+
         result = flow.get_trading_strategy("TEST")
         data = json.loads(result)
-        
+
         if data["strategy_type"] in ["LONG", "SHORT"]:
-            # Strong uptrend with bullish analyst target should give HIGH or MEDIUM confidence
+            # Strong uptrend with bullish analyst target should give
+            # HIGH or MEDIUM confidence
             self.assertIn(data["confidence"], ["HIGH", "MEDIUM", "LOW"])
         else:
             self.assertEqual(data["confidence"], "LOW")
@@ -319,36 +335,62 @@ class TestTradingStrategyEndpoint(unittest.TestCase):
     @patch('db.set_cached_data')
     @patch('flow.get_analyst_price_targets')
     @patch('flow.get_price_history')
-    def test_trading_strategy_endpoint(self, mock_price_history, mock_analyst_targets, 
-                                       mock_set_cache, mock_get_cache):
+    def test_trading_strategy_endpoint(
+        self, mock_price_history, mock_analyst_targets,
+        mock_set_cache, mock_get_cache  # pylint: disable=unused-argument
+    ):
         """Test basic trading strategy endpoint functionality."""
         # Setup test data (uptrend for LONG signal)
-        test_data = json.dumps({"data": [
-            {"Date": "2024-01-01", "Open": 100, "High": 101, "Low": 99, "Close": 100, "Volume": 1000000},
-            *[{"Date": f"2024-01-{2+i:02d}", "Open": 100+i*0.5, "High": 101.5+i*0.5, 
-               "Low": 98.5+i*0.5, "Close": 100.5+i*0.5, "Volume": 1000000 + i*10000} 
-              for i in range(59)]
-        ]})
-        
+        test_data = json.dumps({
+            "data": [
+                {
+                    "Date": "2024-01-01",
+                    "Open": 100,
+                    "High": 101,
+                    "Low": 99,
+                    "Close": 100,
+                    "Volume": 1000000
+                },
+                *[
+                    {
+                        "Date": f"2024-01-{2+i:02d}",
+                        "Open": 100 + i * 0.5,
+                        "High": 101.5 + i * 0.5,
+                        "Low": 98.5 + i * 0.5,
+                        "Close": 100.5 + i * 0.5,
+                        "Volume": 1000000 + i * 10000,
+                    }
+                    for i in range(59)
+                ],
+            ]
+        })
+
         mock_price_history.return_value = test_data
-        mock_analyst_targets.return_value = {"mean": 120.0, "high": 130.0, "low": 95.0, "current": 105.0}
-        
+        mock_analyst_targets.return_value = {
+            "mean": 120.0,
+            "high": 130.0,
+            "low": 95.0,
+            "current": 105.0,
+        }
+
         response = self.client.get('/api/trading-strategy/AAPL')
-        
+
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        
+
         # Verify response structure
         self.assertIn("ticker", data)
         self.assertIn("strategy_type", data)
         self.assertIn("confidence", data)
-        
+
         # Cache should have been called
         mock_set_cache.assert_called_once()
 
     @patch('db.get_cached_data')
     @patch('db.set_cached_data')
-    def test_trading_strategy_cache_hit(self, mock_set_cache, mock_get_cache):
+    def test_trading_strategy_cache_hit(
+        self, mock_set_cache, mock_get_cache
+    ):
         """Test that endpoint returns cached data when available."""
         cached_response = json.dumps({
             "ticker": "AAPL",
@@ -371,17 +413,19 @@ class TestTradingStrategyEndpoint(unittest.TestCase):
     @patch('db.set_cached_data')
     @patch('flow.get_analyst_price_targets')
     @patch('flow.get_price_history')
-    def test_invalid_ticker_returns_wait(self, mock_price_history, mock_analyst_targets,
-                                        mock_set_cache, mock_get_cache):
+    def test_invalid_ticker_returns_wait(
+        self, mock_price_history, mock_analyst_targets,
+        mock_set_cache, mock_get_cache  # pylint: disable=unused-argument
+    ):
         """Test endpoint handles invalid ticker gracefully."""
         mock_price_history.return_value = None
         mock_analyst_targets.return_value = {}
-        
+
         response = self.client.get('/api/trading-strategy/INVALIDTICKER')
-        
+
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        
+
         # Should return WAIT strategy even for invalid ticker
         self.assertEqual(data["strategy_type"], "WAIT")
         self.assertEqual(data["confidence"], "LOW")
@@ -389,12 +433,15 @@ class TestTradingStrategyEndpoint(unittest.TestCase):
     @patch('db.get_cached_data', return_value=None)
     @patch('db.set_cached_data')
     @patch('flow.get_trading_strategy')
-    def test_api_error_handling(self, mock_get_strategy, mock_set_cache, mock_get_cache):
+    def test_api_error_handling(
+        self, mock_get_strategy,
+        mock_set_cache, mock_get_cache  # pylint: disable=unused-argument
+    ):
         """Test endpoint error handling."""
         mock_get_strategy.side_effect = Exception("Unexpected error")
-        
+
         response = self.client.get('/api/trading-strategy/ERROR')
-        
+
         # Should return 500 error
         self.assertEqual(response.status_code, 500)
 
@@ -402,22 +449,42 @@ class TestTradingStrategyEndpoint(unittest.TestCase):
     @patch('db.set_cached_data')
     @patch('flow.get_analyst_price_targets')
     @patch('flow.get_price_history')
-    def test_endpoint_with_various_symbols(self, mock_price_history, mock_analyst_targets,
-                                          mock_set_cache, mock_get_cache):
+    def test_endpoint_with_various_symbols(
+        self, mock_price_history, mock_analyst_targets,
+        mock_set_cache, mock_get_cache  # pylint: disable=unused-argument
+    ):
         """Test endpoint works with various stock symbols."""
-        test_data = json.dumps({"data": [
-            {"Date": "2024-01-01", "Open": 100, "High": 101, "Low": 99, "Close": 100, "Volume": 1000000},
-            *[{"Date": f"2024-01-{2+i:02d}", "Open": 100+i*0.5, "High": 101.5+i*0.5, 
-               "Low": 98.5+i*0.5, "Close": 100.5+i*0.5, "Volume": 1000000 + i*10000} 
-              for i in range(59)]
-        ]})
-        
+        test_data = json.dumps({
+            "data": [
+                {
+                    "Date": "2024-01-01",
+                    "Open": 100,
+                    "High": 101,
+                    "Low": 99,
+                    "Close": 100,
+                    "Volume": 1000000,
+                },
+                *[
+                    {
+                        "Date": f"2024-01-{2+i:02d}",
+                        "Open": 100 + i * 0.5,
+                        "High": 101.5 + i * 0.5,
+                        "Low": 98.5 + i * 0.5,
+                        "Close": 100.5 + i * 0.5,
+                        "Volume": 1000000 + i * 10000,
+                    }
+                    for i in range(59)
+                ],
+            ]
+        })
+
         mock_price_history.return_value = test_data
         mock_analyst_targets.return_value = {}
-        
-        for symbol in ["AAPL", "GOOGL", "MSFT", "TSLA", "NVDA"]:
+
+        symbols = ["AAPL", "GOOGL", "MSFT", "TSLA", "NVDA"]
+        for symbol in symbols:
             response = self.client.get(f'/api/trading-strategy/{symbol}')
-            
+
             self.assertEqual(response.status_code, 200)
             data = response.json()
             self.assertEqual(data["ticker"], symbol)
@@ -429,51 +496,89 @@ class TestTradingStrategyIntegration(unittest.TestCase):
 
     @patch('flow.get_analyst_price_targets')
     @patch('flow.get_price_history')
-    def test_consistency_between_signals_and_strategy(self, mock_price_history, mock_analyst_targets):
+    def test_consistency_between_signals_and_strategy(
+        self, mock_price_history, mock_analyst_targets
+    ):
         """Test that strategy type is consistent with signals."""
-        mock_price_history.return_value = json.dumps({"data": [
-            {"Date": "2024-01-01", "Open": 100, "High": 101, "Low": 99, "Close": 100, "Volume": 1000000},
-            *[{"Date": f"2024-01-{2+i:02d}", "Open": 100+i*0.5, "High": 101.5+i*0.5, 
-               "Low": 98.5+i*0.5, "Close": 100.5+i*0.5, "Volume": 1000000 + i*10000} 
-              for i in range(59)]
-        ]})
+        mock_price_history.return_value = json.dumps({
+            "data": [
+                {
+                    "Date": "2024-01-01",
+                    "Open": 100,
+                    "High": 101,
+                    "Low": 99,
+                    "Close": 100,
+                    "Volume": 1000000,
+                },
+                *[
+                    {
+                        "Date": f"2024-01-{2+i:02d}",
+                        "Open": 100 + i * 0.5,
+                        "High": 101.5 + i * 0.5,
+                        "Low": 98.5 + i * 0.5,
+                        "Close": 100.5 + i * 0.5,
+                        "Volume": 1000000 + i * 10000,
+                    }
+                    for i in range(59)
+                ],
+            ]
+        })
         mock_analyst_targets.return_value = {}
-        
+
         result = flow.get_trading_strategy("CONSISTENCY_TEST")
         data = json.loads(result)
-        
+
         # Verify signals list is populated
         self.assertGreater(len(data["signals"]), 0)
-        
+
         # If LONG strategy, should have bullish signals
         if data["strategy_type"] == "LONG":
             bullish_keywords = ["bullish", "above", "oversold", "crossover"]
             signal_text = " ".join(data["signals"]).lower()
-            self.assertTrue(any(keyword in signal_text for keyword in bullish_keywords))
-        
+            has_bullish = any(keyword in signal_text for keyword in bullish_keywords)
+            self.assertTrue(has_bullish)
+
         # If SHORT strategy, should have bearish signals
         if data["strategy_type"] == "SHORT":
             bearish_keywords = ["bearish", "below", "overbought", "crossover"]
             signal_text = " ".join(data["signals"]).lower()
-            self.assertTrue(any(keyword in signal_text for keyword in bearish_keywords))
+            has_bearish = any(keyword in signal_text for keyword in bearish_keywords)
+            self.assertTrue(has_bearish)
 
     @patch('flow.get_analyst_price_targets')
     @patch('flow.get_price_history')
     def test_json_serialization(self, mock_price_history, mock_analyst_targets):
         """Test that result is properly JSON serializable."""
-        mock_price_history.return_value = json.dumps({"data": [
-            {"Date": "2024-01-01", "Open": 100, "High": 101, "Low": 99, "Close": 100, "Volume": 1000000},
-            *[{"Date": f"2024-01-{2+i:02d}", "Open": 100+i*0.5, "High": 101.5+i*0.5, 
-               "Low": 98.5+i*0.5, "Close": 100.5+i*0.5, "Volume": 1000000 + i*10000} 
-              for i in range(59)]
-        ]})
+        mock_price_history.return_value = json.dumps({
+            "data": [
+                {
+                    "Date": "2024-01-01",
+                    "Open": 100,
+                    "High": 101,
+                    "Low": 99,
+                    "Close": 100,
+                    "Volume": 1000000,
+                },
+                *[
+                    {
+                        "Date": f"2024-01-{2+i:02d}",
+                        "Open": 100 + i * 0.5,
+                        "High": 101.5 + i * 0.5,
+                        "Low": 98.5 + i * 0.5,
+                        "Close": 100.5 + i * 0.5,
+                        "Volume": 1000000 + i * 10000,
+                    }
+                    for i in range(59)
+                ],
+            ]
+        })
         mock_analyst_targets.return_value = {"mean": 120.0}
-        
+
         result = flow.get_trading_strategy("JSON_TEST")
-        
+
         # Should be valid JSON string
         self.assertIsInstance(result, str)
-        
+
         # Should be parseable
         data = json.loads(result)
         
