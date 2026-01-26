@@ -593,6 +593,19 @@ def get_ai_full_report(symbol: str):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+@app.get("/api/trading-strategy/{symbol}")
+def get_trading_strategy(symbol: str):
+    """Get trading strategy with entry/exit targets, stop loss, and timeframe."""
+    logger.info("Trading strategy requested for %s", symbol)
+    try:
+        result = with_cache("trading-strategy", symbol, flow.get_trading_strategy)
+        logger.info("Successfully generated trading strategy for %s", symbol)
+        return JSONResponse(content=result)
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.error("Error generating trading strategy for %s: %s", symbol, str(exc))
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

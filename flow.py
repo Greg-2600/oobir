@@ -1347,6 +1347,282 @@ def get_ai_full_report(ticker):
         return None
 
 
+def get_trading_strategy(ticker):
+    """Generate trading strategy with entry/exit targets, stop loss, and timeframe.
+    
+    This function integrates:
+    - Current price and technical indicators
+    - Analyst price targets and estimates
+    - Risk management parameters
+    
+    Returns a JSON object with:
+    - current_price: Current stock price
+    - entry_target: Recommended entry price
+    - exit_targets: List of profit targets (conservative, moderate, aggressive)
+    - stop_loss: Recommended stop loss price
+    - risk_reward_ratio: Calculated risk/reward ratio
+    - timeframe: Suggested holding period
+    - strategy_type: LONG, SHORT, or WAIT
+    - signals: List of supporting technical signals
+    - confidence: Strategy confidence level (LOW, MEDIUM, HIGH)
+    """
+    try:
+        # Gather necessary data
+        price_data = get_price_history(ticker)
+        analyst_targets = get_analyst_price_targets(ticker)
+        
+        # Parse price data
+        if price_data is None:
+            # Return a minimal response when data is unavailable
+            return json.dumps({
+                "ticker": ticker,
+                "strategy_type": "WAIT",
+                "confidence": "LOW",
+                "signals": ["Insufficient price data available"],
+                "error": "Unable to fetch price history for this ticker"
+            }, default=str)
+        
+        price_dict = json.loads(price_data)
+        if not price_dict.get('data') or len(price_dict['data']) < 20:
+            # Need at least 20 days of data for indicators
+            return json.dumps({
+                "ticker": ticker,
+                "strategy_type": "WAIT",
+                "confidence": "LOW",
+                "signals": ["Insufficient historical data"],
+                "error": "Need at least 20 days of price history"
+            }, default=str)
+        
+        price_dict = json.loads(price_data)
+        price_df = pd.DataFrame(price_dict['data'])
+        price_df['Date'] = pd.to_datetime(price_df['Date'])
+        price_df = price_df.sort_values('Date')
+        
+        # Get current price
+        current_price = float(price_df['Close'].iloc[-1])
+        
+        # Calculate technical indicators
+        technical_indicators = _calculate_technical_indicators(price_df)
+        
+        # Extract key technical values
+        df = price_df.copy()
+        
+        # SMAs
+        df['SMA_20'] = df['Close'].rolling(window=20).mean()
+        df['SMA_50'] = df['Close'].rolling(window=50).mean()
+        sma_20 = float(df['SMA_20'].iloc[-1]) if not pd.isna(df['SMA_20'].iloc[-1]) else current_price
+        sma_50 = float(df['SMA_50'].iloc[-1]) if not pd.isna(df['SMA_50'].iloc[-1]) else current_price
+        
+        # RSI
+        delta = df['Close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / loss
+        df['RSI'] = 100 - (100 / (1 + rs))
+        rsi = float(df['RSI'].iloc[-1]) if not pd.isna(df['RSI'].iloc[-1]) else 50
+        
+        # Bollinger Bands
+        df['BB_SMA'] = df['Close'].rolling(window=20).mean()
+        df['BB_STD'] = df['Close'].rolling(window=20).std()
+        df['BB_Upper'] = df['BB_SMA'] + (df['BB_STD'] * 2)
+        df['BB_Lower'] = df['BB_SMA'] - (df['BB_STD'] * 2)
+        bb_upper = float(df['BB_Upper'].iloc[-1]) if not pd.isna(df['BB_Upper'].iloc[-1]) else current_price * 1.05
+        bb_lower = float(df['BB_Lower'].iloc[-1]) if not pd.isna(df['BB_Lower'].iloc[-1]) else current_price * 0.95
+        
+        # MACD
+        ema_12 = df['Close'].ewm(span=12).mean()
+        ema_26 = df['Close'].ewm(span=26).mean()
+        df['MACD'] = ema_12 - ema_26
+        df['MACD_Signal'] = df['MACD'].ewm(span=9).mean()
+        macd = float(df['MACD'].iloc[-1]) if not pd.isna(df['MACD'].iloc[-1]) else 0
+        macd_signal = float(df['MACD_Signal'].iloc[-1]) if not pd.isna(df['MACD_Signal'].iloc[-1]) else 0
+        
+        # Determine signals
+        signals = []
+        bullish_count = 0
+        bearish_count = 0
+        
+        # RSI signals
+        if rsi < 30:
+            signals.append("RSI oversold - potential buy")
+            bullish_count += 2
+        elif rsi < 40:
+            signals.append("RSI approaching oversold")
+            bullish_count += 1
+        elif rsi > 70:
+            signals.append("RSI overbought - potential sell")
+            bearish_count += 2
+        elif rsi > 60:
+            signals.append("RSI approaching overbought")
+            bearish_count += 1
+        
+        # Moving average signals
+        if current_price > sma_20 > sma_50:
+            signals.append("Price above both SMAs - bullish trend")
+            bullish_count += 2
+        elif current_price > sma_20:
+            signals.append("Price above 20-day SMA")
+            bullish_count += 1
+        elif current_price < sma_20 < sma_50:
+            signals.append("Price below both SMAs - bearish trend")
+            bearish_count += 2
+        elif current_price < sma_20:
+            signals.append("Price below 20-day SMA")
+            bearish_count += 1
+        
+        # MACD signals
+        if macd > macd_signal:
+            signals.append("MACD bullish crossover")
+            bullish_count += 1
+        else:
+            signals.append("MACD bearish crossover")
+            bearish_count += 1
+        
+        # Bollinger Bands signals
+        if current_price < bb_lower:
+            signals.append("Price below lower Bollinger Band - oversold")
+            bullish_count += 1
+        elif current_price > bb_upper:
+            signals.append("Price above upper Bollinger Band - overbought")
+            bearish_count += 1
+        
+        # Parse analyst targets if available
+        analyst_high = None
+        analyst_low = None
+        analyst_mean = None
+        analyst_current = None
+        
+        if analyst_targets and isinstance(analyst_targets, dict):
+            analyst_high = analyst_targets.get('high')
+            analyst_low = analyst_targets.get('low')
+            analyst_mean = analyst_targets.get('mean')
+            analyst_current = analyst_targets.get('current')
+        
+        # Determine strategy type and confidence
+        total_signals = bullish_count + bearish_count
+        if total_signals == 0:
+            strategy_type = "WAIT"
+            confidence = "LOW"
+        else:
+            bullish_ratio = bullish_count / total_signals
+            if bullish_ratio >= 0.65:
+                strategy_type = "LONG"
+                confidence = "HIGH" if bullish_ratio >= 0.75 else "MEDIUM"
+            elif bullish_ratio <= 0.35:
+                strategy_type = "SHORT"
+                confidence = "HIGH" if bullish_ratio <= 0.25 else "MEDIUM"
+            else:
+                strategy_type = "WAIT"
+                confidence = "LOW"
+        
+        # Calculate entry, exit, and stop loss levels
+        if strategy_type == "LONG":
+            # Entry slightly above current support
+            entry_target = round(max(bb_lower, sma_20 * 0.99), 2)
+            
+            # Stop loss below key support
+            stop_loss = round(min(bb_lower * 0.98, sma_50 * 0.97), 2)
+            
+            # Exit targets
+            conservative_target = round(current_price * 1.05, 2)  # 5% gain
+            moderate_target = round(current_price * 1.10, 2)  # 10% gain
+            aggressive_target = round(current_price * 1.20, 2)  # 20% gain
+            
+            # Use analyst targets if available and reasonable
+            if analyst_mean and analyst_mean > current_price:
+                moderate_target = round(analyst_mean, 2)
+            if analyst_high and analyst_high > current_price:
+                aggressive_target = round(min(analyst_high, current_price * 1.30), 2)
+            
+            exit_targets = [
+                {"level": "conservative", "price": conservative_target, "gain_pct": round(((conservative_target / current_price) - 1) * 100, 1)},
+                {"level": "moderate", "price": moderate_target, "gain_pct": round(((moderate_target / current_price) - 1) * 100, 1)},
+                {"level": "aggressive", "price": aggressive_target, "gain_pct": round(((aggressive_target / current_price) - 1) * 100, 1)}
+            ]
+            
+            timeframe = "1-3 months" if confidence == "HIGH" else "3-6 months"
+            
+        elif strategy_type == "SHORT":
+            # Entry slightly below current resistance
+            entry_target = round(min(bb_upper, sma_20 * 1.01), 2)
+            
+            # Stop loss above key resistance
+            stop_loss = round(max(bb_upper * 1.02, sma_50 * 1.03), 2)
+            
+            # Exit targets (for short positions, lower is better)
+            conservative_target = round(current_price * 0.95, 2)  # 5% drop
+            moderate_target = round(current_price * 0.90, 2)  # 10% drop
+            aggressive_target = round(current_price * 0.80, 2)  # 20% drop
+            
+            # Use analyst targets if available and reasonable
+            if analyst_mean and analyst_mean < current_price:
+                moderate_target = round(analyst_mean, 2)
+            if analyst_low and analyst_low < current_price:
+                aggressive_target = round(max(analyst_low, current_price * 0.70), 2)
+            
+            exit_targets = [
+                {"level": "conservative", "price": conservative_target, "gain_pct": round(((current_price / conservative_target) - 1) * 100, 1)},
+                {"level": "moderate", "price": moderate_target, "gain_pct": round(((current_price / moderate_target) - 1) * 100, 1)},
+                {"level": "aggressive", "price": aggressive_target, "gain_pct": round(((current_price / aggressive_target) - 1) * 100, 1)}
+            ]
+            
+            timeframe = "1-2 months" if confidence == "HIGH" else "2-4 months"
+            
+        else:  # WAIT
+            entry_target = round(current_price, 2)
+            stop_loss = None
+            exit_targets = []
+            timeframe = "Wait for clearer signals"
+        
+        # Calculate risk/reward ratio
+        risk_reward_ratio = None
+        if stop_loss and len(exit_targets) > 0:
+            risk = abs(current_price - stop_loss)
+            reward = abs(exit_targets[1]['price'] - current_price)  # Use moderate target
+            if risk > 0:
+                risk_reward_ratio = round(reward / risk, 2)
+        
+        # Build result
+        result = {
+            "ticker": ticker,
+            "current_price": round(current_price, 2),
+            "strategy_type": strategy_type,
+            "confidence": confidence,
+            "entry_target": entry_target,
+            "exit_targets": exit_targets,
+            "stop_loss": stop_loss,
+            "risk_reward_ratio": risk_reward_ratio,
+            "timeframe": timeframe,
+            "signals": signals,
+            "technical_levels": {
+                "sma_20": round(sma_20, 2),
+                "sma_50": round(sma_50, 2),
+                "rsi": round(rsi, 1),
+                "bb_upper": round(bb_upper, 2),
+                "bb_lower": round(bb_lower, 2)
+            },
+            "analyst_targets": {
+                "high": analyst_high,
+                "mean": analyst_mean,
+                "low": analyst_low,
+                "current": analyst_current
+            } if analyst_targets else None
+        }
+        
+        return json.dumps(result, default=str)
+        
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while generating trading strategy: {exc}")
+        # Return a WAIT strategy on error instead of None
+        return json.dumps({
+            "ticker": ticker,
+            "strategy_type": "WAIT",
+            "confidence": "LOW",
+            "signals": ["Error generating strategy"],
+            "error": str(exc)
+        }, default=str)
+
+
 
 if __name__ == "__main__":
     import argparse

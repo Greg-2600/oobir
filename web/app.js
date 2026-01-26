@@ -1035,6 +1035,9 @@ function renderPriceHistory(data, container) {
     // Render trend prediction at the top
     renderTrendPrediction();
     
+    // Render trading strategy
+    renderTradingStrategy();
+    
     // Create candlestick chart with technical indicators
     const chartHtml = `
         <div style="display: flex; flex-direction: column; gap: 16px;">
@@ -1822,6 +1825,157 @@ function renderTrendPrediction() {
     container.style.borderLeftColor = borderColor;
     container.style.background = bgGradient;
     container.style.display = 'block';
+}
+
+// Fetch and display trading strategy
+async function renderTradingStrategy() {
+    const container = document.getElementById('trading-strategy');
+    if (!container) return;
+    
+    const ticker = document.getElementById('stock-symbol').textContent;
+    if (!ticker) {
+        container.style.display = 'none';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/trading-strategy/${ticker}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const strategy = await response.json();
+        
+        if (!strategy || !strategy.strategy_type) {
+            container.style.display = 'none';
+            return;
+        }
+        
+        // Determine colors and styling based on strategy type
+        let strategyIcon = '⏸️';
+        let strategyColor = '#6b7280';
+        let borderColor = '#8b5cf6';
+        let bgGradient = 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%)';
+        
+        if (strategy.strategy_type === 'LONG') {
+            strategyIcon = '📈';
+            strategyColor = '#10b981';
+            borderColor = '#10b981';
+            bgGradient = 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)';
+        } else if (strategy.strategy_type === 'SHORT') {
+            strategyIcon = '📉';
+            strategyColor = '#ef4444';
+            borderColor = '#ef4444';
+            bgGradient = 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)';
+        }
+        
+        // Confidence badge
+        const confidenceColor = strategy.confidence === 'HIGH' ? '#10b981' : 
+                                strategy.confidence === 'MEDIUM' ? '#f59e0b' : '#6b7280';
+        
+        // Build exit targets HTML
+        let targetsHtml = '';
+        if (strategy.exit_targets && strategy.exit_targets.length > 0) {
+            targetsHtml = `
+                <div style="margin-top: 20px;">
+                    <div style="font-weight: 600; margin-bottom: 12px; color: #374151;">Exit Targets:</div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;">
+                        ${strategy.exit_targets.map(target => `
+                            <div style="background: white; padding: 12px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                                <div style="font-size: 0.75em; color: #6b7280; text-transform: uppercase; margin-bottom: 4px;">${escapeHtml(target.level)}</div>
+                                <div style="font-size: 1.2em; font-weight: 700; color: #1f2937;">$${target.price.toFixed(2)}</div>
+                                <div style="font-size: 0.85em; color: ${target.gain_pct >= 0 ? '#10b981' : '#ef4444'};">
+                                    ${target.gain_pct >= 0 ? '+' : ''}${target.gain_pct}%
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Build signals HTML
+        let signalsHtml = '';
+        if (strategy.signals && strategy.signals.length > 0) {
+            signalsHtml = `
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.1);">
+                    <div style="font-size: 0.85em; color: #6b7280;">
+                        <strong>Supporting Signals:</strong><br/>
+                        <ul style="margin: 8px 0; padding-left: 20px;">
+                            ${strategy.signals.slice(0, 5).map(signal => `<li>${escapeHtml(signal)}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `;
+        }
+        
+        const html = `
+            <div style="padding: 20px;">
+                <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+                    <div style="font-size: 3em;">${strategyIcon}</div>
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 4px;">
+                            <div style="font-size: 1.4em; font-weight: 700; color: ${strategyColor};">
+                                ${strategy.strategy_type} Strategy
+                            </div>
+                            <div style="display: inline-block; padding: 4px 12px; background: ${confidenceColor}; color: white; border-radius: 12px; font-size: 0.75em; font-weight: 600;">
+                                ${strategy.confidence} CONFIDENCE
+                            </div>
+                        </div>
+                        ${strategy.timeframe ? `
+                            <div style="font-size: 0.9em; color: #6b7280;">
+                                Timeframe: ${escapeHtml(strategy.timeframe)}
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                ${strategy.current_price ? `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px;">
+                        <div style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: 8px;">
+                            <div style="font-size: 0.75em; color: #6b7280; margin-bottom: 4px;">Current Price</div>
+                            <div style="font-size: 1.3em; font-weight: 700; color: #1f2937;">$${strategy.current_price.toFixed(2)}</div>
+                        </div>
+                        
+                        ${strategy.entry_target ? `
+                            <div style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: 8px;">
+                                <div style="font-size: 0.75em; color: #6b7280; margin-bottom: 4px;">Entry Target</div>
+                                <div style="font-size: 1.3em; font-weight: 700; color: #3b82f6;">$${strategy.entry_target.toFixed(2)}</div>
+                            </div>
+                        ` : ''}
+                        
+                        ${strategy.stop_loss ? `
+                            <div style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: 8px;">
+                                <div style="font-size: 0.75em; color: #6b7280; margin-bottom: 4px;">Stop Loss</div>
+                                <div style="font-size: 1.3em; font-weight: 700; color: #ef4444;">$${strategy.stop_loss.toFixed(2)}</div>
+                            </div>
+                        ` : ''}
+                        
+                        ${strategy.risk_reward_ratio ? `
+                            <div style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: 8px;">
+                                <div style="font-size: 0.75em; color: #6b7280; margin-bottom: 4px;">Risk/Reward</div>
+                                <div style="font-size: 1.3em; font-weight: 700; color: ${strategy.risk_reward_ratio >= 2 ? '#10b981' : '#f59e0b'};">
+                                    ${strategy.risk_reward_ratio.toFixed(2)}:1
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                ` : ''}
+                
+                ${targetsHtml}
+                ${signalsHtml}
+            </div>
+        `;
+        
+        container.innerHTML = html;
+        container.style.borderLeftColor = borderColor;
+        container.style.background = bgGradient;
+        container.style.display = 'block';
+        
+    } catch (error) {
+        console.error('Error fetching trading strategy:', error);
+        container.style.display = 'none';
+    }
 }
 
 function renderTechnicalSignals(_data, container) {
