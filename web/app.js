@@ -520,7 +520,7 @@ function drawMiniStockChart(canvas, prices, ticker) {
     if (closes.length === 0) return;
 
     // Calculate Bollinger Bands
-    const { middle: sma20, upper: bbUpper, lower: bbLower } = calculateBollingerBands(chartData, 20, 2);
+    const { upper: bbUpper, lower: bbLower } = calculateBollingerBands(chartData, 20, 2);
 
     // Find min/max prices
     const minPrice = Math.min(...closes.filter(p => p > 0));
