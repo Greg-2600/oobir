@@ -15,7 +15,7 @@
 **OOBIR** is a production-ready **REST API-first stock analysis platform** powered by artificial intelligence and built with modern cloud-native architecture. Developed in **Python** with **FastAPI**, containerized with **Docker**, and enhanced by **Ollama LLM**, OOBIR delivers comprehensive stock market intelligence through both **fundamental** and **technical analysis** approaches.
 
 **Key Differentiators:**
-- 🔌 **REST API First**: 24 production-ready endpoints (13 data + 9 AI + 2 health) with auto-generated OpenAPI docs
+- 🔌 **REST API First**: 25 production-ready endpoints (13 data + 10 AI + 1 strategy + 2 health) with auto-generated OpenAPI docs
 - 🤖 **AI-Powered**: Local Ollama LLM (Llama 3.2) for privacy-preserving intelligent analysis
 - ☁️ **Cloud-Native**: Docker containerization for deployment anywhere (AWS, Azure, GCP, on-premises)
 - 🐍 **Python-Driven**: Modern Python 3.11+ with type hints, async support, and clean architecture
@@ -37,8 +37,9 @@
 
 - **📊 Fundamental Analysis**: P/E ratios, earnings, balance sheets, income statements, analyst targets
 - **📈 Technical Analysis**: Candlestick charts, SMA (20/50), RSI, MACD, Bollinger Bands, volume analysis
+- **💼 Trading Strategy**: AI-generated entry/exit targets, stop loss, risk/reward ratios, timeframe recommendations
 - **🤖 AI-Powered Insights**: LLM-generated recommendations, sentiment analysis, pattern recognition
-- **🌐 REST API**: 24 production-ready endpoints with OpenAPI documentation
+- **🌐 REST API**: 25 production-ready endpoints with OpenAPI documentation
 - **☁️ Cloud-Native**: Docker containerization for any cloud (AWS, Azure, GCP) or on-premises
 
 
@@ -85,19 +86,20 @@ cd web && python -m http.server 8081
 - **Responsive design** optimized for desktop and tablet
 
 ### 2. Comprehensive REST API
-- **24 production endpoints**: 13 data + 9 AI + 2 health checks
+- **24 production endpoints**: 13 data + 10 AI + 1 strategy + 2 health checks
 - **Auto-generated documentation** with Swagger UI
 - **CORS enabled** for web applications
 - **Health monitoring** for app and AI services
 - **Error handling** with meaningful HTTP status codes
 
-### 3. AI-Powered Analysis
+### 3. AI-Powered Analysis & Trading Strategy
 - **Fundamental analysis**: Company metrics, growth trends, financial health
 - **Technical analysis**: Chart patterns, indicator interpretation, trend identification
 - **Balance sheet analysis**: Asset quality, debt levels, liquidity
 - **Income statement analysis**: Revenue trends, profitability, margins
 - **News sentiment**: AI-powered sentiment from recent articles
 - **Action recommendations**: Buy/sell/hold with detailed reasoning
+- **Trading strategy**: Entry/exit targets, stop loss, risk/reward ratios, timeframe—all intelligently calculated from technical indicators and analyst targets
 
 ### 4. Intelligent Caching Layer
 - **Market-aware SQLite caching** for all data and AI endpoints
@@ -129,6 +131,24 @@ cd web && python -m http.server 8081
 - Momentum: RSI (14-period)
 - Trend: MACD with signal line
 - Volume analysis and patterns
+
+### 7. Intelligent Trading Strategy Generation
+
+**Automatically Generated Entry/Exit Strategy:**
+- **Entry Targets**: Calculated from technical support levels and analyst targets
+- **Exit Targets**: Three levels (conservative 5%, moderate 10%, aggressive 20%)
+- **Stop Loss**: Determined from key technical support and SMA levels
+- **Risk/Reward Ratio**: Calculated for position sizing and trade validation
+- **Timeframe**: Intelligently suggested based on strategy confidence (1-6 months)
+- **Confidence Levels**: HIGH/MEDIUM/LOW based on signal strength from multiple technical indicators
+- **Integrated Analysis**: Combines RSI, MACD, Moving Averages, Bollinger Bands with analyst price targets
+
+**Strategy Types:**
+- **LONG**: Bullish setup with bullish technical signals (≥65% bullish indicators)
+- **SHORT**: Bearish setup with bearish signals (≤35% bullish indicators)
+- **WAIT**: Neutral/mixed signals with unclear direction (<35% or >65% threshold not met)
+
+All strategies are displayed in the Web UI with color-coded cards (green for LONG, red for SHORT, gray for WAIT) and include supporting technical signals for validation.
 
 ## 🏗️ Architecture
 
@@ -582,7 +602,7 @@ docker compose up -d
 - `GET /api/news/{symbol}` - Recent news articles
 - `GET /api/screen-undervalued` - Stock screener
 
-**AI Analysis Endpoints (9):**
+**AI Analysis Endpoints (10):**
 > Preferred fast path: the UI "AI Recommendation" uses fundamental analysis for quicker responses.
 - `GET /api/ai/fundamental-analysis/{symbol}` - AI fundamental analysis (preferred for speed)
 - `GET /api/ai/balance-sheet-analysis/{symbol}` - AI balance sheet analysis
@@ -593,6 +613,9 @@ docker compose up -d
 - `GET /api/ai/action-recommendation-word/{symbol}` - Single word recommendation
 - `GET /api/ai/news-sentiment/{symbol}` - AI sentiment analysis of news
 - `GET /api/ai/full-report/{symbol}` - Comprehensive AI report
+
+**Trading Strategy Endpoint:**
+- `GET /api/trading-strategy/{symbol}` - AI-driven trading strategy with entry/exit targets, stop loss, risk/reward ratio, and timeframe
 
 **Cache Management Endpoints:**
 - `GET /api/cache/stats` — Aggregate cache statistics (total, valid, expired, by endpoint)
@@ -684,7 +707,7 @@ Removes containers, volumes, and cleans up resources while preserving the Ollama
 | `get_news(ticker)` | Recent news articles with summaries |
 | `get_screen_undervalued_large_caps()` | Stock screener for undervalued stocks |
 
-### AI Analysis Functions (9)
+### AI Analysis Functions (10)
 
 Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model installed.
 
@@ -699,6 +722,7 @@ Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model installed.
 | `get_ai_action_recommendation_single_word(ticker)` | Single word: BUY/SELL/HOLD |
 | `get_ai_news_sentiment(ticker)` | AI sentiment analysis of top 5 recent news articles |
 | `get_ai_full_report(ticker)` | Comprehensive multi-section AI report |
+| `get_trading_strategy(ticker)` | AI-driven trading strategy with entry/exit targets, stop loss, risk/reward ratio, and timeframe |
 
 ## Architecture & Design
 
@@ -834,12 +858,13 @@ docker compose exec app pytest tests/ -v
 ```
 
 #### Test Quality Metrics
-- ✅ **100% Endpoint Coverage**: All 24 REST API endpoints tested
-- ✅ **Success Path Validation**: Verified correct responses for valid inputs
-- ✅ **Error Path Validation**: Tested error handling for edge cases and failures
-- ✅ **External Dependency Isolation**: Ollama, yfinance, and SQLite cache mocked to ensure tests run reliably without services
-- ✅ **Cache Behavior Verification**: Every endpoint test verifies cache writes with `mock_set_cache.assert_called_once()`
-- ✅ **Production-Ready**: Tests serve as executable documentation of expected behavior
+- ✅ **25 API endpoints tested**: 13 data + 10 AI + 1 strategy + 2 health checks
+- ✅ **100% endpoint coverage**: All REST endpoints fully tested
+- ✅ **Web UI integration validated**: Frontend-backend communication verified
+- ✅ **Success and error paths verified**: Both happy paths and error cases tested
+- ✅ **Proper mocking of external dependencies**: Ollama, yfinance, SQLite cache properly mocked
+- ✅ **Database caching behavior verified**: Cache hits/misses tested in all endpoints
+- ✅ **Cache behavior verified**: Tests validate `set_cached_data()` is called exactly once per successful request
 
 #### Test Files
 
