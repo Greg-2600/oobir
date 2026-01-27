@@ -6,10 +6,17 @@
         <title>Markets - OOBIR</title>
         <link rel="stylesheet" href="styles.css">
         <style>
+        body {
+            background: radial-gradient(circle at 20% 20%, #eef4ff, #f8fafc 45%),
+                        radial-gradient(circle at 80% 0%, #fef2f2, #f8fafc 40%),
+                        #f8fafc;
+            min-height: 100vh;
+        }
+
         .stocks-page {
             max-width: 1400px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 24px;
         }
 
         .stocks-header {
@@ -21,11 +28,25 @@
             border-bottom: 2px solid #e5e7eb;
         }
 
+        .stocks-header-left {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
         .stocks-header h1 {
             margin: 0;
             font-size: 2em;
             color: #1f2937;
         }
+
+        .hero-subtitle {
+            margin: 0;
+            color: #475569;
+            font-size: 1rem;
+        }
+
+        .hero-tags { display:flex; gap:10px; flex-wrap:wrap; }
 
         .logo-link {
             text-decoration: none;
@@ -40,30 +61,66 @@
 
         .stocks-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 18px;
             margin-top: 20px;
         }
 
         .stock-card {
+            position: relative;
             background: white;
             border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 20px;
+            border-radius: 16px;
+            padding: 18px 18px 16px;
             transition: all 0.3s ease;
             cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            box-shadow: 0 10px 30px rgba(15,23,42,0.06);
             min-height: 220px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            overflow: hidden;
+        }
+
+        .stock-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(59,130,246,0.06), rgba(59,130,246,0));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .stock-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(90deg, #3b82f6, #06b6d4);
+            opacity: 0.7;
         }
 
         .stock-card:hover {
             transform: translateY(-4px);
-            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            box-shadow: 0 16px 38px rgba(15,23,42,0.12);
             border-color: #3b82f6;
         }
+
+        .stock-card:hover::before { opacity: 1; }
+
+        .stock-card[data-region="americas"]::after { background: linear-gradient(90deg, #3b82f6, #06b6d4); }
+        .stock-card[data-region="europe"]::after { background: linear-gradient(90deg, #6366f1, #a855f7); }
+        .stock-card[data-region="apac"]::after { background: linear-gradient(90deg, #14b8a6, #22d3ee); }
+        .stock-card[data-region="latam"]::after { background: linear-gradient(90deg, #f59e0b, #ef4444); }
+        .stock-card[data-region="global"]::after { background: linear-gradient(90deg, #94a3b8, #cbd5e1); }
+
+        .stock-card[data-region="americas"] { background: linear-gradient(180deg, rgba(59,130,246,0.05), rgba(6,182,212,0.02)); }
+        .stock-card[data-region="europe"] { background: linear-gradient(180deg, rgba(99,102,241,0.05), rgba(168,85,247,0.02)); }
+        .stock-card[data-region="apac"] { background: linear-gradient(180deg, rgba(20,184,166,0.05), rgba(34,211,238,0.02)); }
+        .stock-card[data-region="latam"] { background: linear-gradient(180deg, rgba(245,158,11,0.05), rgba(239,68,68,0.02)); }
+        .stock-card[data-region="global"] { background: linear-gradient(180deg, rgba(148,163,184,0.04), rgba(203,213,225,0.02)); }
 
         .stock-card-header {
             display: flex;
@@ -71,6 +128,8 @@
             align-items: flex-start;
             margin-bottom: 15px;
         }
+
+        .stock-card-header .title-stack { display:flex; flex-direction:column; gap:6px; }
 
         .stock-ticker {
             font-size: 0.95em;
@@ -94,7 +153,17 @@
         /* Ensure hover effect remains visible on colored cards */
         .stock-card.trend-up:hover, .stock-card.trend-down:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(2,6,23,0.12); }
 
-        .mini-chart { height: 80px; border-radius: 8px; background: linear-gradient(180deg,#fafafa,#f3f4f6); display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:0.9em;border:1px solid #f0f0f0 }
+        .stock-meta-row { display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+        .pill { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; font-size:0.8rem; font-weight:600; letter-spacing:0.01em; background: #eef2ff; color:#4338ca; border:1px solid rgba(79,70,229,0.2); }
+        .pill.soft { background:#ecfeff; color:#0e7490; border-color:rgba(14,116,144,0.2); }
+        .pill.neutral { background:#f8fafc; color:#475569; border-color:rgba(148,163,184,0.3); }
+
+        .trend-badge { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:10px; font-size:0.82rem; font-weight:700; letter-spacing:0.01em; }
+        .trend-badge.up { background: #ecfdf3; color: #166534; border:1px solid rgba(22,101,52,0.2); }
+        .trend-badge.down { background: #fef2f2; color: #991b1b; border:1px solid rgba(153,27,27,0.2); }
+        .trend-badge.flat { background: #f8fafc; color: #475569; border:1px solid rgba(148,163,184,0.3); }
+
+        .mini-chart { height: 92px; border-radius: 10px; background: radial-gradient(circle at 20% 20%, #111827, #0b1220); display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:0.9em;border:1px solid #1f2937; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }
 
         @media (max-width: 768px) {
             .stocks-grid { grid-template-columns: 1fr; }
@@ -104,7 +173,15 @@
     <body>
         <div class="stocks-page">
             <div class="stocks-header">
-                <h1>🌐 International Market Indexes</h1>
+                <div class="stocks-header-left">
+                    <h1>🌐 International Market Indexes</h1>
+                    <p class="hero-subtitle">30-day mini candlesticks with trend tinting by region</p>
+                    <div class="hero-tags">
+                        <span class="pill">Live OHLC mini charts</span>
+                        <span class="pill soft">Region-tinted cards</span>
+                        <span class="pill neutral">Tap a card to drill in</span>
+                    </div>
+                </div>
                 <a href="/" class="logo-link">OOBIR</a>
             </div>
             <div class="stocks-grid" id="markets-grid">
@@ -367,7 +444,28 @@
                 </div>
             </div>
         </div>
+        <script src="config.js"></script>
         <script>
+        const REGION_META = {
+            '^GSPC': { code:'americas', label:'North America' },
+            '^DJI': { code:'americas', label:'North America' },
+            '^IXIC': { code:'americas', label:'North America' },
+            '^RUT': { code:'americas', label:'North America' },
+            '^GSPTSE': { code:'americas', label:'North America' },
+            '^BVSP': { code:'latam', label:'Latin America' },
+            '000001.SS': { code:'apac', label:'Asia Pacific' },
+            '^N225': { code:'apac', label:'Asia Pacific' },
+            '^HSI': { code:'apac', label:'Asia Pacific' },
+            '^KS11': { code:'apac', label:'Asia Pacific' },
+            '^AXJO': { code:'apac', label:'Asia Pacific' },
+            '^NSEI': { code:'apac', label:'Asia Pacific' },
+            '^BSESN': { code:'apac', label:'Asia Pacific' },
+            '^FTSE': { code:'europe', label:'Europe' },
+            '^STOXX50E': { code:'europe', label:'Europe' },
+            '^FCHI': { code:'europe', label:'Europe' },
+            '^GDAXI': { code:'europe', label:'Europe' },
+        };
+
         // Navigate to index with ticker query when a card is clicked
         document.getElementById('markets-grid').addEventListener('click', function(e){
             let el = e.target;
@@ -422,7 +520,7 @@
                 wick.setAttribute('x2', x);
                 wick.setAttribute('y1', yHigh);
                 wick.setAttribute('y2', yLow);
-                wick.setAttribute('stroke', '#374151');
+                wick.setAttribute('stroke', '#e5e7eb');
                 wick.setAttribute('stroke-width', Math.max(1, barWidth/6));
                 wick.setAttribute('stroke-linecap', 'round');
                 svg.appendChild(wick);
@@ -436,8 +534,8 @@
                 body.setAttribute('y', bodyTop);
                 body.setAttribute('width', barWidth);
                 body.setAttribute('height', bodyHeight);
-                body.setAttribute('fill', isUp ? '#16a34a' : '#ef4444');
-                body.setAttribute('stroke', isUp ? '#15803d' : '#b91c1c');
+                body.setAttribute('fill', isUp ? '#4ade80' : '#f87171');
+                body.setAttribute('stroke', isUp ? '#22c55e' : '#ef4444');
                 body.setAttribute('stroke-width', '0.5');
                 svg.appendChild(body);
             });
@@ -453,14 +551,68 @@
             }
         }
 
+        function decorateCard(card, ticker){
+            // Set region tint and label
+            const meta = REGION_META[ticker] || { code:'global', label:'Global' };
+            card.setAttribute('data-region', meta.code);
+
+            // Inject meta row once
+            if(!card.querySelector('.stock-meta-row')){
+                const header = card.querySelector('.stock-card-header');
+                const row = document.createElement('div');
+                row.className = 'stock-meta-row';
+                row.innerHTML = `
+                    <span class="pill region-pill region-label">${meta.label}</span>
+                    <span class="pill soft">30d mini chart</span>
+                `;
+                if(header && header.parentNode){
+                    header.parentNode.insertBefore(row, header.nextSibling);
+                }
+            } else {
+                const label = card.querySelector('.region-label');
+                if(label) label.textContent = meta.label;
+            }
+        }
+
+        function setTrendBadge(card, direction, pct){
+            let badge = card.querySelector('.trend-badge');
+            if(!badge){
+                badge = document.createElement('span');
+                badge.className = 'trend-badge flat';
+                const row = card.querySelector('.stock-meta-row') || card.querySelector('.stock-card-header');
+                if(row && row.parentNode){
+                    row.parentNode.insertBefore(badge, row.nextSibling);
+                } else {
+                    card.insertBefore(badge, card.firstChild);
+                }
+            }
+            badge.classList.remove('up','down','flat');
+            const pctText = isFinite(pct) ? (pct * 100).toFixed(1) + '% over 5d' : 'Flat';
+            if(direction === 'up'){
+                badge.classList.add('trend-badge','up');
+                badge.textContent = 'Up ' + pctText;
+            } else if(direction === 'down'){
+                badge.classList.add('trend-badge','down');
+                badge.textContent = 'Down ' + pctText;
+            } else {
+                badge.classList.add('trend-badge','flat');
+                badge.textContent = 'Flat 5d';
+            }
+        }
+
         async function loadMarketCharts(){
-            const apiBase = (typeof CONFIG !== 'undefined' && CONFIG.API_BASE_URL) ? CONFIG.API_BASE_URL : 'http://localhost:8000';
+            const apiBase = (typeof window !== 'undefined' && window.OOBIR_API_BASE)
+                ? window.OOBIR_API_BASE
+                : (window.location.hostname === 'localhost'
+                    ? 'http://localhost:8000'
+                    : `${window.location.protocol}//${window.location.hostname}:8000`);
             const cards = document.querySelectorAll('.stock-card');
             for(const card of cards){
                 const ticker = card.getAttribute('data-ticker');
                 const chartEl = card.querySelector('.mini-chart');
                 const priceEl = card.querySelector('.stock-price');
                 if(!ticker || !chartEl) continue;
+                decorateCard(card, ticker);
                 try{
                     const res = await fetch(`${apiBase}/api/price-history/${encodeURIComponent(ticker)}?days=30`);
                     if(!res.ok){ chartEl.textContent = 'No data'; continue; }
@@ -484,45 +636,24 @@
                         if(closes.length >= 5){
                             const last = closes[closes.length-1];
                             const prior = closes[closes.length-5];
-                            // percent change over period
                             const pct = prior === 0 ? 0 : (last - prior) / Math.abs(prior);
                             const direction = pct > 0 ? 'up' : (pct < 0 ? 'down' : 'neutral');
-                            // strength: map abs(pct) where 5% maps to full strength (cap at 10%)
-                            const strength = Math.min(Math.abs(pct) / 0.05, 2); // allow up to 2x for very strong moves
-                            // derive alpha from strength (base 0.06 -> up to 0.3)
-                            const alpha = Math.min(0.06 + (0.12 * Math.min(strength,1)), 0.3);
-                            if(direction === 'up'){
-                                card.classList.add('trend-up');
-                                card.style.background = `linear-gradient(180deg, rgba(16,185,129,${alpha}), rgba(16,185,129,${Math.max(0.02, alpha/4)}))`;
-                                card.style.borderColor = `rgba(16,185,129,${Math.min(0.3, alpha)})`;
-                            } else if(direction === 'down'){
-                                card.classList.add('trend-down');
-                                card.style.background = `linear-gradient(180deg, rgba(239,68,68,${alpha}), rgba(239,68,68,${Math.max(0.02, alpha/4)}))`;
-                                card.style.borderColor = `rgba(239,68,68,${Math.min(0.3, alpha)})`;
-                            } else {
-                                card.classList.add('trend-neutral');
-                                card.style.background = '';
-                                card.style.borderColor = '';
-                            }
+                            setTrendBadge(card, direction === 'neutral' ? 'flat' : direction, pct);
                         } else if(closes.length >= 2){
-                            // fallback to 1-day change if 5 points unavailable
                             const last = closes[closes.length-1];
                             const prev = closes[closes.length-2];
-                            if(last > prev) card.classList.add('trend-up');
-                            else if(last < prev) card.classList.add('trend-down');
-                            else card.classList.add('trend-neutral');
-                            card.style.background = '';
-                            card.style.borderColor = '';
+                            const pct = prev === 0 ? 0 : (last - prev) / Math.abs(prev);
+                            const direction = last > prev ? 'up' : (last < prev ? 'down' : 'flat');
+                            setTrendBadge(card, direction, pct);
                         } else {
-                            card.classList.add('trend-neutral');
-                            card.style.background = '';
-                            card.style.borderColor = '';
+                            setTrendBadge(card, 'flat', 0);
                         }
                     }catch(e){
                         card.classList.remove('trend-up','trend-down');
                         card.classList.add('trend-neutral');
                         card.style.background = '';
                         card.style.borderColor = '';
+                        setTrendBadge(card, 'flat', 0);
                     }
                 }catch(err){
                     chartEl.textContent = 'Error';
