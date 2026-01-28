@@ -254,7 +254,7 @@ async function exportResultsToPdf() {
     clone.querySelectorAll('.loading-placeholder').forEach(n => n.remove());
 
     // Remove AI boxes (cards) that have no useful content
-    const aiIds = ['ai-recommendation', 'technical-analysis-data', 'news-sentiment-data'];
+    const aiIds = ['news-sentiment-data'];
     aiIds.forEach(id => {
         const el = clone.querySelector('#' + id);
         if (!el) return;
@@ -660,10 +660,8 @@ async function loadStockData(ticker, replaceHistory = false) {
     // Update stock header
     document.getElementById('stock-symbol').textContent = ticker;
 
-    // Initialize AI sections with buttons
-    initializeAIRecommendation(ticker);
+    // Initialize News & Sentiment
     initializeNewsSentiment(ticker);
-    initializeTechnicalAnalysis(ticker);
 
     // Load news first to get dates for chart markers
     await fetchData(`/api/news/${ticker}`, 'news-data', renderNews);
@@ -693,48 +691,12 @@ async function loadStockData(ticker, replaceHistory = false) {
     resultsContainer.classList.remove('hidden');
 }
 
-// Initialize AI recommendation with button
-function initializeAIRecommendation(ticker) {
-    const container = document.getElementById('ai-recommendation');
-    container.innerHTML = `
-        <button class="ai-button" onclick="loadAIRecommendation('${ticker}')">
-            🧠 Get Fundamental Analysis
-        </button>
-    `;
-}
-
-// Load AI recommendation on demand
-async function loadAIRecommendation(ticker) {
-    const container = document.getElementById('ai-recommendation');
-    container.innerHTML = '<p class="text-muted">🔄 Loading AI recommendation...</p>';
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/ai/fundamental-analysis/${ticker}`);
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-
-        const data = await response.json();
-        renderAIRecommendation(data, container);
-    } catch (error) {
-        console.error(`Error fetching AI recommendation:`, error);
-        container.innerHTML = `
-            <p class="text-danger">❌ Failed to load AI recommendation</p>
-            <button class="ai-button" onclick="loadAIRecommendation('${ticker}')" style="margin-top: 10px;">
-                🔄 Retry
-            </button>
-        `;
-    }
-}
-
-// Load AI selected stocks card on results page
 // Initialize news sentiment with button
 function initializeNewsSentiment(ticker) {
     const container = document.getElementById('news-sentiment-data');
     container.innerHTML = `
         <button class="ai-button" onclick="loadNewsSentiment('${ticker}')">
-            📰 Get News & Sentiment Analysis
+            🤖 Get News & Sentiment AI Analysis
         </button>
     `;
 }
@@ -784,41 +746,6 @@ async function loadNewsSentimentBackground(ticker) {
     } catch (error) {
         console.error('Background sentiment fetch failed:', error);
         // Continue without sentiment - grey dots will remain
-    }
-}
-
-// Initialize technical analysis button
-function initializeTechnicalAnalysis(ticker) {
-    const container = document.getElementById('technical-analysis-data');
-    container.innerHTML = `
-        <button class="ai-button" onclick="loadTechnicalAnalysis('${ticker}')">
-            📊 Get Technical Analysis
-        </button>
-    `;
-}
-
-// Load technical analysis on demand
-async function loadTechnicalAnalysis(ticker) {
-    const container = document.getElementById('technical-analysis-data');
-    container.innerHTML = '<p class="text-muted">🔄 Loading technical analysis...</p>';
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/ai/technical-analysis/${ticker}`);
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-
-        const data = await response.json();
-        renderTechnicalAnalysis(data, container);
-    } catch (error) {
-        console.error(`Error fetching technical analysis:`, error);
-        container.innerHTML = `
-            <p class="text-danger">❌ Failed to load technical analysis</p>
-            <button class="ai-button" onclick="loadTechnicalAnalysis('${ticker}')" style="margin-top: 10px;">
-                🔄 Retry
-            </button>
-        `;
     }
 }
 
@@ -921,6 +848,38 @@ function renderFundamentals(data, container) {
         summaryBox.innerHTML = html || '<p class="text-muted">No company information available</p>';
     }
 
+    // Helper function to evaluate metric quality
+    function evaluateMetric(metricName, value) {
+        if (!value || value === 'N/A') return { status: 'neutral', icon: '◯', color: '#999' };
+        
+        const numValue = parseFloat(value);
+        
+        switch (metricName) {
+            case 'P/E Ratio':
+                if (numValue < 15) return { status: 'good', icon: '✓', color: '#34a853' };
+                if (numValue < 25) return { status: 'neutral', icon: '◯', color: '#999' };
+                return { status: 'bad', icon: '✗', color: '#ea4335' };
+            case 'Forward P/E':
+                if (numValue < 15) return { status: 'good', icon: '✓', color: '#34a853' };
+                if (numValue < 25) return { status: 'neutral', icon: '◯', color: '#999' };
+                return { status: 'bad', icon: '✗', color: '#ea4335' };
+            case 'PEG Ratio':
+                if (numValue < 1) return { status: 'good', icon: '✓', color: '#34a853' };
+                if (numValue < 1.5) return { status: 'neutral', icon: '◯', color: '#999' };
+                return { status: 'bad', icon: '✗', color: '#ea4335' };
+            case 'Price/Book':
+                if (numValue < 1) return { status: 'good', icon: '✓', color: '#34a853' };
+                if (numValue < 3) return { status: 'neutral', icon: '◯', color: '#999' };
+                return { status: 'bad', icon: '✗', color: '#ea4335' };
+            case 'Dividend Yield':
+                if (numValue > 0.03) return { status: 'good', icon: '✓', color: '#34a853' };
+                if (numValue > 0) return { status: 'neutral', icon: '◯', color: '#999' };
+                return { status: 'bad', icon: '✗', color: '#ea4335' };
+            default:
+                return { status: 'neutral', icon: '◯', color: '#999' };
+        }
+    }
+
     const fields = {
         'Market Cap': formatLargeNumber(data.marketCap || data.market_cap),
         'P/E Ratio': formatNumber(data.trailingPE || data.trailing_pe),
@@ -932,7 +891,32 @@ function renderFundamentals(data, container) {
         '52 Week Low': formatCurrency(data.fiftyTwoWeekLow || data.fifty_two_week_low)
     };
 
-    renderTable(fields, container);
+    // Render table with visual indicators
+    renderTableWithIndicators(fields, container, evaluateMetric);
+}
+
+function renderTableWithIndicators(fields, container, evaluateFn) {
+    let html = '<table style="width: 100%; border-collapse: collapse;">';
+    
+    for (const [key, value] of Object.entries(fields)) {
+        const evaluation = evaluateFn(key, value);
+        const bgColor = evaluation.status === 'good' ? '#f0f8f4' : 
+                       evaluation.status === 'bad' ? '#fef3f2' : 
+                       'transparent';
+        
+        html += `
+            <tr style="border-bottom: 1px solid #e0e0e0; background-color: ${bgColor}; transition: background-color 0.2s;">
+                <td style="padding: 12px 0; font-weight: 500; color: #202124;">${tooltip(key)}</td>
+                <td style="padding: 12px 16px; text-align: right; font-weight: 600; display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
+                    <span style="color: ${evaluation.color}; font-size: 1.2em;">${evaluation.icon}</span>
+                    <span style="color: ${evaluation.color};">${value}</span>
+                </td>
+            </tr>
+        `;
+    }
+    
+    html += '</table>';
+    container.innerHTML = html;
 }
 
 function renderPriceHistory(data, container) {
@@ -1391,6 +1375,54 @@ function renderAnalystTargets(data, container) {
         return;
     }
 
+    const currentPrice = parseFloat(data.current || data.currentPrice || data.current_price) || 0;
+
+    // Helper function to evaluate analyst target metrics
+    function evaluateAnalystMetric(metricName, value) {
+        if (!value || value === 'N/A') return { status: 'neutral', icon: '◯', color: '#999' };
+        
+        const numValue = parseFloat(value);
+        
+        switch (metricName) {
+            case 'Current Price':
+                return { status: 'neutral', icon: '◯', color: '#999' };
+            case 'Target High':
+                if (currentPrice > 0) {
+                    const upside = ((numValue - currentPrice) / currentPrice) * 100;
+                    if (upside > 20) return { status: 'good', icon: '↑', color: '#34a853' };
+                    if (upside > 0) return { status: 'neutral', icon: '→', color: '#999' };
+                    return { status: 'bad', icon: '↓', color: '#ea4335' };
+                }
+                return { status: 'neutral', icon: '◯', color: '#999' };
+            case 'Target Mean':
+                if (currentPrice > 0) {
+                    const upside = ((numValue - currentPrice) / currentPrice) * 100;
+                    if (upside > 15) return { status: 'good', icon: '↑', color: '#34a853' };
+                    if (upside > 0) return { status: 'neutral', icon: '→', color: '#999' };
+                    return { status: 'bad', icon: '↓', color: '#ea4335' };
+                }
+                return { status: 'neutral', icon: '◯', color: '#999' };
+            case 'Target Median':
+                if (currentPrice > 0) {
+                    const upside = ((numValue - currentPrice) / currentPrice) * 100;
+                    if (upside > 15) return { status: 'good', icon: '↑', color: '#34a853' };
+                    if (upside > 0) return { status: 'neutral', icon: '→', color: '#999' };
+                    return { status: 'bad', icon: '↓', color: '#ea4335' };
+                }
+                return { status: 'neutral', icon: '◯', color: '#999' };
+            case 'Target Low':
+                if (currentPrice > 0) {
+                    const downside = ((numValue - currentPrice) / currentPrice) * 100;
+                    if (downside > 0) return { status: 'good', icon: '↑', color: '#34a853' };
+                    if (downside > -10) return { status: 'neutral', icon: '→', color: '#999' };
+                    return { status: 'bad', icon: '↓', color: '#ea4335' };
+                }
+                return { status: 'neutral', icon: '◯', color: '#999' };
+            default:
+                return { status: 'neutral', icon: '◯', color: '#999' };
+        }
+    }
+
     const fields = {
         'Current Price': formatCurrency(data.current || data.currentPrice || data.current_price),
         'Target High': formatCurrency(data.high || data.targetHighPrice || data.target_high_price),
@@ -1399,7 +1431,7 @@ function renderAnalystTargets(data, container) {
         'Target Median': formatCurrency(data.median || data.targetMedianPrice || data.target_median_price)
     };
 
-    renderTable(fields, container);
+    renderTableWithIndicators(fields, container, evaluateAnalystMetric);
 }
 
 function renderCalendar(data, container) {
@@ -1564,85 +1596,109 @@ function renderOptionChain(data, container) {
             lastTrade: pick(r, ['lastTradeDate', 'lastTrade', 'lastTradeDateTime'])
         }))
         .filter(r => r.contract || r.strike !== undefined)
-        .sort((a, b) => (Number(a.strike) || 0) - (Number(b.strike) || 0))
-        .slice(0, 30);
+        .sort((a, b) => (Number(a.strike) || 0) - (Number(b.strike) || 0));
+    
     if (!rows.length) {
         hideCardIfEmpty(container);
         return;
     }
-    const tableRows = rows.map(r => {
-        const itm = formatBool(r.inTheMoney);
-        const itmClass = itm === 'Yes' ? ' style="background: rgba(34,197,94,0.08);"' : '';
-        return `
-            <tr${itmClass}>
-                <td>${escapeHtml(r.side || 'Call')}</td>
-                <td>${escapeHtml(r.contract || '—')}</td>
-                <td>${formatNum(r.strike)}</td>
-                <td>${formatNum(r.last)}</td>
-                <td>${formatNum(r.bid)}</td>
-                <td>${formatNum(r.ask)}</td>
-                <td>${formatNum(r.change)}</td>
-                <td>${formatPct(r.percentChange)}</td>
-                <td>${formatInt(r.volume)}</td>
-                <td>${formatInt(r.openInterest)}</td>
-                <td>${formatIV(r.impliedVol)}</td>
-                <td>${itm}</td>
-                <td>${escapeHtml(formatDate(r.lastTrade))}</td>
-            </tr>
-        `;
-    }).join('');
-    container.innerHTML = `
-        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; color: var(--text-secondary, #555);">
-            <div>First expiration shown • Sorted by strike • Top ${rows.length} rows</div>
-            <div>ITM rows highlighted</div>
-        </div>
-        <div style="overflow-x: auto; max-height: 340px; border: 1px solid #e5e7eb; border-radius: 4px; box-shadow: inset 0 1px 0 rgba(0,0,0,0.02);">
-            <table style="min-width: 760px;">
-                <thead>
-                    <tr>
-                        <th>Side</th>
-                        <th>Contract</th>
-                        <th>Strike</th>
-                        <th>Last</th>
-                        <th>Bid</th>
-                        <th>Ask</th>
-                        <th>Change</th>
-                        <th>% Chg</th>
-                        <th>Vol</th>
-                        <th>OI</th>
-                        <th>IV</th>
-                        <th>ITM</th>
-                        <th>Last Trade</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${tableRows}
-                </tbody>
-            </table>
-        </div>
-    `;
-}
 
-function renderAIRecommendation(data, container) {
-    const text = typeof data === 'string' ? data : JSON.stringify(data);
+    // Separate calls and puts
+    const calls = rows.filter(r => (r.side || 'Call') === 'Call').slice(0, 15);
+    const puts = rows.filter(r => (r.side || 'Call') === 'Put').slice(0, 15);
 
-    // Determine recommendation type
-    let className = '';
-    const upperText = text.toUpperCase();
-    if (upperText.includes('BUY') && !upperText.includes('NOT BUY')) {
-        className = 'buy';
-    } else if (upperText.includes('SELL')) {
-        className = 'sell';
-    } else if (upperText.includes('HOLD')) {
-        className = 'hold';
+    // Create summary statistics
+    function getSummaryStats(optionRows) {
+        if (!optionRows.length) return null;
+        
+        const itmCount = optionRows.filter(r => r.inTheMoney === true || r.inTheMoney === 1).length;
+        const totalVolume = optionRows.reduce((sum, r) => sum + (Number(r.volume) || 0), 0);
+        const totalOI = optionRows.reduce((sum, r) => sum + (Number(r.openInterest) || 0), 0);
+        const avgIV = optionRows.reduce((sum, r) => sum + (Number(r.impliedVol) || 0), 0) / optionRows.length;
+        const midPrice = optionRows.find(r => formatNum(r.bid) !== '—' && formatNum(r.ask) !== '—');
+        
+        return {
+            itmCount,
+            totalVolume,
+            totalOI,
+            avgIV,
+            midPrice
+        };
     }
 
-    container.innerHTML = `<div class="recommendation-box ${className}">${escapeHtml(text)}</div>`;
-}
+    // Evaluate option health
+    function evaluateOptionMetric(metricName, value, context) {
+        if (!value || value === '—') return { status: 'neutral', icon: '◯', color: '#999' };
+        
+        const numValue = parseFloat(value);
+        
+        switch (metricName) {
+            case 'In-The-Money':
+                const itmPct = context.count > 0 ? (numValue / context.count) * 100 : 0;
+                if (itmPct > 60) return { status: 'good', icon: '✓', color: '#34a853' };
+                if (itmPct > 30) return { status: 'neutral', icon: '◯', color: '#999' };
+                return { status: 'bad', icon: '✗', color: '#ea4335' };
+            case 'Total Volume':
+                if (numValue > 10000) return { status: 'good', icon: '↑', color: '#34a853' };
+                if (numValue > 1000) return { status: 'neutral', icon: '→', color: '#999' };
+                return { status: 'bad', icon: '↓', color: '#ea4335' };
+            case 'Open Interest':
+                if (numValue > 5000) return { status: 'good', icon: '↑', color: '#34a853' };
+                if (numValue > 500) return { status: 'neutral', icon: '→', color: '#999' };
+                return { status: 'bad', icon: '↓', color: '#ea4335' };
+            case 'Avg Implied Vol':
+                if (numValue > 0.5) return { status: 'good', icon: '⚡', color: '#34a853' };
+                if (numValue > 0.2) return { status: 'neutral', icon: '◯', color: '#999' };
+                return { status: 'bad', icon: '⊗', color: '#ea4335' };
+            default:
+                return { status: 'neutral', icon: '◯', color: '#999' };
+        }
+    }
 
-function renderTechnicalAnalysis(data, container) {
-    const text = typeof data === 'string' ? data : JSON.stringify(data);
-    container.innerHTML = `<div style="white-space: pre-wrap; line-height: 1.8;">${escapeHtml(text)}</div>`;
+    function renderOptionSummary(sideLabel, optionRows) {
+        if (!optionRows.length) return '';
+        
+        const stats = getSummaryStats(optionRows);
+        if (!stats) return '';
+        
+        const summaryFields = {
+            'In-The-Money': `${stats.itmCount}/${optionRows.length}`,
+            'Total Volume': formatInt(stats.totalVolume),
+            'Open Interest': formatInt(stats.totalOI),
+            'Avg Implied Vol': formatIV(stats.avgIV)
+        };
+
+        let html = `<div style="margin-bottom: 20px;"><h4 style="margin-bottom: 12px; color: #202124; font-size: 0.95em;">${sideLabel}</h4>`;
+        html += '<table style="width: 100%; border-collapse: collapse;">';
+        
+        for (const [key, value] of Object.entries(summaryFields)) {
+            const evaluation = evaluateOptionMetric(key, value, { count: optionRows.length });
+            const bgColor = evaluation.status === 'good' ? '#f0f8f4' : 
+                           evaluation.status === 'bad' ? '#fef3f2' : 
+                           'transparent';
+            
+            html += `
+                <tr style="border-bottom: 1px solid #e0e0e0; background-color: ${bgColor}; transition: background-color 0.2s;">
+                    <td style="padding: 10px 0; font-size: 0.9em; color: #202124;">${tooltip(key)}</td>
+                    <td style="padding: 10px 16px; text-align: right; font-weight: 600; display: flex; align-items: center; justify-content: flex-end; gap: 8px; font-size: 0.9em;">
+                        <span style="color: ${evaluation.color}; font-size: 1.1em;">${evaluation.icon}</span>
+                        <span style="color: ${evaluation.color};">${value}</span>
+                    </td>
+                </tr>
+            `;
+        }
+        
+        html += '</table></div>';
+        return html;
+    }
+
+    container.innerHTML = `
+        <div style="font-size: 0.85em; color: var(--text-secondary, #555); margin-bottom: 16px;">
+            Option chain summary with top ${Math.min(calls.length, 15)} calls and puts by strike
+        </div>
+        ${renderOptionSummary('📞 Call Options', calls)}
+        ${renderOptionSummary('📍 Put Options', puts)}
+    `;
 }
 
 // Apply sentiment to news articles without rendering UI (used during initial load)
@@ -2007,7 +2063,7 @@ function renderTechnicalSignals(_data, container) {
             <div class="tech-indicator-card">
                 <div class="tech-header">
                     <span class="tech-emoji">${emoji}</span>
-                    <span class="tech-label">${label}</span>
+                    <span class="tech-label">${tooltip(label)}</span>
                 </div>
                 <div class="tech-value-row">
                     <div class="tech-value">${value}</div>
@@ -2080,6 +2136,49 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
+// Tooltip system for explaining metrics to non-traders
+const METRIC_TOOLTIPS = {
+    // Fundamentals
+    'Market Cap': 'Total value of company shares. Larger = more established companies.',
+    'P/E Ratio': 'Price relative to earnings. Lower = potentially undervalued, higher = growing expectations.',
+    'Forward P/E': 'P/E using projected earnings. Shows expected valuation.',
+    'PEG Ratio': 'P/E relative to growth rate. Below 1.0 suggests good value.',
+    'Price/Book': 'Stock price vs company assets. Below 1.0 = trading below net assets.',
+    'Dividend Yield': 'Annual dividend as % of stock price. Higher = more income to shareholders.',
+    '52 Week High': 'Highest price in past year. Current position in yearly range.',
+    '52 Week Low': 'Lowest price in past year. Shows support levels.',
+    
+    // Analyst Targets
+    'Current Price': 'Today\'s closing price for the stock.',
+    'Target High': 'Most bullish analyst price target.',
+    'Target Mean': 'Average of all analyst price targets.',
+    'Target Low': 'Most bearish analyst price target.',
+    'Target Median': 'Middle analyst price target.',
+    
+    // Technical Signals
+    'RSI (14)': 'Momentum indicator (0-100). >70 = overbought, <30 = oversold.',
+    'MACD': 'Trend-following momentum indicator. Positive = bullish, negative = bearish.',
+    'Stochastic': 'Momentum indicator (0-100). Compares closing price to price range.',
+    'ADX': 'Trend strength (0-50). >25 = strong trend, <20 = weak trend.',
+    'SMA 20': '20-day moving average. Price above = uptrend.',
+    'SMA 50': '50-day moving average. Longer-term trend indicator.',
+    'BB Upper': 'Bollinger Band upper limit. Support/resistance level.',
+    'BB Lower': 'Bollinger Band lower limit. Support/resistance level.',
+    
+    // Option Chain
+    'In-The-Money': 'Options with intrinsic value. Call: strike < price, Put: strike > price.',
+    'Total Volume': 'Number of contracts traded today. Higher = more active trading.',
+    'Open Interest': 'Unclosed contracts. Higher = more liquid options.',
+    'Avg Implied Vol': 'Market expectation of price volatility. Higher = more uncertainty.'
+};
+
+function tooltip(text) {
+    const tooltipText = METRIC_TOOLTIPS[text] || '';
+    if (!tooltipText) return text;
+    return `<span class="tooltip-wrapper" data-tooltip="${escapeHtml(tooltipText)}">${text}</span>`;
+}
+
 
 // Load AI Selected BUYs on landing page
 async function loadAIBuys() {

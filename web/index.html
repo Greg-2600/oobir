@@ -5,6 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>OOBIR - Stock Analysis Platform</title>
         <link rel="stylesheet" href="styles.css">
+        <link rel="stylesheet" href="tooltip.css">
         <style>
         .unified-page {
             min-height: 100vh;
@@ -218,7 +219,7 @@
                 <div id="error-message" class="error-message"></div>
                 <!-- Stocks Grid -->
                 <div class="stocks-grid-section">
-                    <h2>📊 Market Screener</h2>
+                    <h2>📊 Stock Screener</h2>
                     <div class="stocks-grid" id="stocks-grid">
                         <div style="text-align: center;
                                     padding: 40px;
@@ -355,6 +356,13 @@
                                 <div class="loading-placeholder"></div>
                             </div>
                         </div>
+                        <!-- Technical Signals -->
+                        <div class="card">
+                            <h3>📈 Technical Signals</h3>
+                            <div id="technical-signals-data" class="data-content">
+                                <div class="loading-placeholder"></div>
+                            </div>
+                        </div>
                         <!-- Calendar Events -->
                         <div class="card">
                             <h3>📅 Calendar Events</h3>
@@ -362,6 +370,9 @@
                                 <div class="loading-placeholder"></div>
                             </div>
                         </div>
+                    </div>
+                    <!-- News & Option Chain Side-by-Side -->
+                    <div style="margin-top: 32px; display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
                         <!-- News -->
                         <div class="card">
                             <h3>📰 News</h3>
@@ -376,35 +387,13 @@
                                 <div class="loading-placeholder"></div>
                             </div>
                         </div>
-                        <!-- Technical Signals -->
-                        <div class="card">
-                            <h3>📈 Technical Signals</h3>
-                            <div id="technical-signals-data" class="data-content">
-                                <div class="loading-placeholder"></div>
-                            </div>
-                        </div>
                     </div>
-                    <!-- AI Analysis Section (Bottom) -->
-                    <div style="margin-top: 32px;">
-                        <h2 style="font-size: 1.5em; margin-bottom: 16px;">🧠 AI Analysis</h2>
+                    <!-- News & Sentiment Section -->
+                    <div style="margin-top: 32px; display: none;">
                         <div class="data-grid">
-                            <!-- Fundamental Analysis -->
-                            <div class="card">
-                                <h3>🧠 Fundamental Analysis</h3>
-                                <div id="ai-recommendation" class="recommendation-box">
-                                    <div class="loading-placeholder"></div>
-                                </div>
-                            </div>
-                            <!-- Technical Analysis -->
-                            <div class="card">
-                                <h3>🔧 Technical Analysis</h3>
-                                <div id="technical-analysis-data" class="data-content">
-                                    <div class="loading-placeholder"></div>
-                                </div>
-                            </div>
                             <!-- News & Sentiment -->
                             <div class="card">
-                                <h3>📰 News & Sentiment</h3>
+                                <h3>🤖 News & Sentiment AI Analysis</h3>
                                 <div id="news-sentiment-data" class="data-content">
                                     <div class="loading-placeholder"></div>
                                 </div>
