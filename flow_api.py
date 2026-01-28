@@ -81,13 +81,6 @@ OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
 logger.info("Ollama host configured: %s", OLLAMA_HOST)
 
 
-# Initialize database connection pool on startup
-@app.on_event("startup")
-async def startup_event():
-    """Initialize services on application startup."""
-    logger.info("OOBIR Stock Analysis API starting up")
-
-
 # System/Cache Endpoints
 @app.get("/api/health")
 def health_endpoint():
@@ -116,6 +109,7 @@ def flush_cache(endpoint: str = None, symbol: str = None):
     return {"cleared": count, "message": f"Cleared {count} cache entries"}
 
 
+# Initialize database connection pool on startup
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on application startup."""
@@ -577,12 +571,28 @@ def get_ai_action_recommendation_single_word(symbol: str):
 
 @app.get("/api/ai/news-sentiment/{symbol}")
 def get_ai_news_sentiment(symbol: str):
-    """Get AI analysis of news sentiment for a stock."""
+    """Get AI analysis of news sentiment for a stock.
+    
+    Times out after 30 seconds to prevent hanging.
+    """
+    import concurrent.futures
+    
     logger.info("AI news sentiment requested for %s", symbol)
     try:
-        result = with_ai_cache("ai-news-sentiment", symbol, flow.get_ai_news_sentiment)
-        logger.info("Successfully generated AI news sentiment for %s", symbol)
-        return JSONResponse(content=result)
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(
+                with_ai_cache, "ai-news-sentiment", symbol, flow.get_ai_news_sentiment
+            )
+            try:
+                result = future.result(timeout=30)
+                logger.info("Successfully generated AI news sentiment for %s", symbol)
+                return JSONResponse(content=result)
+            except concurrent.futures.TimeoutError:
+                logger.warning("News sentiment analysis timed out for %s", symbol)
+                raise HTTPException(
+                    status_code=504,
+                    detail="News sentiment analysis timed out. Please try again."
+                ) from None
     except HTTPException:
         raise
     except Exception as exc:  # pylint: disable=broad-except

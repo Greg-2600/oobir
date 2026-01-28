@@ -337,7 +337,7 @@ def get_news(ticker):
     """Retrieve news for a given ticker."""
     try:
         yf_obj = yf.Ticker(ticker)
-        news = yf_obj.get_news(count=10, tab="news")
+        news = yf_obj.get_news(count=5, tab="news")
         return news
 
     except Exception as exc:  # pylint: disable=broad-except
@@ -1342,25 +1342,42 @@ def get_ai_action_recommendation_single_word(ticker):
 
 
 def get_ai_news_sentiment(ticker):
-    """Analyze news sentiment for a ticker using AI."""
+    """Analyze news sentiment for a ticker using AI.
+    
+    Fetches recent news articles and uses AI to determine overall sentiment.
+    Returns quickly with cached data or a default response if news fetch times out.
+    """
     try:
-        news = get_news(ticker)
+        # Check cache first before fetching news
+        import db as cache_db
+        
+        cached_news = cache_db.get_cached_data("news", ticker)
+        if cached_news is not None:
+            news = cached_news
+        else:
+            # Cache miss - fetch fresh news
+            news = get_news(ticker)
+            if news:
+                cache_db.set_cached_data("news", news, ticker)
+        
         if not news:
-            return "No news available for analysis."
+            return "Unable to fetch recent news for sentiment analysis. Please try again."
 
         # Extract summaries from news articles
         summaries = []
         for article in news:
-            content = article.get("content", {})
-            summary = content.get("summary", "")
-            if summary:
-                summaries.append(summary)
+            if isinstance(article, dict):
+                content = article.get("content", {})
+                if isinstance(content, dict):
+                    summary = content.get("summary", "")
+                    if summary:
+                        summaries.append(summary)
 
         if not summaries:
-            return "No news summaries available for analysis."
+            return "No news summaries available for analysis. Check back later for market news."
 
-        # Combine summaries for AI analysis
-        combined_news = "\n".join(summaries[:5])  # Use top 5 articles
+        # Combine summaries for AI analysis (use top 3 for speed)
+        combined_news = "\n".join(summaries[:3])
 
         ensure_ollama()
         response = _CHAT(

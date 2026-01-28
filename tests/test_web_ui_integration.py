@@ -1,11 +1,12 @@
 """Integration tests for Web UI with REST API endpoints."""
 
-import unittest
-from unittest.mock import patch, MagicMock
-from fastapi.testclient import TestClient
 import json
-import sys
 import os
+import sys
+import unittest
+from unittest.mock import patch
+
+from fastapi.testclient import TestClient
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -235,7 +236,7 @@ class TestWebUIDataEndpoints(unittest.TestCase):
         if isinstance(data, list) and len(data) > 0:
             first_item = data[0]
             # Can be string ticker or object with ticker field
-            self.assertTrue(isinstance(first_item, str) or isinstance(first_item, dict))
+            self.assertIsInstance(first_item, (str, dict))
 
     @patch('flow.get_fundamentals')
     def test_fundamentals_supports_human_readable_market_cap(self, mock_get_fundamentals):
@@ -259,25 +260,41 @@ class TestWebUIDataEndpoints(unittest.TestCase):
             self.assertGreater(market_cap_value, 1e9)  # At least $1B
 
     @patch('flow.ensure_ollama')
-    def test_ai_action_recommendation_endpoint_for_ui_button(self, mock_ensure_ollama):
-        """Test AI recommendation endpoint works with Web UI on-demand button."""
-        # Mock is moved to flow module level
+    def test_ai_action_recommendation_endpoint_available(self, mock_ensure_ollama):
+        """Test AI recommendation endpoint is available.
+        
+        No longer displayed on results page but endpoint still works.
+        """
+        # NOTE: Fundamental Analysis card has been removed from Web UI results page
+        # This endpoint still works but is not called by the UI
         with patch('flow.get_ai_action_recommendation') as mock_recommendation:
-            mock_recommendation.return_value = 'BUY: Apple shows strong fundamentals with solid revenue growth and excellent market position.'
+            msg = (
+                'BUY: Apple shows strong fundamentals with solid revenue '
+                'growth and excellent market position.'
+            )
+            mock_recommendation.return_value = msg
 
             response = self.client.get('/api/ai/action-recommendation/AAPL')
 
             self.assertEqual(response.status_code, 200)
-            # Web UI expects string response
             data = response.json()
             self.assertIsInstance(data, str)
             self.assertGreater(len(data), 0)
 
     @patch('flow.ensure_ollama')
-    def test_technical_analysis_endpoint_for_ui_button(self, mock_ensure_ollama):
-        """Test technical analysis endpoint works with Web UI on-demand button."""
+    def test_technical_analysis_endpoint_available(self, mock_ensure_ollama):
+        """Test technical analysis endpoint is available.
+        
+        No longer displayed on results page but endpoint still works.
+        """
+        # NOTE: Technical Analysis card has been removed from Web UI results page
+        # This endpoint still works but is not called by the UI
         with patch('flow.get_ai_technical_analysis') as mock_technical:
-            mock_technical.return_value = 'Technical setup looks bullish with SMA 20 above SMA 50. RSI indicates room for further upside.'
+            msg = (
+                'Technical setup looks bullish with SMA 20 above SMA 50. '
+                'RSI indicates room for further upside.'
+            )
+            mock_technical.return_value = msg
 
             response = self.client.get('/api/ai/technical-analysis/AAPL')
 
@@ -286,16 +303,52 @@ class TestWebUIDataEndpoints(unittest.TestCase):
             self.assertIsInstance(data, str)
 
     @patch('flow.ensure_ollama')
-    def test_news_sentiment_endpoint_for_ui_button(self, mock_ensure_ollama):
-        """Test news sentiment endpoint works with Web UI on-demand button."""
+    def test_news_sentiment_ai_analysis_endpoint_on_results_page(self, mock_ensure_ollama):
+        """Test news sentiment AI analysis endpoint for displayed UI card on results page."""
         with patch('flow.get_ai_news_sentiment') as mock_sentiment:
-            mock_sentiment.return_value = 'Recent news sentiment is positive. Analyst upgrades and product launches driving positive outlook.'
+            msg = (
+                'Recent news sentiment is positive. '
+                'Analyst upgrades and product launches driving positive outlook.'
+            )
+            mock_sentiment.return_value = msg
 
             response = self.client.get('/api/ai/news-sentiment/AAPL')
 
             self.assertEqual(response.status_code, 200)
             data = response.json()
             self.assertIsInstance(data, str)
+
+
+class TestWebUIResultsPageLayout(unittest.TestCase):
+    """Test Web UI results page layout and visible cards.
+    
+    Current results page displays:
+    - Stock header with company name, sector, price trend
+    - Company description and metrics
+    - Candlestick price chart with technical indicators
+    - Financial data tables (fundamentals, analyst targets, balance sheet, income statement, calendar)
+    - News & Sentiment AI Analysis card (on-demand button)
+    
+    Removed from display (but still available via API):
+    - Fundamental Analysis card
+    - Technical Analysis card
+    """
+
+    def setUp(self):
+        """Set up test client."""
+        self.client = TestClient(flow_api.app)
+
+    @patch('flow.ensure_ollama')
+    def test_news_sentiment_ai_analysis_is_only_ai_card_displayed(self, mock_ensure_ollama):
+        """Test News & Sentiment AI Analysis is the only AI analysis card on results page."""
+        with patch('flow.get_ai_news_sentiment') as mock_sentiment:
+            mock_sentiment.return_value = 'Recent news sentiment is positive with strong investor confidence.'
+
+            response = self.client.get('/api/ai/news-sentiment/AAPL')
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertIsInstance(data, str)
+            self.assertGreater(len(data), 0)
 
 
 class TestTrendPredictionFeature(unittest.TestCase):
