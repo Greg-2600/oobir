@@ -43,6 +43,25 @@
 - **☁️ Cloud-Native**: Docker containerization for any cloud (AWS, Azure, GCP) or on-premises
 
 
+## 📸 Screenshots
+
+### Landing Page — Stock Screener
+![Landing Page](docs/screenshots/01_landing_page.png)
+
+### Stock Analysis — Overview & Trading Strategy
+![Stock Overview](docs/screenshots/02_stock_overview.png)
+
+### Company Summary & Price History Chart
+![Fundamentals & Chart](docs/screenshots/04_fundamentals_data.png)
+
+### REST API Documentation (Swagger UI)
+![API Docs](docs/screenshots/05_api_docs.png)
+
+### Stock Screener Page
+![Stock Screener](docs/screenshots/06_stock_screener.png)
+
+---
+
 ## ⚡ Quick Start (2 Minutes)
 
 ### Using Docker (Recommended)
