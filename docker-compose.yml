@@ -14,6 +14,20 @@ services:
       - ollama_data:/var/lib/ollama
     restart: unless-stopped
 
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    container_name: oobir_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: oobir
+      POSTGRES_USER: oobir
+      POSTGRES_PASSWORD: oobir
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+
   app:
     build:
       context: .
@@ -21,12 +35,58 @@ services:
     container_name: oobir_app
     ports:
       - "8000:8000"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    extra_hosts:
+      - "guce.yahoo.com:98.86.247.55"
+      - "finance.yahoo.com:209.73.190.12"
+      - "query1.finance.yahoo.com:209.73.190.12"
+      - "query2.finance.yahoo.com:209.73.190.11"
+      - "fc.yahoo.com:209.73.190.12"
     depends_on:
       ollama:
+        condition: service_started
+      postgres:
         condition: service_started
     environment:
       - OLLAMA_HOST=http://ollama:11434
       - OLLAMA_MODEL=huihui_ai/llama3.2-abliterate:3b
+      - PGHOST=postgres
+      - PGPORT=5432
+      - PGDATABASE=oobir
+      - PGUSER=oobir
+      - PGPASSWORD=oobir
+    restart: unless-stopped
+
+  daily-sync:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oobir_daily_sync
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    extra_hosts:
+      - "guce.yahoo.com:98.86.247.55"
+      - "finance.yahoo.com:209.73.190.12"
+      - "query1.finance.yahoo.com:209.73.190.12"
+      - "query2.finance.yahoo.com:209.73.190.11"
+      - "fc.yahoo.com:209.73.190.12"
+    depends_on:
+      postgres:
+        condition: service_started
+    environment:
+      - PGHOST=postgres
+      - PGPORT=5432
+      - PGDATABASE=oobir
+      - PGUSER=oobir
+      - PGPASSWORD=oobir
+      - TZ=America/New_York
+      - SYNC_HOUR=18
+      - SYNC_MINUTE=0
+      - SYNC_ON_STARTUP=0
+    command: ["python", "scripts/daily_sync_scheduler.py"]
     restart: unless-stopped
 
   web:
@@ -42,3 +102,4 @@ services:
 
 volumes:
   ollama_data:
+  postgres_data:

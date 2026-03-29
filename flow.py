@@ -70,7 +70,9 @@ def ensure_ollama(host: str | None = None):
     os.environ.setdefault("OLLAMA_BASE_URL", _host)
 
     if _CHAT is None:
-        from ollama import chat as _chat_fn  # pylint: disable=import-outside-toplevel,no-member
+        from ollama import (
+            chat as _chat_fn,
+        )  # pylint: disable=import-outside-toplevel,no-member
 
         try:
             from ollama import (
@@ -324,7 +326,10 @@ def get_option_chain(ticker):
             return option_chain.to_dict()
         except Exception:  # pylint: disable=broad-except
             try:
-                return [r._asdict() if hasattr(r, "_asdict") else dict(r) for r in option_chain]
+                return [
+                    r._asdict() if hasattr(r, "_asdict") else dict(r)
+                    for r in option_chain
+                ]
             except Exception:  # pylint: disable=broad-except
                 return option_chain
 
@@ -496,10 +501,15 @@ def _summarize_balance_sheet_for_prompt(balance_sheet):
     current_assets = _get_value("Total Current Assets", "Current Assets")
     current_liabilities = _get_value("Total Current Liabilities", "Current Liabilities")
     cash = _get_value(
-        "Cash And Cash Equivalents", "Cash And Cash Equivalents USD", "Cash", "Cash Equivalents"
+        "Cash And Cash Equivalents",
+        "Cash And Cash Equivalents USD",
+        "Cash",
+        "Cash Equivalents",
     )
     long_debt = _get_value("Long Term Debt", "LongTermDebt")
-    short_debt = _get_value("Short Long Term Debt", "Short Term Debt", "Short Term Borrowings")
+    short_debt = _get_value(
+        "Short Long Term Debt", "Short Term Debt", "Short Term Borrowings"
+    )
     total_debt = _get_value("Total Debt")
 
     if total_debt is None and (long_debt is not None or short_debt is not None):
@@ -570,10 +580,14 @@ def _render_balance_sheet_bullets(metrics):
         liquidity_bits.append(f"cash ratio {cash_ratio:.2f}")
     if working_capital is not None:
         liquidity_bits.append(
-            "positive working capital" if working_capital > 0 else "working capital tight"
+            "positive working capital"
+            if working_capital > 0
+            else "working capital tight"
         )
     liquidity = (
-        ", ".join(liquidity_bits) if liquidity_bits else "insufficient data on near-term coverage"
+        ", ".join(liquidity_bits)
+        if liquidity_bits
+        else "insufficient data on near-term coverage"
     )
 
     leverage_bits = []
@@ -581,18 +595,26 @@ def _render_balance_sheet_bullets(metrics):
         leverage_bits.append(f"D/E {debt_to_equity:.2f}")
     if total_debt is not None:
         leverage_bits.append(
-            "net cash" if (net_debt is not None and net_debt < 0) else "net debt present"
+            "net cash"
+            if (net_debt is not None and net_debt < 0)
+            else "net debt present"
         )
     if equity is not None:
         leverage_bits.append("equity positive" if equity > 0 else "equity negative")
-    leverage = ", ".join(leverage_bits) if leverage_bits else "unable to assess leverage"
+    leverage = (
+        ", ".join(leverage_bits) if leverage_bits else "unable to assess leverage"
+    )
 
     margin_bits = []
     if equity is not None and total_assets not in (None, 0):
         margin_bits.append(f"equity {equity / total_assets:.0%} of assets")
     if total_assets is not None and total_liabilities not in (None, 0):
-        margin_bits.append(f"assets/liabilities {total_assets / total_liabilities:.2f}x")
-    margin = ", ".join(margin_bits) if margin_bits else "limited without price or earnings"
+        margin_bits.append(
+            f"assets/liabilities {total_assets / total_liabilities:.2f}x"
+        )
+    margin = (
+        ", ".join(margin_bits) if margin_bits else "limited without price or earnings"
+    )
 
     liquidity_line = f"Liquidity: {liquidity}"
     leverage_line = f"Leverage: {leverage}"
@@ -922,7 +944,9 @@ def get_ai_quarterly_income_stm_analysis(ticker):
             revenue = _get_value("Total Revenue", "Revenue")
             gross_profit = _get_value("Gross Profit", "GrossProfit")
             operating_income = _get_value("Operating Income", "OperatingIncome")
-            net_income = _get_value("Net Income", "NetIncome", "Net Income Common Stockholders")
+            net_income = _get_value(
+                "Net Income", "NetIncome", "Net Income Common Stockholders"
+            )
             eps = _get_value("Diluted EPS", "Basic EPS", "Earnings Per Share")
 
             gross_margin = None
@@ -931,18 +955,24 @@ def get_ai_quarterly_income_stm_analysis(ticker):
             if revenue not in (None, 0):
                 try:
                     gross_margin = (
-                        (gross_profit or 0) / revenue if gross_profit is not None else None
+                        (gross_profit or 0) / revenue
+                        if gross_profit is not None
+                        else None
                     )
                 except Exception:
                     gross_margin = None
                 try:
                     operating_margin = (
-                        (operating_income or 0) / revenue if operating_income is not None else None
+                        (operating_income or 0) / revenue
+                        if operating_income is not None
+                        else None
                     )
                 except Exception:
                     operating_margin = None
                 try:
-                    net_margin = (net_income or 0) / revenue if net_income is not None else None
+                    net_margin = (
+                        (net_income or 0) / revenue if net_income is not None else None
+                    )
                 except Exception:
                     net_margin = None
 
@@ -974,8 +1004,12 @@ def get_ai_quarterly_income_stm_analysis(ticker):
             net_income = summary.get("net_income")
             eps = summary.get("eps")
 
-            rev_bit = f"revenue ${revenue:,.0f}" if revenue is not None else "revenue n/a"
-            profit_bit = f"net ${net_income:,.0f}" if net_income is not None else "net n/a"
+            rev_bit = (
+                f"revenue ${revenue:,.0f}" if revenue is not None else "revenue n/a"
+            )
+            profit_bit = (
+                f"net ${net_income:,.0f}" if net_income is not None else "net n/a"
+            )
             margins = []
             if gross_margin is not None:
                 margins.append(f"gross {gross_margin:.0%}")
@@ -1021,7 +1055,9 @@ def get_ai_quarterly_income_stm_analysis(ticker):
                 return formatted
             return _render_income_stmt_bullets(summary)
 
-        summary_metrics, period = _summarize_income_stmt_for_prompt(quarterly_income_stm)
+        summary_metrics, period = _summarize_income_stmt_for_prompt(
+            quarterly_income_stm
+        )
         if not summary_metrics:
             return "Income statement data unavailable for analysis."
 
@@ -1181,7 +1217,9 @@ def _calculate_technical_indicators(price_df):
         if len(recent_closes) > 0:
             recent_high = recent_closes.max()
             recent_low = recent_closes.min()
-            indicators.append(f"- 5-day High: ${recent_high:.2f}, Low: ${recent_low:.2f}")
+            indicators.append(
+                f"- 5-day High: ${recent_high:.2f}, Low: ${recent_low:.2f}"
+            )
 
         return "\n".join(indicators)
 
@@ -1343,14 +1381,14 @@ def get_ai_action_recommendation_single_word(ticker):
 
 def get_ai_news_sentiment(ticker):
     """Analyze news sentiment for a ticker using AI.
-    
+
     Fetches recent news articles and uses AI to determine overall sentiment.
     Returns quickly with cached data or a default response if news fetch times out.
     """
     try:
         # Check cache first before fetching news
         import db as cache_db
-        
+
         cached_news = cache_db.get_cached_data("news", ticker)
         if cached_news is not None:
             news = cached_news
@@ -1359,9 +1397,11 @@ def get_ai_news_sentiment(ticker):
             news = get_news(ticker)
             if news:
                 cache_db.set_cached_data("news", news, ticker)
-        
+
         if not news:
-            return "Unable to fetch recent news for sentiment analysis. Please try again."
+            return (
+                "Unable to fetch recent news for sentiment analysis. Please try again."
+            )
 
         # Extract summaries from news articles
         summaries = []
@@ -1432,7 +1472,9 @@ def get_ai_full_report(ticker):
             ],
         )
 
-        full_report = getattr(response, "message", response).content  # pylint: disable=no-member
+        full_report = getattr(
+            response, "message", response
+        ).content  # pylint: disable=no-member
         return full_report
 
     except Exception as exc:  # pylint: disable=broad-except
@@ -1501,7 +1543,7 @@ def get_trading_strategy(ticker):
         current_price = float(price_df["Close"].iloc[-1])
 
         # Calculate technical indicators
-        technical_indicators = _calculate_technical_indicators(price_df)
+        _calculate_technical_indicators(price_df)
 
         # Extract key technical values
         df = price_df.copy()
@@ -1510,10 +1552,14 @@ def get_trading_strategy(ticker):
         df["SMA_20"] = df["Close"].rolling(window=20).mean()
         df["SMA_50"] = df["Close"].rolling(window=50).mean()
         sma_20 = (
-            float(df["SMA_20"].iloc[-1]) if not pd.isna(df["SMA_20"].iloc[-1]) else current_price
+            float(df["SMA_20"].iloc[-1])
+            if not pd.isna(df["SMA_20"].iloc[-1])
+            else current_price
         )
         sma_50 = (
-            float(df["SMA_50"].iloc[-1]) if not pd.isna(df["SMA_50"].iloc[-1]) else current_price
+            float(df["SMA_50"].iloc[-1])
+            if not pd.isna(df["SMA_50"].iloc[-1])
+            else current_price
         )
 
         # RSI
@@ -1547,7 +1593,9 @@ def get_trading_strategy(ticker):
         df["MACD_Signal"] = df["MACD"].ewm(span=9).mean()
         macd = float(df["MACD"].iloc[-1]) if not pd.isna(df["MACD"].iloc[-1]) else 0
         macd_signal = (
-            float(df["MACD_Signal"].iloc[-1]) if not pd.isna(df["MACD_Signal"].iloc[-1]) else 0
+            float(df["MACD_Signal"].iloc[-1])
+            if not pd.isna(df["MACD_Signal"].iloc[-1])
+            else 0
         )
 
         # Determine signals
@@ -1651,7 +1699,9 @@ def get_trading_strategy(ticker):
                 {
                     "level": "conservative",
                     "price": conservative_target,
-                    "gain_pct": round(((conservative_target / current_price) - 1) * 100, 1),
+                    "gain_pct": round(
+                        ((conservative_target / current_price) - 1) * 100, 1
+                    ),
                 },
                 {
                     "level": "moderate",
@@ -1661,7 +1711,9 @@ def get_trading_strategy(ticker):
                 {
                     "level": "aggressive",
                     "price": aggressive_target,
-                    "gain_pct": round(((aggressive_target / current_price) - 1) * 100, 1),
+                    "gain_pct": round(
+                        ((aggressive_target / current_price) - 1) * 100, 1
+                    ),
                 },
             ]
 
@@ -1689,7 +1741,9 @@ def get_trading_strategy(ticker):
                 {
                     "level": "conservative",
                     "price": conservative_target,
-                    "gain_pct": round(((current_price / conservative_target) - 1) * 100, 1),
+                    "gain_pct": round(
+                        ((current_price / conservative_target) - 1) * 100, 1
+                    ),
                 },
                 {
                     "level": "moderate",
@@ -1699,7 +1753,9 @@ def get_trading_strategy(ticker):
                 {
                     "level": "aggressive",
                     "price": aggressive_target,
-                    "gain_pct": round(((current_price / aggressive_target) - 1) * 100, 1),
+                    "gain_pct": round(
+                        ((current_price / aggressive_target) - 1) * 100, 1
+                    ),
                 },
             ]
 
@@ -1715,7 +1771,9 @@ def get_trading_strategy(ticker):
         risk_reward_ratio = None
         if stop_loss and len(exit_targets) > 0:
             risk = abs(current_price - stop_loss)
-            reward = abs(exit_targets[1]["price"] - current_price)  # Use moderate target
+            reward = abs(
+                exit_targets[1]["price"] - current_price
+            )  # Use moderate target
             if risk > 0:
                 risk_reward_ratio = round(reward / risk, 2)
 
@@ -1770,7 +1828,9 @@ def get_trading_strategy(ticker):
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Run oobir analysis functions on a ticker")
+    parser = argparse.ArgumentParser(
+        description="Run oobir analysis functions on a ticker"
+    )
     parser.add_argument("ticker", nargs="?", help="Ticker symbol (e.g. AAPL)")
     parser.add_argument(
         "func",
@@ -1778,7 +1838,9 @@ if __name__ == "__main__":
         help="Function to call (default: get_ai_fundamental_analysis)",
         default="get_ai_fundamental_analysis",
     )
-    parser.add_argument("--host", help="Override OLLAMA host URL (e.g. http://192.168.1.248:11434)")
+    parser.add_argument(
+        "--host", help="Override OLLAMA host URL (e.g. http://192.168.1.248:11434)"
+    )
     parser.add_argument(
         "--list", action="store_true", help="List available 'get_' functions and exit"
     )
@@ -1796,7 +1858,9 @@ if __name__ == "__main__":
         sys.exit(0)
 
     if not args.ticker:
-        print("No ticker provided. Example: python flow.py AAPL get_ai_fundamental_analysis")
+        print(
+            "No ticker provided. Example: python flow.py AAPL get_ai_fundamental_analysis"
+        )
         sys.exit(1)
 
     func_name = args.func

@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fundamental Screener - OOBIR</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+    .screener-page {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
+    }
+    .screener-header {
+        background: white;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 20px 0;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .screener-header-content {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+    }
+    .screener-logo {
+        font-size: 1.8em;
+        font-weight: 300;
+        letter-spacing: -1px;
+        color: #1a73e8;
+        cursor: pointer;
+        text-decoration: none;
+    }
+    .screener-nav { display: flex; gap: 12px; align-items: center; }
+    .screener-nav a {
+        padding: 8px 16px;
+        border-radius: 20px;
+        text-decoration: none;
+        font-size: 0.9em;
+        font-weight: 500;
+        color: #374151;
+        background: #f3f4f6;
+        transition: all .15s ease;
+    }
+    .screener-nav a:hover { background: #e5e7eb; }
+    .screener-nav a.active { background: #1a73e8; color: #fff; }
+
+    .screener-content {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 30px 20px;
+    }
+    .screener-title {
+        font-size: 1.8em;
+        margin-bottom: 8px;
+        color: #1f2937;
+    }
+    .screener-subtitle {
+        color: #6b7280;
+        margin-bottom: 24px;
+    }
+
+    /* Filters */
+    .filters-panel {
+        background: white;
+        border-radius: 12px;
+        padding: 20px 24px;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        border: 1px solid #e5e7eb;
+    }
+    .filters-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: flex-end;
+    }
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 140px;
+    }
+    .filter-group label {
+        font-size: 0.78em;
+        font-weight: 600;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .filter-group select,
+    .filter-group input {
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 0.9em;
+        background: white;
+        color: #374151;
+        outline: none;
+        transition: border-color .15s;
+    }
+    .filter-group select:focus,
+    .filter-group input:focus {
+        border-color: #1a73e8;
+        box-shadow: 0 0 0 3px rgba(26,115,232,0.1);
+    }
+    .filter-actions {
+        display: flex;
+        gap: 8px;
+        align-items: flex-end;
+    }
+    .btn-search {
+        padding: 8px 24px;
+        background: #1a73e8;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.9em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background .15s;
+    }
+    .btn-search:hover { background: #1557b0; }
+    .btn-reset {
+        padding: 8px 16px;
+        background: #f3f4f6;
+        color: #374151;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 0.9em;
+        cursor: pointer;
+    }
+    .btn-reset:hover { background: #e5e7eb; }
+
+    /* Results */
+    .results-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        color: #6b7280;
+        font-size: 0.9em;
+    }
+    .results-count { font-weight: 600; color: #374151; }
+
+    .stock-table-wrap {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        border: 1px solid #e5e7eb;
+    }
+    .stock-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.88em;
+    }
+    .stock-table thead {
+        background: #f9fafb;
+        border-bottom: 2px solid #e5e7eb;
+    }
+    .stock-table th {
+        padding: 12px 14px;
+        text-align: left;
+        font-weight: 600;
+        color: #374151;
+        white-space: nowrap;
+        cursor: pointer;
+        user-select: none;
+    }
+    .stock-table th:hover { background: #f3f4f6; }
+    .stock-table th .sort-arrow { margin-left: 4px; font-size: 0.8em; color: #9ca3af; }
+    .stock-table th.sorted .sort-arrow { color: #1a73e8; }
+    .stock-table td {
+        padding: 10px 14px;
+        border-bottom: 1px solid #f3f4f6;
+        color: #374151;
+        white-space: nowrap;
+    }
+    .stock-table tbody tr {
+        cursor: pointer;
+        transition: background .1s;
+    }
+    .stock-table tbody tr:hover { background: #f0f7ff; }
+    .stock-table .ticker-cell {
+        font-weight: 700;
+        color: #1a73e8;
+        letter-spacing: 0.5px;
+    }
+    .stock-table .company-cell {
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #6b7280;
+        font-size: 0.92em;
+    }
+    .stock-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .stock-table .positive { color: #16a34a; }
+    .stock-table .negative { color: #dc2626; }
+    .stock-table .muted { color: #9ca3af; }
+
+    .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.8em;
+        font-weight: 600;
+    }
+    .badge-buy { background: #dcfce7; color: #166534; }
+    .badge-sell { background: #fee2e2; color: #991b1b; }
+    .badge-hold { background: #fef9c3; color: #854d0e; }
+    .badge-sector {
+        background: #eff6ff;
+        color: #1e40af;
+        font-size: 0.78em;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #9ca3af;
+    }
+    .empty-state h3 { color: #6b7280; margin-bottom: 8px; }
+
+    .loading-overlay {
+        text-align: center;
+        padding: 40px;
+        color: #6b7280;
+    }
+    .loading-overlay .spinner {
+        width: 36px; height: 36px;
+        border: 3px solid #f3f4f6;
+        border-top-color: #1a73e8;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 768px) {
+        .screener-header-content { flex-direction: column; align-items: stretch; }
+        .filters-row { flex-direction: column; }
+        .filter-group { min-width: 100%; }
+        .stock-table-wrap { overflow-x: auto; }
+    }
+    </style>
+</head>
+<body>
+    <div class="screener-page">
+        <div class="screener-header">
+            <div class="screener-header-content">
+                <a class="screener-logo" href="search.html">OOBIR</a>
+                <nav class="screener-nav">
+                    <a href="search.html">Search</a>
+                    <a href="index.html">Stock Screen</a>
+                    <a href="screener.html" class="active">Fundamentals</a>
+                    <a href="markets.html">Markets</a>
+                </nav>
+            </div>
+        </div>
+
+        <div class="screener-content">
+            <h1 class="screener-title">📊 Fundamental Screener</h1>
+            <p class="screener-subtitle">Filter and compare stocks by key financial metrics</p>
+
+            <!-- Filters -->
+            <div class="filters-panel">
+                <form id="filter-form" class="filters-row">
+                    <div class="filter-group">
+                        <label>Sector</label>
+                        <select id="f-sector">
+                            <option value="">All Sectors</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Min Market Cap</label>
+                        <select id="f-market-cap">
+                            <option value="">Any</option>
+                            <option value="10000000000">$10B+ (Large)</option>
+                            <option value="100000000000">$100B+ (Mega)</option>
+                            <option value="500000000000">$500B+ (Ultra)</option>
+                            <option value="1000000000000">$1T+</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Max P/E Ratio</label>
+                        <input id="f-max-pe" type="number" step="0.1" placeholder="e.g. 25">
+                    </div>
+                    <div class="filter-group">
+                        <label>Min Dividend Yield</label>
+                        <input id="f-min-div" type="number" step="0.001" placeholder="e.g. 0.02">
+                    </div>
+                    <div class="filter-group">
+                        <label>Min ROE</label>
+                        <input id="f-min-roe" type="number" step="0.01" placeholder="e.g. 0.15">
+                    </div>
+                    <div class="filter-group">
+                        <label>Max Debt/Equity</label>
+                        <input id="f-max-de" type="number" step="1" placeholder="e.g. 100">
+                    </div>
+                    <div class="filter-actions">
+                        <button type="submit" class="btn-search">Search</button>
+                        <button type="button" id="reset-btn" class="btn-reset">Reset</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Results info -->
+            <div class="results-info">
+                <span id="results-count"></span>
+                <span id="sort-info"></span>
+            </div>
+
+            <!-- Table -->
+            <div id="table-container">
+                <div class="loading-overlay">
+                    <div class="spinner"></div>
+                    <p>Loading fundamentals...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script>
+    (function () {
+        const API = window.OOBIR_API_BASE || 'http://localhost:8000';
+        let currentSort = 'market_cap';
+        let currentDir = 'desc';
+        let allData = [];
+
+        // ── Formatting helpers ──
+        function fmtCurrency(v) {
+            if (v == null) return '—';
+            if (Math.abs(v) >= 1e12) return '$' + (v / 1e12).toFixed(2) + 'T';
+            if (Math.abs(v) >= 1e9)  return '$' + (v / 1e9).toFixed(2) + 'B';
+            if (Math.abs(v) >= 1e6)  return '$' + (v / 1e6).toFixed(1) + 'M';
+            return '$' + Number(v).toLocaleString();
+        }
+        function fmtNum(v, dec) {
+            if (v == null) return '—';
+            return Number(v).toFixed(dec ?? 2);
+        }
+        function fmtPct(v) {
+            if (v == null) return '—';
+            return (v * 100).toFixed(2) + '%';
+        }
+        function fmtPrice(v) {
+            if (v == null) return '—';
+            return '$' + Number(v).toFixed(2);
+        }
+        function recBadge(rec) {
+            if (!rec) return '';
+            const lower = rec.toLowerCase();
+            let cls = 'badge-hold';
+            if (lower.includes('buy') || lower === 'strong_buy') cls = 'badge-buy';
+            else if (lower.includes('sell') || lower === 'strong_sell') cls = 'badge-sell';
+            return `<span class="badge ${cls}">${rec.replace('_', ' ')}</span>`;
+        }
+        function valClass(v, good) {
+            if (v == null) return 'muted';
+            return good ? 'positive' : 'negative';
+        }
+
+        // ── Load sectors ──
+        async function loadSectors() {
+            try {
+                const res = await fetch(`${API}/api/fundamentals-db/sectors`);
+                const data = await res.json();
+                const sel = document.getElementById('f-sector');
+                (data.sectors || []).forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s;
+                    opt.textContent = s;
+                    sel.appendChild(opt);
+                });
+            } catch (e) {
+                console.error('Failed to load sectors', e);
+            }
+        }
+
+        // ── Build query string ──
+        function buildQuery() {
+            const params = new URLSearchParams();
+            const sector = document.getElementById('f-sector').value;
+            const mc = document.getElementById('f-market-cap').value;
+            const pe = document.getElementById('f-max-pe').value;
+            const div = document.getElementById('f-min-div').value;
+            const roe = document.getElementById('f-min-roe').value;
+            const de = document.getElementById('f-max-de').value;
+
+            if (sector) params.set('sector', sector);
+            if (mc)     params.set('min_market_cap', mc);
+            if (pe)     params.set('max_pe', pe);
+            if (div)    params.set('min_dividend_yield', div);
+            if (roe)    params.set('min_roe', roe);
+            if (de)     params.set('max_debt_to_equity', de);
+
+            params.set('sort_by', currentSort);
+            params.set('sort_dir', currentDir);
+            params.set('limit', '100');
+            return params.toString();
+        }
+
+        // ── Render table ──
+        function renderTable(data) {
+            allData = data;
+            const container = document.getElementById('table-container');
+
+            if (!data || data.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No stocks match your filters</h3>
+                        <p>Try adjusting the criteria above</p>
+                    </div>`;
+                document.getElementById('results-count').textContent = '0 results';
+                return;
+            }
+
+            document.getElementById('results-count').innerHTML =
+                `<span class="results-count">${data.length}</span> stocks found`;
+
+            const columns = [
+                { key: 'ticker',            label: 'Ticker',       fmt: null },
+                { key: 'short_name',        label: 'Company',      fmt: null },
+                { key: 'sector',            label: 'Sector',       fmt: null },
+                { key: 'current_price',     label: 'Price',        fmt: fmtPrice,   cls: 'num' },
+                { key: 'market_cap',        label: 'Mkt Cap',      fmt: fmtCurrency, cls: 'num' },
+                { key: 'trailing_pe',       label: 'P/E',          fmt: v => fmtNum(v, 1), cls: 'num' },
+                { key: 'forward_pe',        label: 'Fwd P/E',      fmt: v => fmtNum(v, 1), cls: 'num' },
+                { key: 'peg_ratio',         label: 'PEG',          fmt: v => fmtNum(v, 2), cls: 'num' },
+                { key: 'dividend_yield',    label: 'Div Yield',    fmt: fmtPct,     cls: 'num' },
+                { key: 'return_on_equity',  label: 'ROE',          fmt: fmtPct,     cls: 'num' },
+                { key: 'profit_margins',    label: 'Margin',       fmt: fmtPct,     cls: 'num' },
+                { key: 'revenue_growth',    label: 'Rev Growth',   fmt: fmtPct,     cls: 'num' },
+                { key: 'debt_to_equity',    label: 'D/E',          fmt: v => fmtNum(v, 1), cls: 'num' },
+                { key: 'recommendation_key',label: 'Rating',       fmt: recBadge },
+            ];
+
+            let html = '<div class="stock-table-wrap"><table class="stock-table"><thead><tr>';
+            columns.forEach(c => {
+                const isSorted = c.key === currentSort;
+                const arrow = isSorted ? (currentDir === 'asc' ? '▲' : '▼') : '⇅';
+                html += `<th class="${isSorted ? 'sorted' : ''} ${c.cls || ''}" data-col="${c.key}">
+                    ${c.label} <span class="sort-arrow">${arrow}</span></th>`;
+            });
+            html += '</tr></thead><tbody>';
+
+            data.forEach(row => {
+                html += `<tr data-ticker="${row.ticker}">`;
+                columns.forEach(c => {
+                    const v = row[c.key];
+                    if (c.key === 'ticker') {
+                        html += `<td class="ticker-cell">${v || '—'}</td>`;
+                    } else if (c.key === 'short_name') {
+                        html += `<td class="company-cell" title="${v || ''}">${v || '—'}</td>`;
+                    } else if (c.key === 'sector') {
+                        html += `<td>${v ? `<span class="badge badge-sector">${v}</span>` : '—'}</td>`;
+                    } else if (c.fmt) {
+                        const formatted = c.fmt(v);
+                        let cls = c.cls || '';
+                        // Color-code growth and return metrics
+                        if (['return_on_equity','profit_margins','revenue_growth','earnings_growth'].includes(c.key) && v != null) {
+                            cls += v >= 0 ? ' positive' : ' negative';
+                        }
+                        html += `<td class="${cls}">${formatted}</td>`;
+                    } else {
+                        html += `<td class="${c.cls || ''}">${v != null ? v : '—'}</td>`;
+                    }
+                });
+                html += '</tr>';
+            });
+
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+
+            // Click row → go to stock detail
+            container.querySelectorAll('tr[data-ticker]').forEach(tr => {
+                tr.addEventListener('click', () => {
+                    window.location.href = 'index.html?ticker=' + encodeURIComponent(tr.dataset.ticker);
+                });
+            });
+
+            // Click header → sort
+            container.querySelectorAll('th[data-col]').forEach(th => {
+                th.addEventListener('click', () => {
+                    const col = th.dataset.col;
+                    if (col === currentSort) {
+                        currentDir = currentDir === 'desc' ? 'asc' : 'desc';
+                    } else {
+                        currentSort = col;
+                        currentDir = 'desc';
+                    }
+                    fetchData();
+                });
+            });
+        }
+
+        // ── Fetch data ──
+        async function fetchData() {
+            const container = document.getElementById('table-container');
+            container.innerHTML = '<div class="loading-overlay"><div class="spinner"></div><p>Searching...</p></div>';
+
+            try {
+                const res = await fetch(`${API}/api/fundamentals-db?${buildQuery()}`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                renderTable(data.results || []);
+            } catch (e) {
+                container.innerHTML = `<div class="empty-state"><h3>Error loading data</h3><p>${e.message}</p></div>`;
+            }
+        }
+
+        // ── Events ──
+        document.getElementById('filter-form').addEventListener('submit', e => {
+            e.preventDefault();
+            fetchData();
+        });
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            document.getElementById('filter-form').reset();
+            currentSort = 'market_cap';
+            currentDir = 'desc';
+            fetchData();
+        });
+
+        // ── Init ──
+        loadSectors();
+        fetchData();
+    })();
+    </script>
+</body>
+</html>

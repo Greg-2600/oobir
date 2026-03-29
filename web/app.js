@@ -663,24 +663,25 @@ async function loadStockData(ticker, replaceHistory = false) {
     // Initialize News & Sentiment
     initializeNewsSentiment(ticker);
 
-    // Load news first to get dates for chart markers
-    await fetchData(`/api/news/${ticker}`, 'news-data', renderNews);
+    // Start all requests immediately, but only block first render on core sections.
+    // Optional sections continue loading in the background so the page becomes usable faster.
+    const corePromises = [
+        fetchData(`/api/price-history/${ticker}`, 'price-history-data', renderPriceHistory),
+        fetchData(`/api/fundamentals/${ticker}`, 'fundamentals-data', renderFundamentals)
+    ];
 
-    // Load sentiment analysis in background (non-blocking) to color news markers
-    // This fires async without blocking chart rendering
+    const optionalPromises = [
+        fetchData(`/api/news/${ticker}`, 'news-data', renderNews),
+        fetchData(`/api/analyst-targets/${ticker}`, 'analyst-targets-data', renderAnalystTargets),
+        fetchData(`/api/calendar/${ticker}`, 'calendar-data', renderCalendar),
+        fetchData(`/api/option-chain/${ticker}`, 'option-chain-data', renderOptionChain)
+    ];
+
+    // Load sentiment analysis in background (non-blocking)
     loadNewsSentimentBackground(ticker);
 
-    // Load all other data concurrently
-    const dataPromises = {
-        fundamentals: fetchData(`/api/fundamentals/${ticker}`, 'fundamentals-data', renderFundamentals),
-        priceHistory: fetchData(`/api/price-history/${ticker}`, 'price-history-data', renderPriceHistory),
-        analystTargets: fetchData(`/api/analyst-targets/${ticker}`, 'analyst-targets-data', renderAnalystTargets),
-        calendar: fetchData(`/api/calendar/${ticker}`, 'calendar-data', renderCalendar),
-        optionChain: fetchData(`/api/option-chain/${ticker}`, 'option-chain-data', renderOptionChain)
-    };
-
-    // Wait for all data to load
-    await Promise.allSettled(Object.values(dataPromises));
+    // Wait for core data before revealing the results view
+    await Promise.allSettled(corePromises);
     const techContainer = document.getElementById('technical-signals-data');
     if (techContainer) {
         renderTechnicalSignals(null, techContainer);
@@ -689,6 +690,9 @@ async function loadStockData(ticker, replaceHistory = false) {
     // Show results
     loadingSpinner.classList.add('hidden');
     resultsContainer.classList.remove('hidden');
+
+    // Keep optional work detached from initial page load latency
+    Promise.allSettled(optionalPromises);
 }
 
 // Initialize news sentiment with button
@@ -1512,6 +1516,12 @@ function renderNews(data, container) {
     }).join('');
 
     container.innerHTML = html;
+
+    // If price chart already rendered, refresh it so news markers appear.
+    const priceHistoryContainer = document.getElementById('price-history-data');
+    if (priceHistoryContainer && window.lastPriceData) {
+        renderPriceHistory(window.lastPriceData, priceHistoryContainer);
+    }
 }
 
 function renderOptionChain(data, container) {

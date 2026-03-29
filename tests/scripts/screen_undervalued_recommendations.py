@@ -67,7 +67,7 @@ def get_technical_analysis(base_url: str, ticker: str) -> str:
     Handles both JSON and raw-string responses. Retries on failure.
     """
     url = urljoin(base_url, f"/api/ai/technical-analysis/{ticker}")
-    
+
     for attempt in range(MAX_RETRIES):
         try:
             r = requests.get(url, timeout=TIMEOUT_SECONDS)
@@ -89,7 +89,10 @@ def get_technical_analysis(base_url: str, ticker: str) -> str:
                 return r.text.strip().strip('"')
         except (requests.Timeout, requests.ConnectionError) as exc:
             if attempt < MAX_RETRIES - 1:
-                print(f"  {ticker}: Timeout/connection error (attempt {attempt + 1}/{MAX_RETRIES}), retrying in {RETRY_DELAY}s...", file=sys.stderr)
+                print(
+                    f"  {ticker}: Timeout/connection error (attempt {attempt + 1}/{MAX_RETRIES}), retrying in {RETRY_DELAY}s...",
+                    file=sys.stderr,
+                )
                 time.sleep(RETRY_DELAY)
             else:
                 raise Exception(f"Timeout after {MAX_RETRIES} attempts: {exc}") from exc

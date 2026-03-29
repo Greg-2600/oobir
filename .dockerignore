@@ -1,2 +1,10 @@
 venv
+.venv
+__pycache__
+*.pyc
+*.pyo
+historical_data
+.git
+docs
+tests
 

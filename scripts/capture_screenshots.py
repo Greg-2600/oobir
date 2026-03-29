@@ -31,17 +31,23 @@ def capture_screenshots():
         time.sleep(2)
 
         # 3. Stock overview - top section with chart
-        page.screenshot(path=f"{SCREENSHOTS_DIR}/02_stock_overview.png", full_page=False)
+        page.screenshot(
+            path=f"{SCREENSHOTS_DIR}/02_stock_overview.png", full_page=False
+        )
         print("✓ Stock overview captured")
 
         # 4. Full page with all data cards
-        page.screenshot(path=f"{SCREENSHOTS_DIR}/03_stock_full_page.png", full_page=True)
+        page.screenshot(
+            path=f"{SCREENSHOTS_DIR}/03_stock_full_page.png", full_page=True
+        )
         print("✓ Full stock page captured")
 
         # 5. Scroll down to see fundamentals and data cards
         page.evaluate("window.scrollBy(0, 900)")
         time.sleep(1)
-        page.screenshot(path=f"{SCREENSHOTS_DIR}/04_fundamentals_data.png", full_page=False)
+        page.screenshot(
+            path=f"{SCREENSHOTS_DIR}/04_fundamentals_data.png", full_page=False
+        )
         print("✓ Fundamentals data captured")
 
         # 6. Try the API docs page
@@ -59,7 +65,9 @@ def capture_screenshots():
             page3.goto(f"{BASE_URL}/stocks.html")
             page3.wait_for_load_state("networkidle")
             time.sleep(3)
-            page3.screenshot(path=f"{SCREENSHOTS_DIR}/06_stock_screener.png", full_page=False)
+            page3.screenshot(
+                path=f"{SCREENSHOTS_DIR}/06_stock_screener.png", full_page=False
+            )
             print("✓ Stock screener captured")
             page3.close()
         except Exception as e:
