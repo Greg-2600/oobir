@@ -5,7 +5,11 @@ RUN useradd --create-home --shell /bin/bash app || true
 WORKDIR /home/app/oobir
 
 # Install system dependencies needed for some Python wheels
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Note: cp trick works around BuildKit read-only /etc/resolv.conf
+RUN cp /etc/resolv.conf /tmp/resolv.conf.bak || true \
+ && (echo "nameserver 8.8.8.8" | tee /etc/resolv.conf 2>/dev/null || true) \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     ca-certificates \

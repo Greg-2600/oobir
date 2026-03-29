@@ -48,25 +48,25 @@ def init_db():
                 UNIQUE(endpoint, symbol)
             )
         """)
-        
+
         conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_endpoint_symbol 
             ON cache(endpoint, symbol)
         """)
-        
+
         logger.info("Database initialized successfully")
 
 
 def _is_market_open_now():
     """Check if the US stock market is currently open."""
     now = datetime.now()
-    
+
     # Check if it's a weekday (Monday=0, Sunday=6)
     is_weekday = now.weekday() < 5
-    
+
     if not is_weekday:
         return False
-    
+
     # Check if current time is within market hours (ET)
     current_time = now.time()
     return MARKET_OPEN_TIME <= current_time <= MARKET_CLOSE_TIME
@@ -75,11 +75,11 @@ def _is_market_open_now():
 def _should_expire_cache(cached_at_str: str) -> bool:
     """
     Determine if cache should expire based on market status.
-    
+
     Market-aware logic (current behavior):
     - If market is currently open: expire cache older than 1 hour
     - If market is closed: never expire (keep indefinitely)
-    
+
     Note:
     This replaces the previous implementation, which used a 24-hour expiration
     policy with market-open awareness. Callers relying on the older behavior
@@ -100,11 +100,15 @@ def _should_expire_cache(cached_at_str: str) -> bool:
         # If market is currently open, be more aggressive: expire if older than 1 hour
         if _is_market_open_now():
             if cache_age_seconds > 3600:
-                logger.debug(f"Cache expired: {cache_age_seconds/60:.1f} minutes old (market open)")
+                logger.debug(
+                    f"Cache expired: {cache_age_seconds/60:.1f} minutes old (market open)"
+                )
                 return True
 
         # Otherwise, keep the cache
-        logger.debug(f"Cache kept: age {cache_age_seconds/60:.1f} minutes, market open={_is_market_open_now()}")
+        logger.debug(
+            f"Cache kept: age {cache_age_seconds/60:.1f} minutes, market open={_is_market_open_now()}"
+        )
         return False
     except Exception as e:
         logger.error(f"Error checking cache expiration: {e}")
@@ -115,11 +119,11 @@ def _should_expire_cache(cached_at_str: str) -> bool:
 def get_cached_data(endpoint: str, symbol: str):
     """
     Get cached data if it exists and hasn't expired.
-    
+
     Args:
         endpoint: API endpoint name (e.g., 'price-history', 'news')
         symbol: Stock ticker symbol
-        
+
     Returns:
         Cached data dict or None if cache miss/expired
     """
@@ -127,41 +131,46 @@ def get_cached_data(endpoint: str, symbol: str):
         with get_db_connection() as conn:
             cursor = conn.execute(
                 "SELECT data, cached_at, market_aware FROM cache WHERE endpoint = ? AND symbol = ?",
-                (endpoint, symbol)
+                (endpoint, symbol),
             )
             row = cursor.fetchone()
-            
+
             if row is None:
                 logger.debug(f"Cache miss: {endpoint}/{symbol}")
                 return None
-            
+
             data_str, cached_at, market_aware = row[0], row[1], row[2]
-            
+
             # Check if cache should be expired
             if market_aware and _should_expire_cache(cached_at):
                 logger.info(f"Cache expired (market-aware): {endpoint}/{symbol}")
                 # Delete expired cache
-                conn.execute("DELETE FROM cache WHERE endpoint = ? AND symbol = ?", (endpoint, symbol))
+                conn.execute(
+                    "DELETE FROM cache WHERE endpoint = ? AND symbol = ?",
+                    (endpoint, symbol),
+                )
                 return None
-            
+
             logger.info(f"Cache hit: {endpoint}/{symbol} (cached at {cached_at})")
             return json.loads(data_str)
-            
+
     except Exception as e:
         logger.error(f"Error retrieving cached data: {e}")
         return None
 
 
-def set_cached_data(endpoint: str, data: dict, symbol: str, market_aware: bool = True) -> bool:
+def set_cached_data(
+    endpoint: str, data: dict, symbol: str, market_aware: bool = True
+) -> bool:
     """
     Cache data in the database.
-    
+
     Args:
         endpoint: API endpoint name
         data: Data to cache (will be JSON serialized)
         symbol: Stock ticker symbol
         market_aware: If True, cache expires when market opens (default: True)
-        
+
     Returns:
         True if successful, False otherwise
     """
@@ -177,7 +186,7 @@ def set_cached_data(endpoint: str, data: dict, symbol: str, market_aware: bool =
                     cached_at = CURRENT_TIMESTAMP,
                     market_aware = excluded.market_aware
                 """,
-                (endpoint, symbol, data_str, 1 if market_aware else 0)
+                (endpoint, symbol, data_str, 1 if market_aware else 0),
             )
             logger.info(f"Cached data: {endpoint}/{symbol}")
             return True
@@ -189,11 +198,11 @@ def set_cached_data(endpoint: str, data: dict, symbol: str, market_aware: bool =
 def clear_cache(endpoint: str = None, symbol: str = None) -> int:
     """
     Clear cache entries.
-    
+
     Args:
         endpoint: If specified, only clear this endpoint. If None, clear all.
         symbol: If specified, only clear this symbol. If None, clear all.
-        
+
     Returns:
         Number of rows deleted
     """
@@ -202,21 +211,17 @@ def clear_cache(endpoint: str = None, symbol: str = None) -> int:
             if endpoint and symbol:
                 cursor = conn.execute(
                     "DELETE FROM cache WHERE endpoint = ? AND symbol = ?",
-                    (endpoint, symbol)
+                    (endpoint, symbol),
                 )
             elif endpoint:
                 cursor = conn.execute(
-                    "DELETE FROM cache WHERE endpoint = ?",
-                    (endpoint,)
+                    "DELETE FROM cache WHERE endpoint = ?", (endpoint,)
                 )
             elif symbol:
-                cursor = conn.execute(
-                    "DELETE FROM cache WHERE symbol = ?",
-                    (symbol,)
-                )
+                cursor = conn.execute("DELETE FROM cache WHERE symbol = ?", (symbol,))
             else:
                 cursor = conn.execute("DELETE FROM cache")
-            
+
             count = cursor.rowcount
             logger.info(f"Cleared {count} cache entries")
             return count
@@ -231,7 +236,7 @@ def get_cache_stats() -> dict:
         with get_db_connection() as conn:
             cursor = conn.execute("SELECT COUNT(*) FROM cache")
             total = cursor.fetchone()[0]
-            
+
             # Count expired entries
             cursor = conn.execute("""
                 SELECT COUNT(*) FROM cache 
@@ -245,17 +250,19 @@ def get_cache_stats() -> dict:
                 )
             """)
             expired = cursor.fetchone()[0]
-            
+
             cursor = conn.execute(
                 "SELECT endpoint, COUNT(*) as count FROM cache GROUP BY endpoint"
             )
-            by_endpoint = [{"endpoint": row[0], "count": row[1]} for row in cursor.fetchall()]
-            
+            by_endpoint = [
+                {"endpoint": row[0], "count": row[1]} for row in cursor.fetchall()
+            ]
+
             return {
                 "total_entries": total,
                 "valid_entries": total - expired,
                 "expired_entries": expired,
-                "by_endpoint": by_endpoint
+                "by_endpoint": by_endpoint,
             }
     except Exception as e:
         logger.error(f"Error getting cache stats: {e}")

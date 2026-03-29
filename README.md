@@ -5,7 +5,7 @@
 ![Docker](https://img.shields.io/badge/Cloud_Native-Docker-blue?logo=docker)
 ![AI](https://img.shields.io/badge/AI-Ollama_LLM-purple?logo=ai)
 ![HTML5](https://img.shields.io/badge/Web_UI-HTML5_CSS3_JS-orange?logo=html5)
-![Tests](https://img.shields.io/badge/Tests-66_Passing-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-110_Passing-brightgreen)
 ![Status](https://img.shields.io/badge/Status-Production_Ready-success)
 
 > **Enterprise-grade stock analysis combining REST APIs, AI-powered insights, technical & fundamental analysis in a cloud-native architecture**
@@ -745,7 +745,7 @@ Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model installed.
 | `get_ai_action_recommendation(ticker)` | Detailed buy/sell/hold recommendation |
 | `get_ai_action_recommendation_sentence(ticker)` | One-sentence recommendation with reasoning |
 | `get_ai_action_recommendation_single_word(ticker)` | Single word: BUY/SELL/HOLD |
-| `get_ai_news_sentiment(ticker)` | AI sentiment analysis of top 5 recent news articles |
+| `get_ai_news_sentiment(ticker)` | AI sentiment analysis of top 3 recent news summaries |
 | `get_ai_full_report(ticker)` | Comprehensive multi-section AI report |
 | `get_trading_strategy(ticker)` | AI-driven trading strategy with entry/exit targets, stop loss, risk/reward ratio, and timeframe |
 
@@ -834,7 +834,7 @@ Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model installed.
 - **Containerization**: Docker & Docker Compose (reproducible deployments)
 
 **Testing & Quality**
-- **Test Framework**: pytest (66 comprehensive tests)
+- **Test Framework**: pytest (110 total tests; all passing including 21 Selenium UI tests)
 - **Mocking**: unittest.mock (external dependency isolation)
 - **Code Quality**: Type hints, docstrings, PEP 8 compliance
 
@@ -847,7 +847,7 @@ Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model installed.
 
 ### Comprehensive Test Coverage
 
-OOBIR employs a rigorous testing strategy with **66 passing tests** achieving 100% endpoint coverage:
+OOBIR employs a rigorous testing strategy with **110 total tests** (**all passing**) across API, cache, and UI layers.
 
 #### Test Architecture
 - **Unit Tests**: Individual function testing with mocked external dependencies
@@ -864,7 +864,7 @@ OOBIR employs a rigorous testing strategy with **66 passing tests** achieving 10
 | AI Analysis Endpoints | 38 | All AI analysis functions + news sentiment |
 | Technical Indicators | 2 | Indicator calculations + AI prompt integration |
 | Web UI Integration | 13 | API format validation, CORS, error handling |
-| **Total** | **66** | **100% of 24 API endpoints + Web UI** |
+| **Total** | **110** | **110 passing** |
 
 #### Test Execution
 
@@ -937,7 +937,7 @@ docker compose exec app pytest tests/ -v
 
 ### Test Coverage
 
-- ✅ **66 tests total** (13 data + 38 AI + 2 indicators + 13 Web UI)
+- ✅ **110 tests total** (all passing, including 21 Selenium UI tests)
 - ✅ All 24 API endpoints tested
 - ✅ Web UI integration validated
 - ✅ Success and error paths verified
@@ -1114,7 +1114,7 @@ For issues, questions, or contributions:
 
 ---
 
-**Last Updated**: December 2025  
+**Last Updated**: March 2026  
 **Version**: 1.2.0  
 **Status**: ✅ Production Ready  
 **Features**: AI Analysis • Market-Aware Caching • Technical Indicators • REST API • Cloud-Native

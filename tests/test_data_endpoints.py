@@ -18,9 +18,9 @@ class TestDataEndpoints(unittest.TestCase):
     def setUp(self):
         """Set up test client."""
         self.client = TestClient(flow_api.app)
-        
-    @patch('db.get_cached_data')
-    @patch('db.set_cached_data')
+
+    @patch("db.get_cached_data")
+    @patch("db.set_cached_data")
     def mock_db(self, mock_set_cache, mock_get_cache):
         """Mock database caching to return None (cache miss)."""
         mock_get_cache.return_value = None
@@ -28,176 +28,188 @@ class TestDataEndpoints(unittest.TestCase):
 
     def test_health_endpoint(self):
         """Test health check endpoint."""
-        response = self.client.get('/health')
+        response = self.client.get("/health")
         self.assertEqual(response.status_code, 200)
-        self.assertIn('status', response.json())
+        self.assertIn("status", response.json())
 
-    @patch('requests.get')
+    @patch("requests.get")
     def test_ollama_health_endpoint(self, mock_requests_get):
         """Test Ollama health check endpoint."""
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_requests_get.return_value = mock_response
 
-        response = self.client.get('/health/ollama')
+        response = self.client.get("/health/ollama")
 
         self.assertEqual(response.status_code, 200)
 
-    @patch('db.get_cached_data', return_value=None)
-    @patch('db.set_cached_data')
-    @patch('flow.get_fundamentals')
-    def test_fundamentals_endpoint(self, mock_get_fundamentals, mock_set_cache, mock_get_cache):
+    @patch("db.get_cached_data", return_value=None)
+    @patch("db.set_cached_data")
+    @patch("flow.get_fundamentals")
+    def test_fundamentals_endpoint(
+        self, mock_get_fundamentals, mock_set_cache, mock_get_cache
+    ):
         """Test fundamentals endpoint."""
-        mock_get_fundamentals.return_value = '{"symbol": "AAPL", "pe_ratio": 25.5, "market_cap": 3000000000000}'
+        mock_get_fundamentals.return_value = (
+            '{"symbol": "AAPL", "pe_ratio": 25.5, "market_cap": 3000000000000}'
+        )
 
-        response = self.client.get('/api/fundamentals/AAPL')
+        response = self.client.get("/api/fundamentals/AAPL")
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data['symbol'], 'AAPL')
+        self.assertEqual(data["symbol"], "AAPL")
         mock_set_cache.assert_called_once()
 
-    @patch('db.get_cached_data', return_value=None)
-    @patch('db.set_cached_data')
-    @patch('flow.get_fundamentals')
-    def test_fundamentals_endpoint_error(self, mock_get_fundamentals, mock_set_cache, mock_get_cache):
+    @patch("db.get_cached_data", return_value=None)
+    @patch("db.set_cached_data")
+    @patch("flow.get_fundamentals")
+    def test_fundamentals_endpoint_error(
+        self, mock_get_fundamentals, mock_set_cache, mock_get_cache
+    ):
         """Test fundamentals endpoint error handling."""
-        mock_get_fundamentals.side_effect = Exception('API Error')
+        mock_get_fundamentals.side_effect = Exception("API Error")
 
-        response = self.client.get('/api/fundamentals/INVALID')
+        response = self.client.get("/api/fundamentals/INVALID")
 
         self.assertEqual(response.status_code, 500)
 
-    @patch('db.get_cached_data', return_value=None)
-    @patch('db.set_cached_data')
-    @patch('flow.get_price_history')
-    def test_price_history_endpoint(self, mock_get_price_history, mock_set_cache, mock_get_cache):
+    @patch("db.get_cached_data", return_value=None)
+    @patch("db.set_cached_data")
+    @patch("flow.get_price_history")
+    def test_price_history_endpoint(
+        self, mock_get_price_history, mock_set_cache, mock_get_cache
+    ):
         """Test price history endpoint."""
         mock_get_price_history.return_value = [
-            {'date': '2024-01-01', 'close': 150.0},
-            {'date': '2024-01-02', 'close': 152.0}
+            {"date": "2024-01-01", "close": 150.0},
+            {"date": "2024-01-02", "close": 152.0},
         ]
 
-        response = self.client.get('/api/price-history/AAPL')
+        response = self.client.get("/api/price-history/AAPL")
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertIsInstance(data, list)
         mock_set_cache.assert_called_once()
 
-    @patch('db.get_cached_data', return_value=None)
-    @patch('db.set_cached_data')
-    @patch('flow.get_analyst_price_targets')
-    def test_analyst_targets_endpoint(self, mock_get_analyst_targets, mock_set_cache, mock_get_cache):
+    @patch("db.get_cached_data", return_value=None)
+    @patch("db.set_cached_data")
+    @patch("flow.get_analyst_price_targets")
+    def test_analyst_targets_endpoint(
+        self, mock_get_analyst_targets, mock_set_cache, mock_get_cache
+    ):
         """Test analyst targets endpoint."""
         mock_get_analyst_targets.return_value = {
-            'symbol': 'AAPL',
-            'target_high': 200.0,
-            'target_low': 150.0,
-            'target_mean': 175.0
+            "symbol": "AAPL",
+            "target_high": 200.0,
+            "target_low": 150.0,
+            "target_mean": 175.0,
         }
 
-        response = self.client.get('/api/analyst-targets/AAPL')
+        response = self.client.get("/api/analyst-targets/AAPL")
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data['symbol'], 'AAPL')
+        self.assertEqual(data["symbol"], "AAPL")
         mock_set_cache.assert_called_once()
 
-    @patch('db.get_cached_data', return_value=None)
-    @patch('db.set_cached_data')
-    @patch('flow.get_calendar')
+    @patch("db.get_cached_data", return_value=None)
+    @patch("db.set_cached_data")
+    @patch("flow.get_calendar")
     def test_calendar_endpoint(self, mock_get_calendar, mock_set_cache, mock_get_cache):
         """Test calendar endpoint."""
-        mock_get_calendar.return_value = [
-            {'event': 'Earnings', 'date': '2024-01-25'}
-        ]
+        mock_get_calendar.return_value = [{"event": "Earnings", "date": "2024-01-25"}]
 
-        response = self.client.get('/api/calendar/AAPL')
+        response = self.client.get("/api/calendar/AAPL")
 
         self.assertEqual(response.status_code, 200)
         mock_set_cache.assert_called_once()
 
-    @patch('db.get_cached_data', return_value=None)
-    @patch('db.set_cached_data')
-    @patch('flow.get_quarterly_income_stmt')
-    def test_income_stmt_endpoint(self, mock_get_income_statement, mock_set_cache, mock_get_cache):
+    @patch("db.get_cached_data", return_value=None)
+    @patch("db.set_cached_data")
+    @patch("flow.get_quarterly_income_stmt")
+    def test_income_stmt_endpoint(
+        self, mock_get_income_statement, mock_set_cache, mock_get_cache
+    ):
         """Test income statement endpoint."""
         mock_get_income_statement.return_value = {
-            'symbol': 'AAPL',
-            'revenue': 383285000000,
-            'net_income': 96995000000
+            "symbol": "AAPL",
+            "revenue": 383285000000,
+            "net_income": 96995000000,
         }
 
-        response = self.client.get('/api/income-stmt/AAPL')
+        response = self.client.get("/api/income-stmt/AAPL")
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data['symbol'], 'AAPL')
+        self.assertEqual(data["symbol"], "AAPL")
         mock_set_cache.assert_called_once()
 
-    @patch('db.get_cached_data', return_value=None)
-    @patch('db.set_cached_data')
-    @patch('flow.get_balance_sheet')
-    def test_balance_sheet_endpoint(self, mock_get_balance_sheet, mock_set_cache, mock_get_cache):
+    @patch("db.get_cached_data", return_value=None)
+    @patch("db.set_cached_data")
+    @patch("flow.get_balance_sheet")
+    def test_balance_sheet_endpoint(
+        self, mock_get_balance_sheet, mock_set_cache, mock_get_cache
+    ):
         """Test balance sheet endpoint."""
         mock_get_balance_sheet.return_value = {
-            'symbol': 'AAPL',
-            'total_assets': 352755000000,
-            'total_liabilities': 120715000000
+            "symbol": "AAPL",
+            "total_assets": 352755000000,
+            "total_liabilities": 120715000000,
         }
 
-        response = self.client.get('/api/balance-sheet/AAPL')
+        response = self.client.get("/api/balance-sheet/AAPL")
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data['symbol'], 'AAPL')
+        self.assertEqual(data["symbol"], "AAPL")
         mock_set_cache.assert_called_once()
 
-    @patch('db.get_cached_data', return_value=None)
-    @patch('db.set_cached_data')
-    @patch('flow.get_option_chain')
-    def test_option_chain_endpoint(self, mock_get_option_chain, mock_set_cache, mock_get_cache):
+    @patch("db.get_cached_data", return_value=None)
+    @patch("db.set_cached_data")
+    @patch("flow.get_option_chain")
+    def test_option_chain_endpoint(
+        self, mock_get_option_chain, mock_set_cache, mock_get_cache
+    ):
         """Test option chain endpoint."""
-        mock_get_option_chain.return_value = {
-            'symbol': 'AAPL',
-            'calls': [],
-            'puts': []
-        }
+        mock_get_option_chain.return_value = {"symbol": "AAPL", "calls": [], "puts": []}
 
-        response = self.client.get('/api/option-chain/AAPL')
+        response = self.client.get("/api/option-chain/AAPL")
 
         self.assertEqual(response.status_code, 200)
         mock_set_cache.assert_called_once()
 
-    @patch('db.get_cached_data', return_value=None)
-    @patch('db.set_cached_data')
-    @patch('flow.get_news')
+    @patch("db.get_cached_data", return_value=None)
+    @patch("db.set_cached_data")
+    @patch("flow.get_news")
     def test_news_endpoint(self, mock_get_news, mock_set_cache, mock_get_cache):
         """Test news endpoint."""
         mock_get_news.return_value = [
             {
-                'title': 'Apple News',
-                'source': 'Reuters',
-                'published': '2024-01-01T10:00:00Z'
+                "title": "Apple News",
+                "source": "Reuters",
+                "published": "2024-01-01T10:00:00Z",
             }
         ]
 
-        response = self.client.get('/api/news/AAPL')
+        response = self.client.get("/api/news/AAPL")
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertIsInstance(data, list)
         mock_set_cache.assert_called_once()
 
-    @patch('db.get_cached_data', return_value=None)
-    @patch('db.set_cached_data')
-    @patch('flow.get_screen_undervalued_large_caps')
-    def test_screen_undervalued_endpoint(self, mock_screen_undervalued, mock_set_cache, mock_get_cache):
+    @patch("db.get_cached_data", return_value=None)
+    @patch("db.set_cached_data")
+    @patch("flow.get_screen_undervalued_large_caps")
+    def test_screen_undervalued_endpoint(
+        self, mock_screen_undervalued, mock_set_cache, mock_get_cache
+    ):
         """Test screen undervalued endpoint."""
-        mock_screen_undervalued.return_value = ['AAPL', 'MSFT', 'GOOGL']
+        mock_screen_undervalued.return_value = ["AAPL", "MSFT", "GOOGL"]
 
-        response = self.client.get('/api/screen-undervalued')
+        response = self.client.get("/api/screen-undervalued")
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -205,17 +217,19 @@ class TestDataEndpoints(unittest.TestCase):
         self.assertGreater(len(data), 0)
         mock_set_cache.assert_called_once()
 
-    @patch('db.get_cached_data', return_value=None)
-    @patch('db.set_cached_data')
-    @patch('flow.get_screen_undervalued_large_caps')
-    def test_screen_undervalued_endpoint_error(self, mock_screen_undervalued, mock_set_cache, mock_get_cache):
+    @patch("db.get_cached_data", return_value=None)
+    @patch("db.set_cached_data")
+    @patch("flow.get_screen_undervalued_large_caps")
+    def test_screen_undervalued_endpoint_error(
+        self, mock_screen_undervalued, mock_set_cache, mock_get_cache
+    ):
         """Test screen undervalued endpoint error handling."""
-        mock_screen_undervalued.side_effect = Exception('Screening failed')
+        mock_screen_undervalued.side_effect = Exception("Screening failed")
 
-        response = self.client.get('/api/screen-undervalued')
+        response = self.client.get("/api/screen-undervalued")
 
         self.assertEqual(response.status_code, 500)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

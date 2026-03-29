@@ -2,7 +2,7 @@
 UI tests for the OOBIR stock analysis platform using Selenium.
 Tests cover: page loading, stock search, data display, and API interactions.
 """
-import pytest
+
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -23,15 +23,21 @@ class TestHomePageLoad:
         wait = WebDriverWait(browser, 10)
 
         # Check for main logo
-        logo = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "unified-logo")))
+        logo = wait.until(
+            EC.presence_of_element_located((By.CLASS_NAME, "unified-logo"))
+        )
         assert "OOBIR" in logo.text
 
         # Check for search form
-        search_form = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "search-form")))
+        search_form = wait.until(
+            EC.presence_of_element_located((By.CLASS_NAME, "search-form"))
+        )
         assert search_form.is_displayed()
 
         # Check for search input
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "ticker-input")))
+        search_input = wait.until(
+            EC.presence_of_element_located((By.ID, "ticker-input"))
+        )
         assert search_input.is_displayed()
 
     def test_search_button_visible(self, browser, base_url):
@@ -44,13 +50,15 @@ class TestHomePageLoad:
         )
         assert search_button.is_displayed()
 
-    def test_tagline_present(self, browser, base_url):
-        """Verify tagline is displayed."""
+    def test_home_section_heading_present(self, browser, base_url):
+        """Verify a key landing-page heading is displayed."""
         browser.get(base_url)
         wait = WebDriverWait(browser, 10)
 
-        tagline = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "tagline")))
-        assert "AI-Powered" in tagline.text or "Stock Analysis" in tagline.text
+        heading = wait.until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, ".stocks-grid-section h2"))
+        )
+        assert "Stock Screener" in heading.text
 
 
 class TestStockSearch:
@@ -62,7 +70,9 @@ class TestStockSearch:
         wait = WebDriverWait(browser, wait_timeout)
 
         # Find and fill search input
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "ticker-input")))
+        search_input = wait.until(
+            EC.presence_of_element_located((By.ID, "ticker-input"))
+        )
         search_input.clear()
         search_input.send_keys("AAPL")
 
@@ -79,7 +89,9 @@ class TestStockSearch:
         browser.get(base_url)
         wait = WebDriverWait(browser, 10)
 
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "ticker-input")))
+        search_input = wait.until(
+            EC.presence_of_element_located((By.ID, "ticker-input"))
+        )
         search_input.send_keys("MSFT")
 
         assert search_input.get_attribute("value") == "MSFT"
@@ -89,7 +101,9 @@ class TestStockSearch:
         browser.get(base_url)
         wait = WebDriverWait(browser, 10)
 
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "ticker-input")))
+        search_input = wait.until(
+            EC.presence_of_element_located((By.ID, "ticker-input"))
+        )
         search_input.send_keys("msft")
 
         assert search_input.get_attribute("value").upper() == "MSFT"
@@ -99,38 +113,48 @@ class TestStockSearch:
         browser.get(base_url)
         wait = WebDriverWait(browser, 10)
 
-        # Try submitting empty form
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "stock-ticker")))
+        search_input = wait.until(
+            EC.presence_of_element_located((By.ID, "ticker-input"))
+        )
         search_input.clear()
 
         search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
         search_button.click()
 
-        # Should still be on landing page (no results page)
-        landing_page = browser.find_elements(By.ID, "landing-page")
-        assert len(landing_page) > 0
+        unified_page = browser.find_element(By.ID, "unified-page")
+        results_page = browser.find_element(By.ID, "results-page")
+        assert "hidden" not in unified_page.get_attribute("class")
+        assert "hidden" in results_page.get_attribute("class")
 
 
 class TestResultsPageDisplay:
     """Test cases for results page and data display."""
 
+    def _search_aapl(self, browser, wait):
+        search_input = wait.until(
+            EC.presence_of_element_located((By.ID, "ticker-input"))
+        )
+        search_input.clear()
+        search_input.send_keys("AAPL")
+        search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
+        search_button.click()
+        wait.until(
+            lambda d: "hidden"
+            not in d.find_element(By.ID, "results-page").get_attribute("class")
+        )
+        wait.until(
+            lambda d: "hidden"
+            not in d.find_element(By.ID, "results-container").get_attribute("class")
+        )
+
     def test_results_page_shows_company_info(self, browser, base_url, wait_timeout):
         """Verify results page displays company information."""
         browser.get(base_url)
         wait = WebDriverWait(browser, wait_timeout)
+        self._search_aapl(browser, wait)
 
-        # Perform search
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "stock-ticker")))
-        search_input.send_keys("AAPL")
-        search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
-        search_button.click()
-
-        # Wait for results
-        wait.until(EC.presence_of_element_located((By.ID, "results-page")))
-
-        # Check for company summary box
         company_info = wait.until(
-            EC.presence_of_element_located((By.ID, "company-summary-box"))
+            EC.visibility_of_element_located((By.ID, "company-summary-box"))
         )
         assert company_info.is_displayed()
 
@@ -138,249 +162,231 @@ class TestResultsPageDisplay:
         """Verify stock header is displayed on results."""
         browser.get(base_url)
         wait = WebDriverWait(browser, wait_timeout)
+        self._search_aapl(browser, wait)
 
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "ticker-input")))
-        search_input.send_keys("AAPL")
-        search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
-        search_button.click()
-
-        # Wait for header
-        wait.until(EC.presence_of_element_located((By.CLASS_NAME, "stock-header")))
-        header = browser.find_element(By.CLASS_NAME, "stock-header")
+        header = wait.until(
+            EC.visibility_of_element_located((By.CLASS_NAME, "stock-header"))
+        )
         assert header.is_displayed()
+        assert (
+            browser.find_element(By.ID, "stock-symbol").text.strip().upper() == "AAPL"
+        )
 
     def test_back_button_returns_to_home(self, browser, base_url, wait_timeout):
-        """Verify back button returns to landing page."""
+        """Verify clicking results logo navigates back to search page."""
         browser.get(base_url)
         wait = WebDriverWait(browser, wait_timeout)
+        self._search_aapl(browser, wait)
 
-        # Search for stock
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "stock-ticker")))
-        search_input.send_keys("AAPL")
-        search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
-        search_button.click()
-
-        # Wait for results
-        wait.until(EC.presence_of_element_located((By.ID, "results-page")))
-
-        # Click the logo to return home (back button was removed)
-        logo = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "unified-logo")))
+        logo = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "logo-small")))
         logo.click()
 
-        # Verify back on landing/unified page
-        wait.until(EC.presence_of_element_located((By.ID, "unified-page")))
-        assert browser.find_element(By.ID, "unified-page").is_displayed()
+        wait.until(lambda d: "search.html" in d.current_url)
+        assert "search.html" in browser.current_url
 
-    def test_results_page_tabs_visible(self, browser, base_url, wait_timeout):
-        """Verify results tabs (Fundamentals, Price, etc.) are visible."""
+    def test_results_sections_visible(self, browser, base_url, wait_timeout):
+        """Verify key results sections are present."""
         browser.get(base_url)
         wait = WebDriverWait(browser, wait_timeout)
+        self._search_aapl(browser, wait)
 
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "ticker-input")))
-        search_input.send_keys("AAPL")
-        search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
-        search_button.click()
-
-        wait.until(EC.presence_of_element_located((By.ID, "results-page")))
-
-        # Check for tab buttons
-        tabs = browser.find_elements(By.CLASS_NAME, "tab-button")
-        assert len(tabs) > 0
+        for element_id in [
+            "fundamentals-data",
+            "analyst-targets-data",
+            "technical-signals-data",
+            "calendar-data",
+        ]:
+            element = wait.until(EC.visibility_of_element_located((By.ID, element_id)))
+            assert element.is_displayed()
 
 
 class TestRecommendationsSection:
-    """Test cases for AI recommendations display."""
+    """Test cases for strategy and trend recommendation display."""
 
-    def test_recommendations_tab_loads(self, browser, base_url, wait_timeout):
-        """Verify recommendations section loads and displays."""
-        browser.get(base_url)
-        wait = WebDriverWait(browser, wait_timeout)
-
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "ticker-input")))
+    def _search_aapl(self, browser, wait):
+        search_input = wait.until(
+            EC.presence_of_element_located((By.ID, "ticker-input"))
+        )
+        search_input.clear()
         search_input.send_keys("AAPL")
         search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
         search_button.click()
-
-        wait.until(EC.presence_of_element_located((By.ID, "results-page")))
-
-        # Click on recommendations tab (if separate)
-        # Adjust selector based on actual HTML structure
-        rec_tabs = browser.find_elements(By.CLASS_NAME, "tab-button")
-        for tab in rec_tabs:
-            if "recommendation" in tab.text.lower() or "ai" in tab.text.lower():
-                tab.click()
-                break
-
-        # Wait for recommendations to load
         wait.until(
-            EC.presence_of_element_located((By.CLASS_NAME, "recommendation-card"))
+            lambda d: "hidden"
+            not in d.find_element(By.ID, "results-container").get_attribute("class")
         )
-        rec_card = browser.find_element(By.CLASS_NAME, "recommendation-card")
-        assert rec_card.is_displayed()
 
-    def test_recommendation_displays_action(self, browser, base_url, wait_timeout):
-        """Verify recommendation displays action (BUY, SELL, HOLD)."""
+    def test_trading_strategy_card_loads(self, browser, base_url, wait_timeout):
+        """Verify trading strategy card appears on results."""
         browser.get(base_url)
         wait = WebDriverWait(browser, wait_timeout)
+        self._search_aapl(browser, wait)
 
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "ticker-input")))
-        search_input.send_keys("AAPL")
-        search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
-        search_button.click()
-
-        wait.until(EC.presence_of_element_located((By.ID, "results-page")))
-
-        # Find and check recommendation action
-        rec_action = wait.until(
-            EC.presence_of_element_located((By.CLASS_NAME, "recommendation-action"))
+        strategy = wait.until(
+            EC.visibility_of_element_located((By.ID, "trading-strategy"))
         )
-        action_text = rec_action.text.upper()
-        assert action_text in ["BUY", "SELL", "HOLD"]
+        assert strategy.is_displayed()
+
+    def test_trend_prediction_card_loads(self, browser, base_url, wait_timeout):
+        """Verify trend prediction card appears on results."""
+        browser.get(base_url)
+        wait = WebDriverWait(browser, wait_timeout)
+        self._search_aapl(browser, wait)
+
+        trend = wait.until(
+            EC.visibility_of_element_located((By.ID, "trend-prediction"))
+        )
+        assert trend.is_displayed()
 
 
 class TestDataTables:
-    """Test cases for data table displays."""
+    """Test cases for data sections on results page."""
 
-    def test_fundamentals_table_loads(self, browser, base_url, wait_timeout):
-        """Verify fundamentals table loads with data."""
-        browser.get(base_url)
-        wait = WebDriverWait(browser, wait_timeout)
-
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "stock-ticker")))
+    def _search_aapl(self, browser, wait):
+        search_input = wait.until(
+            EC.presence_of_element_located((By.ID, "ticker-input"))
+        )
+        search_input.clear()
         search_input.send_keys("AAPL")
         search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
         search_button.click()
-
-        wait.until(EC.presence_of_element_located((By.ID, "results-page")))
-
-        # Wait for fundamentals table
-        table = wait.until(
-            EC.presence_of_element_located((By.CLASS_NAME, "fundamentals-table"))
+        wait.until(
+            lambda d: "hidden"
+            not in d.find_element(By.ID, "results-container").get_attribute("class")
         )
-        assert table.is_displayed()
 
-        # Check for table rows
-        rows = table.find_elements(By.TAG_NAME, "tr")
-        assert len(rows) > 0
-
-    def test_price_history_table_displays(self, browser, base_url, wait_timeout):
-        """Verify price history table displays correctly."""
+    def test_fundamentals_section_loads(self, browser, base_url, wait_timeout):
+        """Verify fundamentals section loads and is visible."""
         browser.get(base_url)
         wait = WebDriverWait(browser, wait_timeout)
+        self._search_aapl(browser, wait)
 
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "stock-ticker")))
-        search_input.send_keys("AAPL")
-        search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
-        search_button.click()
-
-        wait.until(EC.presence_of_element_located((By.ID, "results-page")))
-
-        # Click on price history tab if needed
-        # Adjust based on actual HTML structure
-
-        # Wait for price history table
-        table = wait.until(
-            EC.presence_of_element_located((By.CLASS_NAME, "price-history-table"))
+        fundamentals = wait.until(
+            EC.visibility_of_element_located((By.ID, "fundamentals-data"))
         )
-        assert table.is_displayed()
+        assert fundamentals.is_displayed()
+        assert len(fundamentals.get_attribute("innerHTML")) > 0
+
+    def test_price_history_chart_displays(self, browser, base_url, wait_timeout):
+        """Verify price history section displays content."""
+        browser.get(base_url)
+        wait = WebDriverWait(browser, wait_timeout)
+        self._search_aapl(browser, wait)
+
+        price_history = wait.until(
+            EC.visibility_of_element_located((By.ID, "price-history-data"))
+        )
+        assert price_history.is_displayed()
+        assert len(price_history.get_attribute("innerHTML")) > 0
 
 
 class TestUIInteractions:
     """Test cases for UI interactions and responsiveness."""
 
-    def test_logo_click_returns_home(self, browser, base_url, wait_timeout):
-        """Verify clicking logo returns to home page."""
-        browser.get(base_url)
-        wait = WebDriverWait(browser, wait_timeout)
-
-        # Search for stock first
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "stock-ticker")))
-        search_input.send_keys("AAPL")
+    def _search(self, browser, wait, ticker):
+        search_input = wait.until(
+            EC.presence_of_element_located((By.ID, "ticker-input"))
+        )
+        search_input.clear()
+        search_input.send_keys(ticker)
         search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
         search_button.click()
+        wait.until(
+            lambda d: "hidden"
+            not in d.find_element(By.ID, "results-container").get_attribute("class")
+        )
 
-        wait.until(EC.presence_of_element_located((By.ID, "results-page")))
+    def test_logo_click_returns_home(self, browser, base_url, wait_timeout):
+        """Verify clicking results logo navigates to search page."""
+        browser.get(base_url)
+        wait = WebDriverWait(browser, wait_timeout)
+        self._search(browser, wait, "AAPL")
 
-        # Click logo
-        logo = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "logo")))
+        logo = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "logo-small")))
         logo.click()
-
-        # Should return to landing page
-        wait.until(EC.presence_of_element_located((By.ID, "landing-page")))
-        assert browser.find_element(By.ID, "landing-page").is_displayed()
+        wait.until(lambda d: "search.html" in d.current_url)
+        assert "search.html" in browser.current_url
 
     def test_enter_key_submits_search(self, browser, base_url, wait_timeout):
         """Verify pressing Enter in search input submits form."""
         browser.get(base_url)
         wait = WebDriverWait(browser, wait_timeout)
 
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "stock-ticker")))
+        search_input = wait.until(
+            EC.presence_of_element_located((By.ID, "ticker-input"))
+        )
         search_input.send_keys("AAPL")
         search_input.send_keys(Keys.RETURN)
 
-        # Should load results
-        wait.until(EC.presence_of_element_located((By.ID, "results-page")))
-        assert browser.find_element(By.ID, "results-page").is_displayed()
+        wait.until(
+            lambda d: "hidden"
+            not in d.find_element(By.ID, "results-container").get_attribute("class")
+        )
+        assert (
+            browser.find_element(By.ID, "stock-symbol").text.strip().upper() == "AAPL"
+        )
 
-    def test_tab_switching(self, browser, base_url, wait_timeout):
-        """Verify switching between tabs works."""
+    def test_compact_search_controls_present(self, browser, base_url, wait_timeout):
+        """Verify compact search controls are visible and editable on results."""
         browser.get(base_url)
         wait = WebDriverWait(browser, wait_timeout)
+        self._search(browser, wait, "AAPL")
 
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "stock-ticker")))
-        search_input.send_keys("AAPL")
-        search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
-        search_button.click()
+        compact_form = wait.until(
+            EC.visibility_of_element_located((By.ID, "search-form-compact"))
+        )
+        compact_input = wait.until(
+            EC.visibility_of_element_located((By.ID, "ticker-input-compact"))
+        )
+        compact_submit = wait.until(
+            EC.element_to_be_clickable(
+                (By.CSS_SELECTOR, "#search-form-compact button[type='submit']")
+            )
+        )
 
-        wait.until(EC.presence_of_element_located((By.ID, "results-page")))
+        compact_input.clear()
+        compact_input.send_keys("MSFT")
 
-        # Get all tab buttons
-        tabs = browser.find_elements(By.CLASS_NAME, "tab-button")
-
-        if len(tabs) > 1:
-            # Click second tab
-            tabs[1].click()
-
-            # Verify tab is active
-            active_tab = browser.find_element(By.CLASS_NAME, "tab-button.active")
-            assert active_tab.is_displayed()
+        assert compact_form.is_displayed()
+        assert compact_submit.is_displayed()
+        assert compact_input.get_attribute("value") == "MSFT"
 
 
 class TestErrorHandling:
     """Test cases for error handling and edge cases."""
 
     def test_invalid_ticker_handling(self, browser, base_url, wait_timeout):
-        """Verify invalid ticker is handled gracefully."""
+        """Verify invalid ticker is rejected with an error message."""
         browser.get(base_url)
         wait = WebDriverWait(browser, wait_timeout)
 
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "stock-ticker")))
+        search_input = wait.until(
+            EC.presence_of_element_located((By.ID, "ticker-input"))
+        )
+        search_input.clear()
         search_input.send_keys("INVALID123XYZ")
         search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
         search_button.click()
 
-        # Should either show error message or no data
-        # Adjust based on actual error handling
-        try:
-            error_msg = wait.until(
-                EC.presence_of_element_located((By.CLASS_NAME, "error-message")),
-                timeout=5
-            )
-            assert error_msg.is_displayed()
-        except:
-            # Or could show empty results
-            results = browser.find_elements(By.ID, "results-page")
-            assert len(results) > 0
+        error_msg = wait.until(
+            EC.visibility_of_element_located((By.ID, "error-message"))
+        )
+        assert "valid stock ticker" in error_msg.text
 
-    def test_special_characters_in_search(self, browser, base_url):
-        """Verify special characters are handled."""
+    def test_special_characters_in_search(self, browser, base_url, wait_timeout):
+        """Verify special characters are handled as invalid input."""
         browser.get(base_url)
-        wait = WebDriverWait(browser, 10)
+        wait = WebDriverWait(browser, wait_timeout)
 
-        search_input = wait.until(EC.presence_of_element_located((By.ID, "stock-ticker")))
+        search_input = wait.until(
+            EC.presence_of_element_located((By.ID, "ticker-input"))
+        )
+        search_input.clear()
         search_input.send_keys("AAPL$#@!")
+        search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
+        search_button.click()
 
-        # Should sanitize or reject
-        value = search_input.get_attribute("value")
-        # Either cleaned or original
-        assert len(value) <= 10
+        error_msg = wait.until(
+            EC.visibility_of_element_located((By.ID, "error-message"))
+        )
+        assert "valid stock ticker" in error_msg.text

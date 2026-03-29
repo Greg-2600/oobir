@@ -7,6 +7,7 @@ import os
 import json
 import logging
 from datetime import date, datetime
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,6 +16,7 @@ import pandas as pd
 import numpy as np
 import flow
 import db  # Database caching layer
+import db_timescale
 
 
 # Helper to convert non-JSON-serializable objects to strings
@@ -48,11 +50,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Initialize and cleanup services for app lifecycle."""
+    logger.info("Starting OOBIR API...")
+    logger.info("Database cache initialized")
+    yield
+    logger.info("Shutting down OOBIR API...")
+
+
 # Initialize FastAPI app
 app = FastAPI(
     title="OOBIR Stock Analysis API",
     description="REST API for stock analysis and AI recommendations",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # CORS for web UI (allow local and LAN UI origins)
@@ -109,21 +122,6 @@ def flush_cache(endpoint: str = None, symbol: str = None):
     return {"cleared": count, "message": f"Cleared {count} cache entries"}
 
 
-# Initialize database connection pool on startup
-@app.on_event("startup")
-async def startup_event():
-    """Initialize services on application startup."""
-    logger.info("Starting OOBIR API...")
-    logger.info("Database cache initialized")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on application shutdown."""
-    logger.info("Shutting down OOBIR API...")
-    # Connection pool cleanup handled automatically
-
-
 @app.get("/")
 def root():
     """API root endpoint."""
@@ -139,7 +137,11 @@ def root():
 def health_check():
     """Basic health check endpoint."""
     logger.info("Health check requested")
-    return {"status": "healthy", "service": "oobir-api", "ollama_configured": OLLAMA_HOST}
+    return {
+        "status": "healthy",
+        "service": "oobir-api",
+        "ollama_configured": OLLAMA_HOST,
+    }
 
 
 @app.get("/health/ollama")
@@ -195,7 +197,11 @@ def health_check_ollama():
         logger.error("Ollama health check failed: %s", str(exc))
         return JSONResponse(
             status_code=503,
-            content={"status": "unhealthy", "ollama_host": OLLAMA_HOST, "error": str(exc)},
+            content={
+                "status": "unhealthy",
+                "ollama_host": OLLAMA_HOST,
+                "error": str(exc),
+            },
         )
 
 
@@ -459,7 +465,9 @@ def get_ai_fundamental_analysis(symbol: str):
     """Get AI analysis of fundamentals for a stock."""
     logger.info("AI fundamental analysis requested for %s", symbol)
     try:
-        result = with_ai_cache("ai-fundamental-analysis", symbol, flow.get_ai_fundamental_analysis)
+        result = with_ai_cache(
+            "ai-fundamental-analysis", symbol, flow.get_ai_fundamental_analysis
+        )
         logger.info("Successfully generated AI fundamental analysis for %s", symbol)
         return JSONResponse(content=result)
     except HTTPException:
@@ -494,12 +502,16 @@ def get_ai_quarterly_income_stm_analysis(symbol: str):
         result = with_ai_cache(
             "ai-income-stmt-analysis", symbol, flow.get_ai_quarterly_income_stm_analysis
         )
-        logger.info("Successfully generated AI income statement analysis for %s", symbol)
+        logger.info(
+            "Successfully generated AI income statement analysis for %s", symbol
+        )
         return JSONResponse(content=result)
     except HTTPException:
         raise
     except Exception as exc:  # pylint: disable=broad-except
-        logger.error("Error in AI income statement analysis for %s: %s", symbol, str(exc))
+        logger.error(
+            "Error in AI income statement analysis for %s: %s", symbol, str(exc)
+        )
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
@@ -508,7 +520,9 @@ def get_ai_technical_analysis(symbol: str):
     """Get AI technical analysis for a stock."""
     logger.info("AI technical analysis requested for %s", symbol)
     try:
-        result = with_ai_cache("ai-technical-analysis", symbol, flow.get_ai_technical_analysis)
+        result = with_ai_cache(
+            "ai-technical-analysis", symbol, flow.get_ai_technical_analysis
+        )
         logger.info("Successfully generated AI technical analysis for %s", symbol)
         return JSONResponse(content=result)
     except HTTPException:
@@ -541,14 +555,20 @@ def get_ai_action_recommendation_sentence(symbol: str):
     logger.info("AI action recommendation sentence requested for %s", symbol)
     try:
         result = with_ai_cache(
-            "ai-action-recommendation-sentence", symbol, flow.get_ai_action_recommendation_sentence
+            "ai-action-recommendation-sentence",
+            symbol,
+            flow.get_ai_action_recommendation_sentence,
         )
-        logger.info("Successfully generated AI action recommendation sentence for %s", symbol)
+        logger.info(
+            "Successfully generated AI action recommendation sentence for %s", symbol
+        )
         return JSONResponse(content=result)
     except HTTPException:
         raise
     except Exception as exc:  # pylint: disable=broad-except
-        logger.error("Error in AI action recommendation sentence for %s: %s", symbol, str(exc))
+        logger.error(
+            "Error in AI action recommendation sentence for %s: %s", symbol, str(exc)
+        )
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
@@ -558,25 +578,31 @@ def get_ai_action_recommendation_single_word(symbol: str):
     logger.info("AI action recommendation word requested for %s", symbol)
     try:
         result = with_ai_cache(
-            "ai-action-recommendation-word", symbol, flow.get_ai_action_recommendation_single_word
+            "ai-action-recommendation-word",
+            symbol,
+            flow.get_ai_action_recommendation_single_word,
         )
-        logger.info("Successfully generated AI action recommendation word for %s", symbol)
+        logger.info(
+            "Successfully generated AI action recommendation word for %s", symbol
+        )
         return JSONResponse(content=result)
     except HTTPException:
         raise
     except Exception as exc:  # pylint: disable=broad-except
-        logger.error("Error in AI action recommendation word for %s: %s", symbol, str(exc))
+        logger.error(
+            "Error in AI action recommendation word for %s: %s", symbol, str(exc)
+        )
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @app.get("/api/ai/news-sentiment/{symbol}")
 def get_ai_news_sentiment(symbol: str):
     """Get AI analysis of news sentiment for a stock.
-    
+
     Times out after 30 seconds to prevent hanging.
     """
     import concurrent.futures
-    
+
     logger.info("AI news sentiment requested for %s", symbol)
     try:
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -591,7 +617,7 @@ def get_ai_news_sentiment(symbol: str):
                 logger.warning("News sentiment analysis timed out for %s", symbol)
                 raise HTTPException(
                     status_code=504,
-                    detail="News sentiment analysis timed out. Please try again."
+                    detail="News sentiment analysis timed out. Please try again.",
                 ) from None
     except HTTPException:
         raise
@@ -625,6 +651,257 @@ def get_trading_strategy(symbol: str):
         return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error generating trading strategy for %s: %s", symbol, str(exc))
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# ── Fundamental Screener Endpoints ──────────────────────────────────────────
+
+
+@app.get("/api/fundamentals-db")
+def list_fundamentals_db(
+    sector: str = None,
+    min_market_cap: float = None,
+    max_pe: float = None,
+    min_dividend_yield: float = None,
+    min_roe: float = None,
+    max_debt_to_equity: float = None,
+    sort_by: str = "market_cap",
+    sort_dir: str = "desc",
+    limit: int = 100,
+):
+    """Search and filter stocks by fundamental metrics stored in the database."""
+    logger.info("Fundamental screener query: sector=%s sort=%s", sector, sort_by)
+
+    allowed_sort_cols = {
+        "market_cap",
+        "trailing_pe",
+        "forward_pe",
+        "dividend_yield",
+        "return_on_equity",
+        "profit_margins",
+        "revenue_growth",
+        "debt_to_equity",
+        "current_price",
+        "ticker",
+        "peg_ratio",
+        "price_to_book",
+        "earnings_growth",
+        "free_cashflow",
+    }
+    if sort_by not in allowed_sort_cols:
+        sort_by = "market_cap"
+    if sort_dir not in ("asc", "desc"):
+        sort_dir = "desc"
+    if limit < 1 or limit > 500:
+        limit = 100
+
+    # Build query with filters
+    conditions = []
+    params: list = []
+
+    if sector:
+        conditions.append("sector = %s")
+        params.append(sector)
+    if min_market_cap is not None:
+        conditions.append("market_cap >= %s")
+        params.append(min_market_cap)
+    if max_pe is not None:
+        conditions.append("trailing_pe <= %s AND trailing_pe > 0")
+        params.append(max_pe)
+    if min_dividend_yield is not None:
+        conditions.append("dividend_yield >= %s")
+        params.append(min_dividend_yield)
+    if min_roe is not None:
+        conditions.append("return_on_equity >= %s")
+        params.append(min_roe)
+    if max_debt_to_equity is not None:
+        conditions.append("debt_to_equity <= %s")
+        params.append(max_debt_to_equity)
+
+    where = ""
+    if conditions:
+        where = "AND " + " AND ".join(conditions)
+
+    sql = f"""
+        SELECT DISTINCT ON (ticker)
+            ticker, short_name, long_name, sector, industry, exchange, currency,
+            market_cap, enterprise_value,
+            trailing_pe, forward_pe, peg_ratio, price_to_book, price_to_sales,
+            trailing_eps, forward_eps,
+            profit_margins, operating_margins, gross_margins,
+            return_on_equity, return_on_assets,
+            total_revenue, revenue_growth, earnings_growth,
+            ebitda, free_cashflow,
+            total_cash, total_debt, current_ratio, debt_to_equity,
+            dividend_yield, dividend_rate, payout_ratio,
+            current_price, previous_close,
+            fifty_two_week_high, fifty_two_week_low,
+            fifty_day_average, two_hundred_day_average,
+            target_mean_price, recommendation_key, number_of_analyst_opinions,
+            fetched_at
+        FROM fundamentals
+        WHERE ticker IS NOT NULL {where}
+        ORDER BY ticker, fetched_at DESC
+    """
+
+    try:
+        conn = db_timescale.get_conn()
+        try:
+            from psycopg2.extras import (
+                RealDictCursor,
+            )  # pylint: disable=import-outside-toplevel
+
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(sql, params)
+                rows = cur.fetchall()
+
+            # Post-query sort (since DISTINCT ON forces ORDER BY ticker first)
+            def sort_key(r):
+                v = r.get(sort_by)
+                if v is None:
+                    return float("-inf") if sort_dir == "desc" else float("inf")
+                return v
+
+            rows.sort(key=sort_key, reverse=(sort_dir == "desc"))
+            rows = rows[:limit]
+
+            results = []
+            for row in rows:
+                d = dict(row)
+                for k, v in d.items():
+                    if isinstance(v, datetime):
+                        d[k] = v.isoformat()
+                    elif isinstance(v, (float,)) and (v != v):  # NaN check
+                        d[k] = None
+                results.append(d)
+
+            return JSONResponse(content={"count": len(results), "results": results})
+        finally:
+            conn.close()
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.error("Fundamental screener error: %s", str(exc))
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/fundamentals-db/sectors")
+def list_sectors():
+    """Return distinct sectors from the fundamentals database."""
+    try:
+        conn = db_timescale.get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT DISTINCT sector FROM fundamentals WHERE sector IS NOT NULL ORDER BY sector"
+                )
+                sectors = [r[0] for r in cur.fetchall()]
+            return JSONResponse(content={"sectors": sectors})
+        finally:
+            conn.close()
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.error("Error listing sectors: %s", str(exc))
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/fundamentals-db/{symbol}")
+def get_fundamentals_db(symbol: str):
+    """Get stored fundamental data for a specific ticker."""
+    logger.info("DB fundamentals requested for %s", symbol)
+    try:
+        conn = db_timescale.get_conn()
+        try:
+            result = db_timescale.fetch_latest_fundamentals(conn, symbol.upper())
+            if result is None:
+                raise HTTPException(
+                    status_code=404, detail=f"No fundamental data for {symbol}"
+                )
+            return JSONResponse(content=result)
+        finally:
+            conn.close()
+    except HTTPException:
+        raise
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.error("Error fetching DB fundamentals for %s: %s", symbol, str(exc))
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/db/stats")
+def get_db_stats():
+    """Return data freshness and row counts for all TimescaleDB tables."""
+    try:
+        conn = db_timescale.get_conn()
+        try:
+            from psycopg2.extras import (
+                RealDictCursor,
+            )  # pylint: disable=import-outside-toplevel
+
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT
+                        COUNT(*) AS total_rows,
+                        COUNT(DISTINCT ticker) AS tickers,
+                        MAX(date)::date AS most_recent_date,
+                        MIN(date)::date AS oldest_date
+                    FROM price_history
+                """)
+                ph = dict(cur.fetchone())
+
+                cur.execute("""
+                    SELECT
+                        COUNT(*) AS total_rows,
+                        COUNT(DISTINCT ticker) AS tickers,
+                        MAX(fetched_at) AS last_fetched
+                    FROM fundamentals
+                """)
+                fu = dict(cur.fetchone())
+
+                cur.execute("""
+                    SELECT
+                        COUNT(*) AS total_rows,
+                        COUNT(DISTINCT ticker) AS tickers,
+                        MAX(date)::date AS most_recent_date
+                    FROM technical_indicators
+                """)
+                ti = dict(cur.fetchone())
+
+                cur.execute("""
+                    SELECT ticker, MAX(date)::date AS last_date
+                    FROM price_history
+                    GROUP BY ticker
+                    ORDER BY last_date ASC
+                    LIMIT 5
+                """)
+                stale = [dict(r) for r in cur.fetchall()]
+
+            # Serialize datetimes
+            for d in [ph, fu, ti]:
+                for k, v in d.items():
+                    if isinstance(v, datetime):
+                        d[k] = v.isoformat()
+                    elif hasattr(v, "isoformat"):
+                        d[k] = v.isoformat()
+            for row in stale:
+                for k, v in row.items():
+                    if hasattr(v, "isoformat"):
+                        row[k] = v.isoformat()
+
+            return JSONResponse(
+                content={
+                    "price_history": {
+                        k: int(v) if isinstance(v, int) else v for k, v in ph.items()
+                    },
+                    "fundamentals": {
+                        k: int(v) if isinstance(v, int) else v for k, v in fu.items()
+                    },
+                    "technical_indicators": {
+                        k: int(v) if isinstance(v, int) else v for k, v in ti.items()
+                    },
+                    "stalest_tickers": stale,
+                }
+            )
+        finally:
+            conn.close()
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.error("DB stats error: %s", str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 

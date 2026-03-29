@@ -6,3 +6,4 @@ env/
 .env
 .DS_Store
 cache.db
+historical_data/
