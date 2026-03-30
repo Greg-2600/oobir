@@ -22,6 +22,15 @@
 - 📊 **Dual Analysis**: Combines fundamental metrics (P/E, earnings) with technical indicators (SMA, RSI, MACD)
 - 🌐 **Triple Interface**: CLI tool, REST API, and interactive Web UI—all powered by single codebase
 
+## Table of Contents
+
+- [Quick Start](#-quick-start-2-minutes)
+- [Bootstrapping Historical Data](#bootstrapping-historical-data)
+- [Key Features](#-key-features)
+- [REST API](#-rest-api)
+- [Testing](#testing)
+- [Troubleshooting](#troubleshooting)
+
 ### Technology Stack
 
 | Layer | Technology | Purpose |
@@ -94,6 +103,63 @@ cd web && python -m http.server 8081
 ```
 
 **That's it!** Search for any stock ticker (e.g., AAPL, MSFT, TSLA) in the Web UI to see real-time analysis.
+
+## Bootstrapping Historical Data
+
+If you want to pre-seed PostgreSQL with the JSON files in `historical_data/`, run this one-time bootstrap after `docker compose up -d --build`.
+
+### 1. Set DB environment variables
+
+```bash
+export PGHOST=localhost
+export PGPORT=5432
+export PGDATABASE=oobir
+export PGUSER=oobir
+export PGPASSWORD=oobir
+```
+
+### 2. Load historical price history
+
+```bash
+python scripts/load_historical_data.py
+```
+
+### 3. Load fundamentals snapshots
+
+```bash
+python scripts/load_fundamentals.py
+```
+
+### 4. Compute technical indicators from loaded prices
+
+```bash
+python scripts/compute_technical_indicators.py
+```
+
+### 5. Verify data was loaded
+
+```bash
+docker exec oobir_postgres psql -U oobir -d oobir -c "
+SELECT COUNT(DISTINCT ticker) AS price_tickers FROM price_history;
+SELECT COUNT(DISTINCT ticker) AS fundamentals_tickers FROM fundamentals;
+SELECT COUNT(DISTINCT ticker) AS indicator_tickers FROM technical_indicators;
+"
+```
+
+### 6. Run incremental daily refresh
+
+```bash
+# Sync all tracked tickers (prices + fundamentals + indicators)
+python scripts/daily_sync.py
+
+# Or sync only specific tickers
+python scripts/daily_sync.py AAPL MSFT TSLA
+```
+
+Notes:
+- `load_historical_data.py` and `load_fundamentals.py` are idempotent and safe to re-run.
+- `compute_technical_indicators.py` upserts indicator values and can be re-run anytime.
+- `daily_sync.py --prices-only` and `daily_sync.py --fundamentals-only` are available for partial runs.
 
 ## 🎯 Key Features
 
