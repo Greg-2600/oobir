@@ -122,7 +122,7 @@ scripts/bootstrap_db_data.sh sp500_tickers.txt
 BATCH_SIZE=75 scripts/bootstrap_db_data.sh
 ```
 
-The script handles everything in one shot: fetches price history and fundamentals from Yahoo Finance, loads both into Postgres, and prints a summary of loaded ticker counts.
+The script handles everything in one shot: fetches price history and fundamentals from Yahoo Finance, loads both into Postgres, computes technical indicators, and prints a summary of loaded ticker counts.
 
 ### Verify loaded data
 

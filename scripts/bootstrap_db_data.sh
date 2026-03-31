@@ -58,12 +58,14 @@ echo "Starting fetch + load pipeline..."
 
     python scripts/load_historical_data.py
     python scripts/load_fundamentals.py
+    python scripts/compute_technical_indicators.py
   '
 
 echo "Verifying database counts..."
 "${COMPOSE_CMD[@]}" exec -T "${POSTGRES_SERVICE}" psql -U oobir -d oobir -c '
 SELECT COUNT(DISTINCT ticker) AS price_tickers FROM price_history;
 SELECT COUNT(DISTINCT ticker) AS fundamentals_tickers FROM fundamentals;
+SELECT COUNT(DISTINCT ticker) AS indicator_tickers FROM technical_indicators;
 '
 
 echo "Bootstrap complete."
