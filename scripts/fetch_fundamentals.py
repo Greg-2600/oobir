@@ -37,6 +37,8 @@ def main() -> int:
 
     output_dir = Path(__file__).resolve().parent.parent / "historical_data"
     output_dir.mkdir(parents=True, exist_ok=True)
+    successes = 0
+    errors = 0
 
     for raw in args.tickers:
         ticker = raw.strip().upper()
@@ -47,8 +49,14 @@ def main() -> int:
             output_path = output_dir / f"{ticker}_fundamentals.json"
             output_path.write_text(json.dumps(payload, indent=2))
             print(f"Saved {ticker} fundamentals to {output_path}")
+            successes += 1
         except Exception as exc:
             print(f"Error fetching {ticker}: {exc}")
+            errors += 1
+
+    print(f"Fundamentals fetch summary: {successes} success, {errors} errors")
+    if successes == 0:
+        return 1
 
     return 0
 

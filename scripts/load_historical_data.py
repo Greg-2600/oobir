@@ -71,11 +71,6 @@ def iter_files(data_dir: Path) -> Iterable[Path]:
 def load_file(conn, path: Path) -> int:
     ticker = ticker_from_filename(path)
     with conn.cursor() as cur:
-        cur.execute("SELECT 1 FROM price_history WHERE ticker = %s LIMIT 1", (ticker,))
-        if cur.fetchone():
-            print(f"Skip {ticker}: data already present")
-            return 0
-
         payload = json.loads(path.read_text())
         rows = extract_rows(payload, ticker)
         if not rows:

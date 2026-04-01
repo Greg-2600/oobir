@@ -282,10 +282,55 @@ def with_ai_cache(endpoint: str, symbol: str, flow_function, *args, **kwargs):
 @app.get("/api/fundamentals/{symbol}")
 def get_fundamentals(symbol: str):
     """Get fundamentals for a given stock symbol."""
+    symbol = symbol.upper()
     logger.info("Fetching fundamentals for %s", symbol)
     try:
+        cached = db.get_cached_data("fundamentals", symbol)
+        if cached is not None:
+            return JSONResponse(content=cached)
+
+        # Prefer stored fundamentals from TimescaleDB, fallback to yfinance.
+        try:
+            conn = db_timescale.get_conn()
+            try:
+                db_result = db_timescale.fetch_latest_fundamentals(conn, symbol)
+            finally:
+                conn.close()
+        except Exception as exc:  # pylint: disable=broad-except
+            logger.warning(
+                "DB fundamentals lookup failed for %s, falling back: %s",
+                symbol,
+                str(exc),
+            )
+            db_result = None
+
+        if db_result is not None:
+            payload = db_result
+            if (
+                isinstance(db_result, dict)
+                and isinstance(db_result.get("raw_info"), dict)
+            ):
+                payload = db_result["raw_info"]
+
+            if isinstance(payload, dict) and "symbol" not in payload:
+                payload = {**payload, "symbol": symbol}
+
+            # Preserve legacy field aliases expected by existing clients/tests.
+            if isinstance(payload, dict):
+                if "pe_ratio" not in payload:
+                    payload["pe_ratio"] = payload.get("trailingPE") or payload.get(
+                        "trailing_pe"
+                    )
+                if "market_cap" not in payload:
+                    payload["market_cap"] = payload.get("marketCap") or payload.get(
+                        "market_cap"
+                    )
+
+            serialized = serialize_value(payload)
+            db.set_cached_data("fundamentals", serialized, symbol)
+            return JSONResponse(content=serialized)
+
         result = with_cache("fundamentals", symbol, flow.get_fundamentals)
-        # get_fundamentals returns a JSON string, so parse it first
         if isinstance(result, str):
             result = json.loads(result)
         return JSONResponse(content=result)
@@ -297,8 +342,33 @@ def get_fundamentals(symbol: str):
 @app.get("/api/price-history/{symbol}")
 def get_price_history(symbol: str):
     """Get historical price data for a given stock symbol."""
+    symbol = symbol.upper()
     logger.info("Fetching price history for %s", symbol)
     try:
+        cached = db.get_cached_data("price-history", symbol)
+        if cached is not None:
+            return JSONResponse(content=cached)
+
+        # Prefer stored historical data from TimescaleDB, fallback to yfinance.
+        try:
+            conn = db_timescale.get_conn()
+            try:
+                db_rows = db_timescale.fetch_price_history(conn, symbol)
+            finally:
+                conn.close()
+        except Exception as exc:  # pylint: disable=broad-except
+            logger.warning(
+                "DB price-history lookup failed for %s, falling back: %s",
+                symbol,
+                str(exc),
+            )
+            db_rows = []
+
+        if db_rows:
+            payload = {"data": serialize_value(db_rows)}
+            db.set_cached_data("price-history", payload, symbol)
+            return JSONResponse(content=payload)
+
         result = with_cache("price-history", symbol, flow.get_price_history)
         return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except

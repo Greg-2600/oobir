@@ -53,8 +53,14 @@ echo "Starting fetch + load pipeline..."
     xargs -a "$TICKER_FILE" -n "$BATCH_SIZE" python scripts/fetch_historical_price.py
     xargs -a "$TICKER_FILE" -n "$BATCH_SIZE" python scripts/fetch_fundamentals.py
 
-    echo "Price JSON files: $(ls historical_data/*_price_history_all.json 2>/dev/null | wc -l)"
-    echo "Fund JSON files:  $(ls historical_data/*_fundamentals.json 2>/dev/null | wc -l)"
+    price_files=$(ls historical_data/*_price_history_all.json 2>/dev/null | wc -l)
+    fund_files=$(ls historical_data/*_fundamentals.json 2>/dev/null | wc -l)
+    echo "Price JSON files: ${price_files}"
+    echo "Fund JSON files:  ${fund_files}"
+    if [ "$price_files" -eq 0 ] || [ "$fund_files" -eq 0 ]; then
+      echo "Bootstrap aborted: fetch step produced no data files." >&2
+      exit 1
+    fi
 
     python scripts/load_historical_data.py
     python scripts/load_fundamentals.py
@@ -67,5 +73,19 @@ SELECT COUNT(DISTINCT ticker) AS price_tickers FROM price_history;
 SELECT COUNT(DISTINCT ticker) AS fundamentals_tickers FROM fundamentals;
 SELECT COUNT(DISTINCT ticker) AS indicator_tickers FROM technical_indicators;
 '
+
+counts_line=$("${COMPOSE_CMD[@]}" exec -T "${POSTGRES_SERVICE}" psql -U oobir -d oobir -At -c '
+SELECT
+  COUNT(DISTINCT ticker),
+  (SELECT COUNT(DISTINCT ticker) FROM fundamentals),
+  (SELECT COUNT(DISTINCT ticker) FROM technical_indicators)
+FROM price_history;
+')
+IFS='|' read -r price_tickers fundamentals_tickers indicator_tickers <<<"${counts_line}"
+
+if [ "${price_tickers}" -eq 0 ] || [ "${fundamentals_tickers}" -eq 0 ] || [ "${indicator_tickers}" -eq 0 ]; then
+  echo "Bootstrap failed: one or more tables have zero loaded tickers." >&2
+  exit 1
+fi
 
 echo "Bootstrap complete."
