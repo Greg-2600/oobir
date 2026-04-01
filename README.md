@@ -149,7 +149,6 @@ docker compose exec daily-sync python scripts/daily_sync.py AAPL MSFT TSLA
 docker compose exec daily-sync python scripts/daily_sync.py --prices-only
 docker compose exec daily-sync python scripts/daily_sync.py --fundamentals-only
 ```
-
 ## 🎯 Key Features
 
 ### 1. Interactive Web Dashboard
