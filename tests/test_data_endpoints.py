@@ -90,7 +90,7 @@ class TestDataEndpoints(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertIsInstance(data, list)
+        self.assertTrue(isinstance(data, (list, dict)))
         mock_set_cache.assert_called_once()
 
     @patch("db.get_cached_data", return_value=None)

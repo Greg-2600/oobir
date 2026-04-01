@@ -106,61 +106,49 @@ cd web && python -m http.server 8081
 
 ## Bootstrapping Historical Data
 
-If you want to pre-seed PostgreSQL with the JSON files in `historical_data/`, run this one-time bootstrap after `docker compose up -d --build`.
-
-### 1. Set DB environment variables
+After `docker compose up -d --build`, run the bootstrap script to fetch all S&P 500 prices and fundamentals and load them into Postgres:
 
 ```bash
-export PGHOST=localhost
-export PGPORT=5432
-export PGDATABASE=oobir
-export PGUSER=oobir
-export PGPASSWORD=oobir
+scripts/bootstrap_db_data.sh
 ```
 
-### 2. Load historical price history
+Optional overrides:
 
 ```bash
-python scripts/load_historical_data.py
+# Use a custom ticker file
+scripts/bootstrap_db_data.sh sp500_tickers.txt
+
+# Increase fetch batch size (default: 50)
+BATCH_SIZE=75 scripts/bootstrap_db_data.sh
 ```
 
-### 3. Load fundamentals snapshots
+The script handles everything in one shot: fetches price history and fundamentals from Yahoo Finance, loads both into Postgres, computes technical indicators, and prints a summary of loaded ticker counts.
+
+### Verify loaded data
 
 ```bash
-python scripts/load_fundamentals.py
-```
-
-### 4. Compute technical indicators from loaded prices
-
-```bash
-python scripts/compute_technical_indicators.py
-```
-
-### 5. Verify data was loaded
-
-```bash
-docker exec oobir_postgres psql -U oobir -d oobir -c "
+docker compose exec postgres psql -U oobir -d oobir -c "
 SELECT COUNT(DISTINCT ticker) AS price_tickers FROM price_history;
 SELECT COUNT(DISTINCT ticker) AS fundamentals_tickers FROM fundamentals;
 SELECT COUNT(DISTINCT ticker) AS indicator_tickers FROM technical_indicators;
 "
 ```
 
-### 6. Run incremental daily refresh
+### Incremental daily refresh
+
+The `daily-sync` container runs automatically on weekdays at 6 PM ET, keeping prices, fundamentals, and technical indicators up to date for all tracked tickers. To trigger a manual sync:
 
 ```bash
-# Sync all tracked tickers (prices + fundamentals + indicators)
-python scripts/daily_sync.py
+# Sync all tracked tickers
+docker compose exec daily-sync python scripts/daily_sync.py
 
-# Or sync only specific tickers
-python scripts/daily_sync.py AAPL MSFT TSLA
+# Sync specific tickers only
+docker compose exec daily-sync python scripts/daily_sync.py AAPL MSFT TSLA
+
+# Prices only or fundamentals only
+docker compose exec daily-sync python scripts/daily_sync.py --prices-only
+docker compose exec daily-sync python scripts/daily_sync.py --fundamentals-only
 ```
-
-Notes:
-- `load_historical_data.py` and `load_fundamentals.py` are idempotent and safe to re-run.
-- `compute_technical_indicators.py` upserts indicator values and can be re-run anytime.
-- `daily_sync.py --prices-only` and `daily_sync.py --fundamentals-only` are available for partial runs.
-
 ## 🎯 Key Features
 
 ### 1. Interactive Web Dashboard
