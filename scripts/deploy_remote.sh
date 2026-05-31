@@ -114,8 +114,8 @@ fi
 echo '5) Run unit tests in the project venv'
 python -m unittest discover -v || true
 
-echo '6) (optional) Run a demo flow.py invocation against local Ollama (host port 11435)'
-python flow.py --host http://localhost:11435 AAPL get_ai_fundamental_analysis || true
+echo '6) (optional) Run a demo flow.py invocation against local Ollama (host port 11436)'
+python flow.py --host http://localhost:11436 AAPL get_ai_fundamental_analysis || true
 exit 0
 ENDSSH
 

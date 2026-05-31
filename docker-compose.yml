@@ -5,7 +5,7 @@ services:
     container_name: ollama
     ports:
       # map container's 11434 to a different host port to avoid conflicts
-      - "11435:11434"
+      - "11436:11434"
     environment:
       - OLLAMA_ALLOW_HTTP=true
       # increase Ollama model context/window (requested by user)

@@ -636,13 +636,13 @@ python flow.py --list
 
 **Using environment variable:**
 ```bash
-export OLLAMA_HOST=http://192.168.1.248:11435
+export OLLAMA_HOST=http://192.168.1.248:11436
 python flow.py AAPL get_ai_fundamental_analysis
 ```
 
 **Using --host flag:**
 ```bash
-python flow.py --host http://192.168.1.248:11435 AAPL get_ai_fundamental_analysis
+python flow.py --host http://192.168.1.248:11436 AAPL get_ai_fundamental_analysis
 ```
 
 **Inside Docker container:**
