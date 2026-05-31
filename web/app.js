@@ -26,6 +26,7 @@ let currentViewToken = '';
 let persistedSnapshotToken = '';
 let latestRelatedData = null;
 let latestRadarStocks = [];
+const PRICE_HISTORY_CHART_LIMIT = 121;
 
 function readStoredArray(key) {
     const sources = [window.localStorage, window.sessionStorage];
@@ -1960,10 +1961,11 @@ function renderPriceHistory(data, container) {
         return;
     }
 
-    // Store globally for re-rendering when sentiment arrives
-    window.lastPriceData = data;
+    const prices = data.data.slice(-PRICE_HISTORY_CHART_LIMIT);
 
-    const prices = data.data;
+    // Store globally for re-rendering when sentiment arrives
+    window.lastPriceData = { ...data, data: prices };
+
     const latest = prices[prices.length - 1];
     const oldest = prices[0];
     window.currentPrice = latest.Close;
@@ -2031,7 +2033,7 @@ function renderPriceHistory(data, container) {
         <strong>${formatCurrency(latest.Close)}</strong>
         <span class="${latest.Close >= oldest.Close ? 'text-success' : 'text-danger'}">
             ${latest.Close >= oldest.Close ? '▲' : '▼'}
-            ${formatPercent((latest.Close - oldest.Close) / oldest.Close)} (121d)
+            ${formatPercent((latest.Close - oldest.Close) / oldest.Close)} (${prices.length}d)
         </span>
     `;
 

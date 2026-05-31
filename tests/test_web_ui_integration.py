@@ -96,6 +96,32 @@ class TestWebUIDataEndpoints(unittest.TestCase):
         self.assertIn("Close", first_day)
         self.assertIn("Volume", first_day)
 
+    @patch("flow.get_price_history")
+    def test_price_history_endpoint_trims_oversized_payloads(self, mock_price_history):
+        """Oversized price history should be trimmed to the chart window."""
+        mock_price_history.return_value = {
+            "data": [
+                {
+                    "Date": f"2024-01-{i + 1:02d}",
+                    "Open": 150.0 + i,
+                    "High": 152.0 + i,
+                    "Low": 149.0 + i,
+                    "Close": 151.0 + i,
+                    "Volume": 1000000 + i,
+                }
+                for i in range(130)
+            ]
+        }
+
+        response = self.client.get("/api/price-history/CHTR")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("data", data)
+        self.assertEqual(len(data["data"]), 121)
+        self.assertEqual(data["data"][0]["Date"], "2024-01-10")
+        self.assertEqual(data["data"][-1]["Date"], "2024-01-130")
+
     @patch("flow.get_analyst_price_targets")
     def test_analyst_targets_endpoint_format(self, mock_analyst_targets):
         """Test analyst targets endpoint returns data suitable for Web UI display."""

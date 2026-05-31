@@ -94,6 +94,8 @@ app.add_middleware(
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
 logger.info("Ollama host configured: %s", OLLAMA_HOST)
 
+PRICE_HISTORY_WINDOW = 121
+
 
 # System/Cache Endpoints
 @app.get("/api/health")
@@ -237,6 +239,61 @@ def with_cache(endpoint: str, symbol: str, flow_function, *args, **kwargs):
     serialized_result = serialize_value(result)
     db.set_cached_data(endpoint, serialized_result, symbol)
 
+    return serialized_result
+
+
+def normalize_price_history_payload(payload):
+    """Trim price-history payloads to the most recent chart window."""
+    if isinstance(payload, list):
+        return payload[-PRICE_HISTORY_WINDOW:]
+
+    if isinstance(payload, dict):
+        data = payload.get("data")
+        if isinstance(data, list):
+            trimmed_data = data[-PRICE_HISTORY_WINDOW:]
+            if len(trimmed_data) != len(data):
+                normalized = dict(payload)
+                normalized["data"] = trimmed_data
+                return normalized
+
+    return payload
+
+
+def get_price_history_payload(symbol: str):
+    """Return a trimmed price-history payload, caching the trimmed response."""
+    cached_data = db.get_cached_data("price-history", symbol)
+    if cached_data is not None:
+        trimmed_cached = normalize_price_history_payload(cached_data)
+        if trimmed_cached != cached_data:
+            db.set_cached_data("price-history", trimmed_cached, symbol)
+        return trimmed_cached
+
+    # Prefer stored historical data from TimescaleDB, fallback to yfinance.
+    try:
+        conn = db_timescale.get_conn()
+        try:
+            db_rows = db_timescale.fetch_price_history(conn, symbol)
+        finally:
+            conn.close()
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.warning(
+            "DB price-history lookup failed for %s, falling back: %s",
+            symbol,
+            str(exc),
+        )
+        db_rows = []
+
+    if db_rows:
+        payload = normalize_price_history_payload({"data": serialize_value(db_rows)})
+        db.set_cached_data("price-history", payload, symbol)
+        return payload
+
+    result = flow.get_price_history(symbol)
+    if isinstance(result, str):
+        result = json.loads(result)
+    result = normalize_price_history_payload(result)
+    serialized_result = serialize_value(result)
+    db.set_cached_data("price-history", serialized_result, symbol)
     return serialized_result
 
 
@@ -485,31 +542,7 @@ def get_price_history(symbol: str):
     symbol = symbol.upper()
     logger.info("Fetching price history for %s", symbol)
     try:
-        cached = db.get_cached_data("price-history", symbol)
-        if cached is not None:
-            return JSONResponse(content=cached)
-
-        # Prefer stored historical data from TimescaleDB, fallback to yfinance.
-        try:
-            conn = db_timescale.get_conn()
-            try:
-                db_rows = db_timescale.fetch_price_history(conn, symbol)
-            finally:
-                conn.close()
-        except Exception as exc:  # pylint: disable=broad-except
-            logger.warning(
-                "DB price-history lookup failed for %s, falling back: %s",
-                symbol,
-                str(exc),
-            )
-            db_rows = []
-
-        if db_rows:
-            payload = {"data": serialize_value(db_rows)}
-            db.set_cached_data("price-history", payload, symbol)
-            return JSONResponse(content=payload)
-
-        result = with_cache("price-history", symbol, flow.get_price_history)
+        result = get_price_history_payload(symbol)
         return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error fetching price history for %s: %s", symbol, str(exc))
