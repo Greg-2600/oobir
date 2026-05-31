@@ -45,6 +45,29 @@
             max-width: 500px;
         }
 
+        .unified-nav {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .unified-nav a {
+            text-decoration: none;
+            color: #374151;
+            background: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 6px 12px;
+            font-size: 0.82em;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .unified-nav a:hover {
+            background: #e5e7eb;
+            border-color: #cbd5e1;
+        }
+
         .unified-content {
             max-width: 1400px;
             margin: 0 auto;
@@ -181,6 +204,11 @@
                 max-width: 100%;
             }
 
+            .unified-nav {
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+
             .stocks-grid {
                 grid-template-columns: 1fr;
             }
@@ -190,10 +218,9 @@
     <body>
         <div id="unified-page" class="unified-page">
             <!-- Header -->
-            <div class="unified-header">
-                <div class="unified-header-content">
-                    <div class="unified-logo"
-                         onclick="window.location.href='search.html'; return false;">OOBIR</div>
+            <div class="unified-header app-header">
+                <div class="unified-header-content app-header-content">
+                    <a class="unified-logo app-brand" href="search.html">OOBIR</a>
                     <form id="search-form" class="search-form unified-search-bar">
                         <input type="text"
                                id="ticker-input"
@@ -212,11 +239,29 @@
                             </svg>
                         </button>
                     </form>
+                    <nav class="unified-nav app-nav" aria-label="Primary navigation">
+                        <a href="search.html">Search</a>
+                        <a href="index.html" class="active">Stock Screen</a>
+                        <a href="screener.html">Fundamentals</a>
+                        <a href="markets.html">Markets</a>
+                        <a href="stocks.html">AI Picks</a>
+                    </nav>
                 </div>
             </div>
             <!-- Main Content -->
             <div class="unified-content">
                 <div id="error-message" class="error-message"></div>
+                <div class="market-radar-section">
+                    <div class="market-radar-header">
+                        <div>
+                            <h2>Market Radar</h2>
+                            <p>Fast paths into unusual movers, active names, and dividend ideas.</p>
+                        </div>
+                    </div>
+                    <div id="market-radar-grid" class="market-radar-grid">
+                        <div class="market-radar-empty">Loading radar...</div>
+                    </div>
+                </div>
                 <!-- Stocks Grid -->
                 <div class="stocks-grid-section">
                     <h2>📊 Stock Screener</h2>
@@ -242,6 +287,10 @@
         <div id="results-page" class="results-page hidden">
             <header class="results-header">
                 <div class="header-left">
+                    <button id="back-button"
+                            type="button"
+                            class="back-button"
+                            title="Return to the landing page">Back</button>
                     <h2 class="logo-small"
                         onclick="window.location.href='search.html'; return false;"
                         style="cursor: pointer">OOBIR</h2>
@@ -280,15 +329,10 @@
                 </div>
                 <div id="results-container" class="hidden">
                     <!-- Stock Header -->
-                    <div class="stock-header"
-                         style="display: flex;
-                                justify-content: space-between;
-                                align-items: flex-start">
+                    <div class="stock-header section-anchor stock-header-layout"
+                        id="section-overview">
                         <div>
-                            <div style="display: flex;
-                                        align-items: baseline;
-                                        gap: 12px;
-                                        flex-wrap: wrap">
+                            <div class="stock-symbol-line">
                                 <h1 id="stock-symbol"></h1>
                                 <span id="company-name" style="font-size: 1.1em; color: #666;"></span>
                             </div>
@@ -297,16 +341,39 @@
                                         color: #999;
                                         margin-top: 4px"></div>
                             <div id="stock-price" class="stock-price"></div>
+                            <div id="since-last-view" class="since-last-view"></div>
+                            <label class="revisit-marker-toggle" for="revisit-marker-toggle">
+                                <input id="revisit-marker-toggle" type="checkbox" checked>
+                                Show revisit markers: <span id="revisit-marker-toggle-status">On</span>
+                            </label>
                         </div>
-                        <div id="price-trend-summary"
-                             style="text-align: right;
-                                    font-size: 0.9em;
-                                    color: #666;
-                                    min-width: 200px"></div>
+                            <div id="price-trend-summary" class="price-trend-summary"></div>
+                    </div>
+                    <div id="exploration-rail" class="exploration-rail"></div>
+                    <div id="compare-panel" class="compare-panel"></div>
+                    <nav class="results-section-nav" aria-label="Results sections">
+                        <button type="button" class="section-chip active" data-target="section-overview">Overview</button>
+                        <button type="button" class="section-chip" data-target="decision-summary">Signals</button>
+                        <button type="button" class="section-chip" data-target="section-price-history">Price</button>
+                        <button type="button" class="section-chip" data-target="section-related-stocks">Related</button>
+                        <button type="button" class="section-chip" data-target="section-fundamentals">Fundamentals</button>
+                        <button type="button" class="section-chip" data-target="section-analyst-targets">Analyst</button>
+                        <button type="button" class="section-chip" data-target="section-news">News</button>
+                        <button type="button" class="section-chip" data-target="section-options">Options</button>
+                    </nav>
+                    <div id="decision-summary"
+                        class="card decision-summary-panel section-anchor">
+                        <div id="decision-summary-content" class="decision-summary-content"></div>
+                    </div>
+                    <div class="card section-anchor" id="section-related-stocks">
+                        <h3>🔗 Related Stocks To Explore</h3>
+                        <div id="related-stocks-data" class="data-content">
+                            <div class="loading-placeholder"></div>
+                        </div>
                     </div>
                     <!-- Trend Prediction Banner -->
-                    <div id="trend-prediction"
-                         class="card"
+                          <div id="trend-prediction"
+                            class="card section-anchor"
                          style="margin-bottom: 20px;
                                 border-left: 4px solid #3b82f6;
                                 background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)">
@@ -315,8 +382,8 @@
                         </div>
                     </div>
                     <!-- Trading Strategy Card -->
-                    <div id="trading-strategy"
-                         class="card"
+                          <div id="trading-strategy"
+                            class="card section-anchor"
                          style="margin-bottom: 20px;
                                 border-left: 4px solid #8b5cf6;
                                 background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%)">
@@ -325,8 +392,8 @@
                         </div>
                     </div>
                     <!-- Company Summary Box -->
-                    <div class="card"
-                         id="company-summary-box"
+                    <div id="company-summary-box"
+                        class="card section-anchor"
                          style="background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
                                 border-left: 4px solid #3b82f6">
                         <div id="summary-content" style="line-height: 1.6; color: #333;">
@@ -334,7 +401,7 @@
                         </div>
                     </div>
                     <!-- Price History Chart - FEATURED -->
-                    <div class="card highlight-card">
+                    <div class="card highlight-card section-anchor" id="section-price-history">
                         <h2>📈 Price History (121 Days)</h2>
                         <div id="price-history-data" class="data-content">
                             <div class="loading-placeholder"></div>
@@ -343,21 +410,21 @@
                     <!-- Data Grid -->
                     <div class="data-grid">
                         <!-- Fundamentals -->
-                        <div class="card">
+                        <div class="card section-anchor" id="section-fundamentals">
                             <h3>📊 Fundamentals</h3>
                             <div id="fundamentals-data" class="data-content">
                                 <div class="loading-placeholder"></div>
                             </div>
                         </div>
                         <!-- Analyst Targets -->
-                        <div class="card">
+                        <div class="card section-anchor" id="section-analyst-targets">
                             <h3>🎯 Analyst Targets</h3>
                             <div id="analyst-targets-data" class="data-content">
                                 <div class="loading-placeholder"></div>
                             </div>
                         </div>
                         <!-- Technical Signals -->
-                        <div class="card">
+                        <div class="card section-anchor" id="section-technical-signals">
                             <h3>📈 Technical Signals</h3>
                             <div id="technical-signals-data" class="data-content">
                                 <div class="loading-placeholder"></div>
@@ -372,16 +439,16 @@
                         </div>
                     </div>
                     <!-- News & Option Chain Side-by-Side -->
-                    <div style="margin-top: 32px; display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
+                    <div class="two-column-cards">
                         <!-- News -->
-                        <div class="card">
+                        <div class="card section-anchor" id="section-news">
                             <h3>📰 News</h3>
                             <div id="news-data" class="data-content">
                                 <div class="loading-placeholder"></div>
                             </div>
                         </div>
                         <!-- Option Chain -->
-                        <div class="card">
+                        <div class="card section-anchor" id="section-options">
                             <h3>📊 Option Chain</h3>
                             <div id="option-chain-data" class="data-content">
                                 <div class="loading-placeholder"></div>

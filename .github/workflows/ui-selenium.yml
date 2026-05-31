@@ -1,0 +1,68 @@
+name: UI Selenium Smoke
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  selenium-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r dev-requirements.txt
+
+      - name: Start API and web servers
+        run: |
+          nohup python -m uvicorn flow_api:app --host 127.0.0.1 --port 8000 > /tmp/oobir-api.log 2>&1 &
+          nohup python -m http.server 8081 --directory web > /tmp/oobir-web.log 2>&1 &
+
+      - name: Wait for services
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sSf http://127.0.0.1:8000/health >/dev/null && curl -sSf http://127.0.0.1:8081/index.html >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Services did not become ready in time"
+          echo "API log:"
+          cat /tmp/oobir-api.log || true
+          echo "Web log:"
+          cat /tmp/oobir-web.log || true
+          exit 1
+
+      - name: Run Selenium UI smoke tests
+        env:
+          BASE_URL: http://127.0.0.1:8081
+          UI_BROWSERS: chrome
+          HEADLESS: "1"
+          WAIT_TIMEOUT: "30"
+        run: |
+          python -m pytest \
+            tests/ui/test_ui.py::TestEnhancedNavigationUX::test_since_last_view_badge_updates_after_revisit \
+            tests/ui/test_ui.py::TestEnhancedNavigationUX::test_revisit_marker_toggle_hides_and_shows_related_markers \
+            -q --maxfail=1 --tb=short
+
+      - name: Print logs on failure
+        if: failure()
+        run: |
+          echo "API log:"
+          cat /tmp/oobir-api.log || true
+          echo "Web log:"
+          cat /tmp/oobir-web.log || true

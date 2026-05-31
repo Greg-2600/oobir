@@ -4,98 +4,294 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Search - OOBIR</title>
-        <!DOCTYPE html>
-        <html lang="en">
-            <head>
-                <meta charset="utf-8" />
-                <meta name="viewport" content="width=device-width,initial-scale=1" />
-                <title>OOBIR Search</title>
-                <link rel="stylesheet" href="styles.css">
-                <style>
-            html,body{height:100%;margin:0;font-family:Arial,Helvetica,sans-serif;background:#fff;color:#202124}
-            .google-like {
-                height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
-                padding:24px;box-sizing:border-box;
-            }
-            .brand {font-size:64px;font-weight:600;letter-spacing:-2px;margin-bottom:24px;color:#1a73e8}
-            .brand .dot{color:#ea4335}
-            .search-wrap{width:100%;max-width:640px}
-            .search-box{display:flex;border:1px solid #dfe1e5;border-radius:24px;padding:10px 14px;box-shadow:0 2px 6px rgba(32,33,36,0.08);align-items:center}
-            .search-input{flex:1;border:0;outline:none;font-size:18px;padding:8px 12px;background:transparent}
-            .search-actions{margin-top:18px;display:flex;justify-content:center;gap:12px}
-            .btn{background:#f8f9fa;border:1px solid #dadce0;padding:10px 16px;border-radius:4px;font-size:14px;color:#3c4043;cursor:pointer}
-            .btn.primary{background:#1a73e8;color:#fff;border-color:#1a73e8}
-            /* Centered quick-link row under search actions */
-            .link-row{margin-top:18px;display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
-            .link-pill{display:inline-flex;align-items:center;gap:10px;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:700;color:var(--pill-fore,#1a73e8);background:var(--pill-bg,rgba(26,115,232,0.06));box-shadow:0 6px 18px rgba(16,24,40,0.06);border:1px solid rgba(26,115,232,0.08);font-size:15px;transition:transform .12s ease,box-shadow .12s ease,opacity .12s ease}
-            .link-pill.secondary{--pill-fore:#374151;--pill-bg:rgba(99,102,241,0.04);border-color:rgba(99,102,241,0.06)}
-            .link-pill.primary{color:#fff;background:linear-gradient(180deg,#2b7cff,#1a73e8);border-color:rgba(26,115,232,0.12);box-shadow:0 8px 20px rgba(26,115,232,0.12)}
-            .link-pill:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(16,24,40,0.12)}
-            @media (max-width:520px){.brand{font-size:40px}.search-wrap{padding:0 12px}.link-pill{width:100%;justify-content:center}}
-                </style>
-            </head>
-            <body>
-                <main class="google-like">
-                    <div class="brand">
-                        OOBIR<span class="dot">.</span>
-                    </div>
-                    <div class="search-wrap">
-                        <form id="search-form"
-                              class="search-box"
-                              role="search"
-                              aria-label="Search stocks">
-                            <input id="q"
-                                   name="q"
-                                   class="search-input"
-                                   type="search"
-                                   placeholder="Search ticker or company"
-                                   autocomplete="off" />
-                        </form>
-                        <div class="search-actions">
-                            <button id="search-btn" class="btn primary">Search</button>
-                            <button id="lucky-btn" class="btn">Surprise me</button>
-                        </div>
-                        <div class="link-row" aria-label="Quick links">
-                            <a class="link-pill primary" href="index.html">Stock Screen</a>
-                            <a class="link-pill secondary" href="screener.html">Fundamentals</a>
-                            <a class="link-pill secondary" href="markets.html">Market Indexes</a>
-                        </div>
-                    </div>
-                </main>
-                <script>
-            (function(){
-                const form = document.getElementById('search-form');
-                const input = document.getElementById('q');
-                const searchBtn = document.getElementById('search-btn');
-                const luckyBtn = document.getElementById('lucky-btn');
+        <link rel="stylesheet" href="styles.css">
+        <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+            background: radial-gradient(circle at 0% 0%, #fff8eb 0%, #fffdf8 32%, #f6f8fc 100%);
+            color: #1f2937;
+        }
 
-                function goToTicker(v){
-                    if(!v) return;
-                    window.location.href = 'index.html?ticker=' + encodeURIComponent(v);
+        .search-page {
+            min-height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            box-sizing: border-box;
+        }
+
+        .brand {
+            font-size: 64px;
+            font-weight: 800;
+            letter-spacing: -2px;
+            margin-bottom: 14px;
+            color: #1a73e8;
+            text-shadow: 0 8px 18px rgba(26, 115, 232, 0.16);
+        }
+
+        .brand .dot { color: #ea4335; }
+
+        .hero-subtitle {
+            margin-bottom: 18px;
+            color: #475569;
+            font-size: 14px;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .search-wrap { width: 100%; max-width: 640px; }
+
+        .search-box {
+            display: flex;
+            border: 1px solid #d6deea;
+            border-radius: 24px;
+            padding: 10px 14px;
+            box-shadow: 0 8px 26px rgba(15, 23, 42, 0.12);
+            align-items: center;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(8px);
+        }
+
+        .search-input {
+            flex: 1;
+            border: 0;
+            outline: none;
+            font-size: 18px;
+            padding: 8px 12px;
+            background: transparent;
+        }
+
+        .search-actions {
+            margin-top: 18px;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .btn {
+            background: #f8f9fa;
+            border: 1px solid #dadce0;
+            padding: 10px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #3c4043;
+            cursor: pointer;
+        }
+
+        .btn.primary {
+            background: #1a73e8;
+            color: #fff;
+            border-color: #1a73e8;
+            box-shadow: 0 10px 22px rgba(26, 115, 232, 0.22);
+        }
+
+        .recent-wrap {
+            margin-top: 16px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .recent-chip {
+            border: 1px solid rgba(148, 163, 184, 0.38);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.8);
+            color: #334155;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 6px 11px;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .recent-chip:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+        }
+
+        .link-row {
+            margin-top: 18px;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .link-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 18px;
+            border-radius: 999px;
+            text-decoration: none;
+            font-weight: 700;
+            color: var(--pill-fore, #1a73e8);
+            background: var(--pill-bg, rgba(26, 115, 232, 0.06));
+            box-shadow: 0 6px 18px rgba(16, 24, 40, 0.06);
+            border: 1px solid rgba(26, 115, 232, 0.08);
+            font-size: 15px;
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
+        }
+
+        .link-pill.secondary {
+            --pill-fore: #374151;
+            --pill-bg: rgba(99, 102, 241, 0.04);
+            border-color: rgba(99, 102, 241, 0.06);
+        }
+
+        .link-pill.primary {
+            color: #fff;
+            background: linear-gradient(180deg, #2b7cff, #1a73e8);
+            border-color: rgba(26, 115, 232, 0.12);
+            box-shadow: 0 8px 20px rgba(26, 115, 232, 0.12);
+        }
+
+        .link-pill:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px rgba(16, 24, 40, 0.12);
+        }
+
+        @media (max-width: 520px) {
+            .brand { font-size: 40px; }
+            .search-wrap { padding: 0 12px; }
+            .link-pill { width: 100%; justify-content: center; }
+        }
+        </style>
+    </head>
+    <body>
+        <header class="app-header">
+            <div class="app-header-content">
+                <div class="app-header-left">
+                    <a class="app-brand" href="search.html">OOBIR</a>
+                    <span class="app-page-label">Search</span>
+                </div>
+                <nav class="app-nav" aria-label="Primary navigation">
+                    <a href="search.html" class="active">Search</a>
+                    <a href="index.html">Stock Screen</a>
+                    <a href="screener.html">Fundamentals</a>
+                    <a href="markets.html">Markets</a>
+                    <a href="stocks.html">AI Picks</a>
+                </nav>
+            </div>
+        </header>
+        <main class="search-page">
+            <div class="brand">OOBIR<span class="dot">.</span></div>
+            <div class="hero-subtitle">Signal-first stock intelligence</div>
+            <div class="search-wrap">
+                <form id="search-form" class="search-box" role="search" aria-label="Search stocks">
+                    <input id="q"
+                           name="q"
+                           class="search-input"
+                           type="search"
+                           placeholder="Search ticker or company"
+                           autocomplete="off">
+                </form>
+                <div class="search-actions">
+                    <button id="search-btn" class="btn primary" type="button">Search</button>
+                    <button id="lucky-btn" class="btn" type="button">Surprise me</button>
+                </div>
+                <div id="recent-wrap" class="recent-wrap" aria-label="Recent searches"></div>
+                <div class="link-row" aria-label="Quick links">
+                    <a class="link-pill primary" href="index.html">Stock Screen</a>
+                    <a class="link-pill secondary" href="screener.html">Fundamentals</a>
+                    <a class="link-pill secondary" href="markets.html">Markets</a>
+                    <a class="link-pill secondary" href="stocks.html">AI Picks</a>
+                </div>
+            </div>
+        </main>
+        <script>
+        (function () {
+            const form = document.getElementById('search-form');
+            const input = document.getElementById('q');
+            const searchBtn = document.getElementById('search-btn');
+            const luckyBtn = document.getElementById('lucky-btn');
+            const recentWrap = document.getElementById('recent-wrap');
+            const RECENT_KEY = 'oobir_recent_tickers';
+
+            function getRecentTickers() {
+                try {
+                    const parsed = JSON.parse(window.localStorage.getItem(RECENT_KEY) || '[]');
+                    return Array.isArray(parsed) ? parsed : [];
+                } catch {
+                    return [];
                 }
+            }
 
-                form.addEventListener('submit', function(e){ e.preventDefault(); goToTicker(input.value.trim()); });
-                searchBtn.addEventListener('click', function(){ goToTicker(input.value.trim()); });
-
-                // "Surprise me" loads a random featured ticker if available via config, else picks a sample
-                luckyBtn.addEventListener('click', async function(){
-                    try{
-                        const res = await fetch('config.js');
-                    }catch(e){}
-                    const samples = [
-                        'AAPL','MSFT','TSLA','AMZN','GOOGL','META','NVDA','NFLX','BRK.B','JPM',
-                        'V','MA','BAC','WMT','HD','PG','KO','NKE','DIS','ADBE',
-                        'CRM','PYPL','INTC','AMD','ORCL','CSCO','PEP','T','TMUS','CMCSA',
-                        'PFE','MRK','JNJ','ABBV','BA','CAT','SBUX','UBER','LYFT','SQ',
-                        'SHOP','SPOT','RIVN','PLTR','TSM','BABA','ZM','Roku','XOM','CVX'
-                    ];
-                    const choice = samples[Math.floor(Math.random()*samples.length)];
-                    goToTicker(choice);
+            function pushRecentTicker(ticker) {
+                if (!ticker) return;
+                const normalized = ticker.toUpperCase();
+                const recent = getRecentTickers().filter(function (value) {
+                    return value !== normalized;
                 });
+                recent.unshift(normalized);
+                window.localStorage.setItem(RECENT_KEY, JSON.stringify(recent.slice(0, 10)));
+            }
 
-                input.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); goToTicker(input.value.trim()); } });
-            })();
-                </script>
-            </body>
-        </html>
-    </div>
+            function renderRecentTickers() {
+                if (!recentWrap) return;
+                const recent = getRecentTickers().slice(0, 8);
+                if (!recent.length) {
+                    recentWrap.innerHTML = '';
+                    return;
+                }
+                recentWrap.innerHTML = recent.map(function (ticker) {
+                    return '<button type="button" class="recent-chip" data-ticker="' + ticker + '">' + ticker + '</button>';
+                }).join('');
+
+                recentWrap.querySelectorAll('.recent-chip[data-ticker]').forEach(function (chip) {
+                    chip.addEventListener('click', function () {
+                        const value = chip.getAttribute('data-ticker');
+                        if (!value) return;
+                        goToTicker(value);
+                    });
+                });
+            }
+
+            function goToTicker(value) {
+                if (!value) return;
+                pushRecentTicker(value);
+                window.location.href = 'index.html?ticker=' + encodeURIComponent(value);
+            }
+
+            form.addEventListener('submit', function (event) {
+                event.preventDefault();
+                goToTicker(input.value.trim());
+            });
+
+            searchBtn.addEventListener('click', function () {
+                goToTicker(input.value.trim());
+            });
+
+            luckyBtn.addEventListener('click', function () {
+                const samples = [
+                    'AAPL', 'MSFT', 'TSLA', 'AMZN', 'GOOGL', 'META', 'NVDA', 'NFLX', 'BRK.B', 'JPM',
+                    'V', 'MA', 'BAC', 'WMT', 'HD', 'PG', 'KO', 'NKE', 'DIS', 'ADBE',
+                    'CRM', 'PYPL', 'INTC', 'AMD', 'ORCL', 'CSCO', 'PEP', 'T', 'TMUS', 'CMCSA',
+                    'PFE', 'MRK', 'JNJ', 'ABBV', 'BA', 'CAT', 'SBUX', 'UBER', 'LYFT', 'SQ',
+                    'SHOP', 'SPOT', 'RIVN', 'PLTR', 'TSM', 'BABA', 'ZM', 'ROKU', 'XOM', 'CVX'
+                ];
+                const choice = samples[Math.floor(Math.random() * samples.length)];
+                goToTicker(choice);
+            });
+
+            document.addEventListener('keydown', function (event) {
+                const activeTag = document.activeElement && document.activeElement.tagName
+                    ? document.activeElement.tagName.toLowerCase()
+                    : '';
+                if (event.key === '/' && activeTag !== 'input') {
+                    event.preventDefault();
+                    input.focus();
+                }
+            });
+
+            renderRecentTickers();
+        })();
+        </script>
+    </body>
+</html>

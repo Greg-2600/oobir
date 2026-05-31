@@ -1,0 +1,13 @@
+{
+  "name": "oobir",
+  "private": true,
+  "version": "1.0.0",
+  "description": "OOBIR frontend lint tooling",
+  "scripts": {
+    "lint:js": "eslint web/*.js"
+  },
+  "devDependencies": {
+    "eslint": "^9.28.0",
+    "globals": "^15.13.0"
+  }
+}

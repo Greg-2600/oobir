@@ -3,13 +3,14 @@
 No authentication; suitable for internal networks only.
 """
 
-import os
 import json
 import logging
+import os
+import math
 from datetime import date, datetime
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import pandas as pd
@@ -274,6 +275,146 @@ def with_ai_cache(endpoint: str, symbol: str, flow_function, *args, **kwargs):
     return serialized_result
 
 
+def _extract_fundamentals_payload(db_result: dict | None, symbol: str) -> dict:
+    """Normalize DB fundamentals row into a payload suitable for scoring."""
+    if not isinstance(db_result, dict):
+        return {"symbol": symbol}
+
+    payload = db_result
+    if isinstance(db_result.get("raw_info"), dict):
+        payload = db_result["raw_info"]
+
+    if "symbol" not in payload:
+        payload = {**payload, "symbol": symbol}
+
+    if "pe_ratio" not in payload:
+        payload["pe_ratio"] = payload.get("trailingPE") or payload.get("trailing_pe")
+    if "market_cap" not in payload:
+        payload["market_cap"] = payload.get("marketCap") or payload.get("market_cap")
+
+    return payload
+
+
+def _to_float(value, default=0.0):
+    """Convert to float with fallback."""
+    try:
+        if value is None:
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _feature_vector(payload: dict) -> dict:
+    """Build normalized feature vector used by related-stock similarity."""
+    current_price = _to_float(
+        payload.get("currentPrice")
+        or payload.get("current_price")
+        or payload.get("regularMarketPrice")
+    )
+    previous_close = _to_float(
+        payload.get("regularMarketPreviousClose")
+        or payload.get("regular_market_previous_close")
+        or payload.get("previousClose")
+        or payload.get("previous_close")
+    )
+    if previous_close <= 0:
+        previous_close = current_price
+
+    volume_value = _to_float(
+        payload.get("averageVolume")
+        or payload.get("average_volume")
+        or payload.get("averageDailyVolume10Day")
+        or payload.get("average_daily_volume_10day")
+        or payload.get("volume")
+    )
+
+    dividend_yield = _to_float(
+        payload.get("dividendYield")
+        or payload.get("dividend_yield")
+        or payload.get("trailingAnnualDividendYield")
+        or payload.get("trailing_annual_dividend_yield")
+    )
+    has_dividend = dividend_yield > 0
+
+    change_pct = 0.0
+    if previous_close > 0 and current_price > 0:
+        change_pct = ((current_price - previous_close) / previous_close) * 100.0
+
+    return {
+        "price": current_price,
+        "change_pct": change_pct,
+        "volume": volume_value,
+        "dividend_yield": dividend_yield,
+        "has_dividend": has_dividend,
+    }
+
+
+def _similarity_score(base: dict, candidate: dict) -> float:
+    """Lower score means more similar."""
+    base_price = max(base.get("price", 0.0), 1e-9)
+    cand_price = max(candidate.get("price", 0.0), 1e-9)
+    price_distance = abs(math.log10(base_price) - math.log10(cand_price))
+
+    change_distance = min(
+        abs(base.get("change_pct", 0.0) - candidate.get("change_pct", 0.0)) / 12.0,
+        3.0,
+    )
+
+    base_volume = max(base.get("volume", 0.0), 1e-9)
+    cand_volume = max(candidate.get("volume", 0.0), 1e-9)
+    volume_distance = abs(math.log10(base_volume) - math.log10(cand_volume))
+
+    dividend_penalty = (
+        0.0
+        if base.get("has_dividend", False) == candidate.get("has_dividend", False)
+        else 0.35
+    )
+
+    return (
+        price_distance * 0.45
+        + change_distance * 0.35
+        + volume_distance * 0.15
+        + dividend_penalty * 0.05
+    )
+
+
+def _similarity_reason(base: dict, candidate: dict) -> str:
+    """Create short human-readable reason for why candidate is related."""
+    reasons = []
+
+    if abs(base.get("change_pct", 0.0) - candidate.get("change_pct", 0.0)) < 2.5:
+        reasons.append("similar daily price move")
+
+    if (
+        abs(
+            math.log10(max(base.get("price", 0.0), 1e-9))
+            - math.log10(max(candidate.get("price", 0.0), 1e-9))
+        )
+        < 0.35
+    ):
+        reasons.append("similar price range")
+
+    if (
+        abs(
+            math.log10(max(base.get("volume", 0.0), 1e-9))
+            - math.log10(max(candidate.get("volume", 0.0), 1e-9))
+        )
+        < 0.6
+    ):
+        reasons.append("comparable trading volume")
+
+    if base.get("has_dividend", False) == candidate.get("has_dividend", False):
+        if base.get("has_dividend", False):
+            reasons.append("both pay dividends")
+        else:
+            reasons.append("both are non-dividend names")
+
+    if not reasons:
+        return "overlapping price/volume profile"
+    return ", ".join(reasons[:2])
+
+
 # ============================================================================
 # Data Endpoints
 # ============================================================================
@@ -306,9 +447,8 @@ def get_fundamentals(symbol: str):
 
         if db_result is not None:
             payload = db_result
-            if (
-                isinstance(db_result, dict)
-                and isinstance(db_result.get("raw_info"), dict)
+            if isinstance(db_result, dict) and isinstance(
+                db_result.get("raw_info"), dict
             ):
                 payload = db_result["raw_info"]
 
@@ -446,6 +586,84 @@ def get_option_chain(symbol: str):
         return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error fetching option chain for %s: %s", symbol, str(exc))
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/related-stocks/{symbol}")
+def get_related_stocks(
+    symbol: str,
+    limit: int = Query(default=3, ge=1, le=10),
+    exclude: str = "",
+):
+    """Get a small set of related stocks for exploration without loops.
+
+    Relatedness is based on price level, recent % move, volume profile,
+    and dividend profile similarity.
+    """
+    symbol = symbol.upper()
+    logger.info("Fetching related stocks for %s", symbol)
+
+    excluded = {value.strip().upper() for value in exclude.split(",") if value.strip()}
+    excluded.add(symbol)
+
+    try:
+        conn = db_timescale.get_conn()
+        try:
+            base_row = db_timescale.fetch_latest_fundamentals(conn, symbol)
+            base_payload = _extract_fundamentals_payload(base_row, symbol)
+            base_features = _feature_vector(base_payload)
+
+            # If base ticker lacks fundamentals, fallback to flow data.
+            if base_features["price"] <= 0:
+                raw = flow.get_fundamentals(symbol)
+                parsed = json.loads(raw) if isinstance(raw, str) else (raw or {})
+                base_payload = (
+                    parsed if isinstance(parsed, dict) else {"symbol": symbol}
+                )
+                base_features = _feature_vector(base_payload)
+
+            candidate_tickers = db_timescale.list_fundamental_tickers(conn)
+            scored = []
+
+            for candidate_ticker in candidate_tickers:
+                cand = candidate_ticker.upper()
+                if cand in excluded:
+                    continue
+
+                cand_row = db_timescale.fetch_latest_fundamentals(conn, cand)
+                cand_payload = _extract_fundamentals_payload(cand_row, cand)
+                cand_features = _feature_vector(cand_payload)
+
+                if cand_features["price"] <= 0:
+                    continue
+
+                score = _similarity_score(base_features, cand_features)
+                scored.append(
+                    {
+                        "ticker": cand,
+                        "name": cand_payload.get("shortName")
+                        or cand_payload.get("longName")
+                        or cand,
+                        "score": round(score, 4),
+                        "reason": _similarity_reason(base_features, cand_features),
+                        "price": round(cand_features["price"], 2),
+                        "change_pct": round(cand_features["change_pct"], 2),
+                        "dividend_yield": round(
+                            cand_features["dividend_yield"] * 100.0, 2
+                        ),
+                        "has_dividend": cand_features["has_dividend"],
+                        "link": f"index.html?ticker={cand}",
+                    }
+                )
+
+            scored.sort(key=lambda row: row["score"])
+            result = scored[:limit]
+
+            return JSONResponse(content={"symbol": symbol, "related": result})
+        finally:
+            conn.close()
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.error("Error fetching related stocks for %s: %s", symbol, str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
@@ -788,11 +1006,7 @@ def list_fundamentals_db(
         conditions.append("debt_to_equity <= %s")
         params.append(max_debt_to_equity)
 
-    where = ""
-    if conditions:
-        where = "AND " + " AND ".join(conditions)
-
-    sql = f"""
+    base_sql = """
         SELECT DISTINCT ON (ticker)
             ticker, short_name, long_name, sector, industry, exchange, currency,
             market_cap, enterprise_value,
@@ -810,19 +1024,26 @@ def list_fundamentals_db(
             target_mean_price, recommendation_key, number_of_analyst_opinions,
             fetched_at
         FROM fundamentals
-        WHERE ticker IS NOT NULL {where}
-        ORDER BY ticker, fetched_at DESC
+        WHERE ticker IS NOT NULL
     """
 
     try:
         conn = db_timescale.get_conn()
         try:
+            from psycopg2 import sql as psql  # pylint: disable=import-outside-toplevel
             from psycopg2.extras import (
                 RealDictCursor,
             )  # pylint: disable=import-outside-toplevel
 
+            query = psql.SQL(base_sql)
+            if conditions:
+                query += psql.SQL(" AND ") + psql.SQL(" AND ").join(
+                    psql.SQL(condition) for condition in conditions
+                )
+            query += psql.SQL(" ORDER BY ticker, fetched_at DESC")
+
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(sql, params)
+                cur.execute(query, params)
                 rows = cur.fetchall()
 
             # Post-query sort (since DISTINCT ON forces ORDER BY ticker first)
@@ -832,7 +1053,7 @@ def list_fundamentals_db(
                     return float("-inf") if sort_dir == "desc" else float("inf")
                 return v
 
-            rows.sort(key=sort_key, reverse=(sort_dir == "desc"))
+            rows.sort(key=sort_key, reverse=sort_dir == "desc")
             rows = rows[:limit]
 
             results = []
@@ -841,7 +1062,7 @@ def list_fundamentals_db(
                 for k, v in d.items():
                     if isinstance(v, datetime):
                         d[k] = v.isoformat()
-                    elif isinstance(v, (float,)) and (v != v):  # NaN check
+                    elif isinstance(v, (float, np.floating)) and pd.isna(v):
                         d[k] = None
                 results.append(d)
 
@@ -978,4 +1199,8 @@ def get_db_stats():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(
+        app,
+        host=os.environ.get("HOST", "127.0.0.1"),
+        port=int(os.environ.get("PORT", "8000")),
+    )

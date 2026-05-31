@@ -230,6 +230,121 @@ class TestDataEndpoints(unittest.TestCase):
 
         self.assertEqual(response.status_code, 500)
 
+    @patch("db_timescale.get_conn")
+    @patch("db_timescale.list_fundamental_tickers")
+    @patch("db_timescale.fetch_latest_fundamentals")
+    def test_related_stocks_endpoint_returns_ranked_results(
+        self, mock_fetch_fundamentals, mock_list_tickers, mock_get_conn
+    ):
+        """Test related stocks endpoint returns similarity-ranked related symbols."""
+        mock_conn = MagicMock()
+        mock_get_conn.return_value = mock_conn
+
+        mock_list_tickers.return_value = ["TSLA", "RIVN", "NIO", "F", "GM"]
+
+        fundamentals_map = {
+            "TSLA": {
+                "raw_info": {
+                    "symbol": "TSLA",
+                    "shortName": "Tesla, Inc.",
+                    "currentPrice": 180.0,
+                    "regularMarketPreviousClose": 176.0,
+                    "averageVolume": 100000000,
+                    "dividendYield": 0.0,
+                }
+            },
+            "RIVN": {
+                "raw_info": {
+                    "symbol": "RIVN",
+                    "shortName": "Rivian Automotive",
+                    "currentPrice": 17.0,
+                    "regularMarketPreviousClose": 16.6,
+                    "averageVolume": 34000000,
+                    "dividendYield": 0.0,
+                }
+            },
+            "NIO": {
+                "raw_info": {
+                    "symbol": "NIO",
+                    "shortName": "NIO Inc",
+                    "currentPrice": 6.2,
+                    "regularMarketPreviousClose": 6.0,
+                    "averageVolume": 41000000,
+                    "dividendYield": 0.0,
+                }
+            },
+            "F": {
+                "raw_info": {
+                    "symbol": "F",
+                    "shortName": "Ford Motor Company",
+                    "currentPrice": 12.1,
+                    "regularMarketPreviousClose": 11.9,
+                    "averageVolume": 50000000,
+                    "dividendYield": 0.052,
+                }
+            },
+            "GM": {
+                "raw_info": {
+                    "symbol": "GM",
+                    "shortName": "General Motors",
+                    "currentPrice": 42.0,
+                    "regularMarketPreviousClose": 41.8,
+                    "averageVolume": 18000000,
+                    "dividendYield": 0.009,
+                }
+            },
+        }
+
+        def _fetch_side_effect(_conn, ticker):
+            return fundamentals_map.get(ticker)
+
+        mock_fetch_fundamentals.side_effect = _fetch_side_effect
+
+        response = self.client.get("/api/related-stocks/TSLA?limit=3")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("related", data)
+        self.assertEqual(data["symbol"], "TSLA")
+        self.assertEqual(len(data["related"]), 3)
+        self.assertTrue(all("ticker" in item for item in data["related"]))
+        self.assertTrue(all("link" in item for item in data["related"]))
+        self.assertNotIn("TSLA", [item["ticker"] for item in data["related"]])
+
+        mock_conn.close.assert_called_once()
+
+    @patch("db_timescale.get_conn")
+    @patch("db_timescale.list_fundamental_tickers")
+    @patch("db_timescale.fetch_latest_fundamentals")
+    def test_related_stocks_respects_exclude_list(
+        self, mock_fetch_fundamentals, mock_list_tickers, mock_get_conn
+    ):
+        """Test related stocks endpoint does not return explicitly excluded symbols."""
+        mock_conn = MagicMock()
+        mock_get_conn.return_value = mock_conn
+
+        mock_list_tickers.return_value = ["TSLA", "RIVN", "NIO", "F"]
+
+        fundamentals = {
+            "raw_info": {
+                "symbol": "X",
+                "shortName": "Test",
+                "currentPrice": 100.0,
+                "regularMarketPreviousClose": 99.0,
+                "averageVolume": 20000000,
+                "dividendYield": 0.0,
+            }
+        }
+        mock_fetch_fundamentals.return_value = fundamentals
+
+        response = self.client.get("/api/related-stocks/TSLA?limit=3&exclude=RIVN,NIO")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        tickers = [item["ticker"] for item in data["related"]]
+        self.assertNotIn("RIVN", tickers)
+        self.assertNotIn("NIO", tickers)
+
 
 if __name__ == "__main__":
     unittest.main()

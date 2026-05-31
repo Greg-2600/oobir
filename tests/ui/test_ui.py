@@ -373,6 +373,91 @@ class TestErrorHandling:
         )
         assert "valid stock ticker" in error_msg.text
 
+
+class TestEnhancedNavigationUX:
+    """Behavior tests for newer navigation and keyboard UX features."""
+
+    @staticmethod
+    def _search_aapl(browser, wait):
+        search_input = wait.until(
+            EC.presence_of_element_located((By.ID, "ticker-input"))
+        )
+        search_input.clear()
+        search_input.send_keys("AAPL")
+        search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
+        search_button.click()
+        wait.until(
+            lambda d: "hidden"
+            not in d.find_element(By.ID, "results-container").get_attribute("class")
+        )
+
+    @staticmethod
+    def _search_page_url(base_url):
+        return base_url.rstrip("/") + "/search.html"
+
+    def test_section_chip_click_sets_active_and_scrolls(
+        self, browser, base_url, wait_timeout
+    ):
+        """Clicking a section chip should activate it and scroll toward target section."""
+        browser.get(base_url)
+        wait = WebDriverWait(browser, wait_timeout)
+        self._search_aapl(browser, wait)
+
+        price_chip = wait.until(
+            EC.element_to_be_clickable(
+                (By.CSS_SELECTOR, ".section-chip[data-target='section-price-history']")
+            )
+        )
+        price_chip.click()
+
+        wait.until(
+            lambda d: "active"
+            in d.find_element(
+                By.CSS_SELECTOR, ".section-chip[data-target='section-price-history']"
+            ).get_attribute("class")
+        )
+
+        top = browser.execute_script(
+            "return document.getElementById('section-price-history').getBoundingClientRect().top;"
+        )
+        assert top < 260
+
+    def test_slash_shortcut_focuses_search_input_on_search_page(
+        self, browser, base_url, wait_timeout
+    ):
+        """Pressing / should focus the primary search input on search page."""
+        browser.get(self._search_page_url(base_url))
+        wait = WebDriverWait(browser, wait_timeout)
+
+        body = wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+        body.send_keys("/")
+
+        wait.until(lambda d: d.switch_to.active_element.get_attribute("id") == "q")
+        assert browser.switch_to.active_element.get_attribute("id") == "q"
+
+    def test_recent_ticker_chip_appears_after_search(
+        self, browser, base_url, wait_timeout
+    ):
+        """Searching from search page should persist ticker and render a recent chip."""
+        browser.get(self._search_page_url(base_url))
+        wait = WebDriverWait(browser, wait_timeout)
+
+        input_el = wait.until(EC.presence_of_element_located((By.ID, "q")))
+        input_el.clear()
+        input_el.send_keys("TSLA")
+        search_btn = browser.find_element(By.ID, "search-btn")
+        search_btn.click()
+
+        wait.until(lambda d: "index.html?ticker=TSLA" in d.current_url)
+
+        browser.get(self._search_page_url(base_url))
+        chip = wait.until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, ".recent-chip[data-ticker='TSLA']")
+            )
+        )
+        assert chip.is_displayed()
+
     def test_special_characters_in_search(self, browser, base_url, wait_timeout):
         """Verify special characters are handled as invalid input."""
         browser.get(base_url)
@@ -390,3 +475,295 @@ class TestErrorHandling:
             EC.visibility_of_element_located((By.ID, "error-message"))
         )
         assert "valid stock ticker" in error_msg.text
+
+    def test_since_last_view_badge_updates_after_revisit(
+        self, browser, base_url, wait_timeout
+    ):
+        """Revisiting a ticker should show a since-last-view delta badge."""
+        browser.get(base_url)
+        wait = WebDriverWait(browser, wait_timeout)
+
+        browser.execute_script(
+            "window.localStorage.removeItem('oobir_last_view_snapshots');"
+            "window.sessionStorage.removeItem('oobir_last_view_snapshots');"
+        )
+
+        self._search_aapl(browser, wait)
+
+        first_badge = wait.until(
+            EC.visibility_of_element_located((By.ID, "since-last-view"))
+        )
+        assert "First tracked view" in first_badge.text
+
+        compact_input = wait.until(
+            EC.visibility_of_element_located((By.ID, "ticker-input-compact"))
+        )
+        compact_input.clear()
+        compact_input.send_keys("MSFT")
+        compact_submit = browser.find_element(
+            By.CSS_SELECTOR, "#search-form-compact button[type='submit']"
+        )
+        compact_submit.click()
+        wait.until(
+            lambda d: d.find_element(By.ID, "stock-symbol").text.strip().upper()
+            == "MSFT"
+        )
+
+        compact_input = wait.until(
+            EC.visibility_of_element_located((By.ID, "ticker-input-compact"))
+        )
+        compact_input.clear()
+        compact_input.send_keys("AAPL")
+        compact_submit = browser.find_element(
+            By.CSS_SELECTOR, "#search-form-compact button[type='submit']"
+        )
+        compact_submit.click()
+        wait.until(
+            lambda d: d.find_element(By.ID, "stock-symbol").text.strip().upper()
+            == "AAPL"
+        )
+
+        wait.until(
+            lambda d: "since last view"
+            in d.find_element(By.ID, "since-last-view").text.lower()
+        )
+        revisit_badge_text = browser.find_element(By.ID, "since-last-view").text
+        assert "since last view" in revisit_badge_text.lower()
+
+    def test_since_last_view_badge_has_explanatory_tooltip(
+        self, browser, base_url, wait_timeout
+    ):
+        """Revisit badge should expose comparison details in title tooltip text."""
+        browser.get(base_url)
+        wait = WebDriverWait(browser, wait_timeout)
+
+        browser.execute_script(
+            "window.localStorage.removeItem('oobir_last_view_snapshots');"
+            "window.sessionStorage.removeItem('oobir_last_view_snapshots');"
+        )
+
+        self._search_aapl(browser, wait)
+
+        compact_input = wait.until(
+            EC.visibility_of_element_located((By.ID, "ticker-input-compact"))
+        )
+        compact_input.clear()
+        compact_input.send_keys("MSFT")
+        browser.find_element(
+            By.CSS_SELECTOR, "#search-form-compact button[type='submit']"
+        ).click()
+        wait.until(
+            lambda d: d.find_element(By.ID, "stock-symbol").text.strip().upper()
+            == "MSFT"
+        )
+
+        compact_input = wait.until(
+            EC.visibility_of_element_located((By.ID, "ticker-input-compact"))
+        )
+        compact_input.clear()
+        compact_input.send_keys("AAPL")
+        browser.find_element(
+            By.CSS_SELECTOR, "#search-form-compact button[type='submit']"
+        ).click()
+        wait.until(
+            lambda d: d.find_element(By.ID, "stock-symbol").text.strip().upper()
+            == "AAPL"
+        )
+
+        badge = wait.until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, "#since-last-view .since-last-view-badge")
+            )
+        )
+        wait.until(
+            lambda d: "Compared against your previous viewed price"
+            in (badge.get_attribute("title") or "")
+        )
+        assert "Compared against your previous viewed price" in (
+            badge.get_attribute("title") or ""
+        )
+
+    def test_revisit_marker_toggle_hides_and_shows_related_markers(
+        self, browser, base_url, wait_timeout
+    ):
+        """Header toggle should hide/show revisit markers in related stock cards."""
+        browser.get(base_url)
+        wait = WebDriverWait(browser, wait_timeout)
+        self._search_aapl(browser, wait)
+
+        first_related = wait.until(
+            EC.presence_of_element_located(
+                (
+                    By.CSS_SELECTOR,
+                    "#related-stocks-data .related-stock-item[data-ticker]",
+                )
+            )
+        )
+        related_ticker = first_related.get_attribute("data-ticker")
+        assert related_ticker
+
+        browser.execute_script(
+            "const key='oobir_last_view_snapshots';"
+            "const now=Date.now()-3600000;"
+            "const ticker=arguments[0];"
+            "const payload={}; payload[ticker]={price:100, updatedAt:now};"
+            "window.localStorage.setItem(key, JSON.stringify(payload));"
+            "window.sessionStorage.setItem(key, JSON.stringify(payload));",
+            related_ticker,
+        )
+
+        toggle = wait.until(
+            EC.element_to_be_clickable((By.ID, "revisit-marker-toggle"))
+        )
+        if not toggle.is_selected():
+            toggle.click()
+
+        toggle.click()
+        wait.until(
+            lambda d: d.find_element(By.ID, "revisit-marker-toggle-status").text.strip()
+            == "Off"
+        )
+        related_item = wait.until(
+            EC.presence_of_element_located(
+                (
+                    By.CSS_SELECTOR,
+                    f"#related-stocks-data .related-stock-item[data-ticker='{related_ticker}']",
+                )
+            )
+        )
+        assert len(related_item.find_elements(By.CSS_SELECTOR, ".seen-marker")) == 0
+
+        toggle = wait.until(
+            EC.element_to_be_clickable((By.ID, "revisit-marker-toggle"))
+        )
+        toggle.click()
+        wait.until(
+            lambda d: d.find_element(By.ID, "revisit-marker-toggle-status").text.strip()
+            == "On"
+        )
+        related_item = wait.until(
+            EC.presence_of_element_located(
+                (
+                    By.CSS_SELECTOR,
+                    f"#related-stocks-data .related-stock-item[data-ticker='{related_ticker}']",
+                )
+            )
+        )
+        wait.until(
+            lambda d: len(related_item.find_elements(By.CSS_SELECTOR, ".seen-marker"))
+            >= 1
+        )
+        assert len(related_item.find_elements(By.CSS_SELECTOR, ".seen-marker")) >= 1
+
+
+class TestUnifiedTopHeader:
+    """Cross-page checks for the unified top header/nav experience."""
+
+    @staticmethod
+    def _page_url(base_url, path):
+        base = base_url.rstrip("/")
+        if path.startswith("/"):
+            return base + path
+        return base + "/" + path
+
+    def test_header_and_nav_present_on_primary_pages(
+        self, browser, base_url, wait_timeout
+    ):
+        """Every main page should expose the same app-header and app-nav."""
+        wait = WebDriverWait(browser, wait_timeout)
+        pages = [
+            "search.html",
+            "index.html",
+            "screener.html",
+            "markets.html",
+            "stocks.html",
+        ]
+
+        for path in pages:
+            browser.get(self._page_url(base_url, path))
+            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".app-header")))
+            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".app-nav")))
+
+            links = browser.find_elements(By.CSS_SELECTOR, ".app-nav a")
+            hrefs = [link.get_attribute("href") or "" for link in links]
+            assert any("search.html" in href for href in hrefs)
+            assert any("index.html" in href for href in hrefs)
+            assert any("screener.html" in href for href in hrefs)
+            assert any("markets.html" in href for href in hrefs)
+            assert any("stocks.html" in href for href in hrefs)
+
+    def test_navigation_link_from_search_to_markets(
+        self, browser, base_url, wait_timeout
+    ):
+        """Top nav should let users move across pages without dead ends."""
+        wait = WebDriverWait(browser, wait_timeout)
+        browser.get(self._page_url(base_url, "search.html"))
+
+        markets_link = wait.until(
+            EC.element_to_be_clickable(
+                (By.CSS_SELECTOR, ".app-nav a[href='markets.html']")
+            )
+        )
+        markets_link.click()
+
+        wait.until(lambda d: "markets.html" in d.current_url)
+        assert "markets.html" in browser.current_url
+
+
+class TestRelatedStocksExplorer:
+    """Tests for related-stock discovery links on results page."""
+
+    @staticmethod
+    def _search(browser, wait, ticker):
+        search_input = wait.until(
+            EC.presence_of_element_located((By.ID, "ticker-input"))
+        )
+        search_input.clear()
+        search_input.send_keys(ticker)
+        search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
+        search_button.click()
+        wait.until(
+            lambda d: "hidden"
+            not in d.find_element(By.ID, "results-container").get_attribute("class")
+        )
+
+    def test_related_stocks_card_visible_after_search(
+        self, browser, base_url, wait_timeout
+    ):
+        """Results page should show related-stock exploration card."""
+        browser.get(base_url)
+        wait = WebDriverWait(browser, wait_timeout)
+        self._search(browser, wait, "TSLA")
+
+        card = wait.until(
+            EC.visibility_of_element_located((By.ID, "related-stocks-data"))
+        )
+        assert card.is_displayed()
+
+    def test_related_stock_link_navigates_to_new_ticker(
+        self, browser, base_url, wait_timeout
+    ):
+        """Clicking a related stock should navigate to another ticker detail page."""
+        browser.get(base_url)
+        wait = WebDriverWait(browser, wait_timeout)
+        self._search(browser, wait, "TSLA")
+
+        links = wait.until(
+            EC.presence_of_all_elements_located(
+                (
+                    By.CSS_SELECTOR,
+                    "#related-stocks-data .related-stock-item[data-ticker]",
+                )
+            )
+        )
+        assert len(links) >= 1
+
+        first = links[0]
+        ticker = first.get_attribute("data-ticker")
+        assert ticker
+
+        first.click()
+        wait.until(lambda d: f"ticker={ticker}" in d.current_url)
+
+        symbol = wait.until(EC.visibility_of_element_located((By.ID, "stock-symbol")))
+        assert symbol.text.strip().upper() == ticker.upper()

@@ -11,6 +11,9 @@ from selenium.webdriver.firefox.service import Service as FirefoxService
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.firefox import GeckoDriverManager
 
+# Optional remote WebDriver (Selenium Grid/Selenoid).
+remote_webdriver_url = os.getenv("SELENIUM_REMOTE_URL", "").strip()
+
 # Determine which browsers to run. Default to chrome (headless) for CI.
 env_browsers = os.getenv("UI_BROWSERS")
 if env_browsers:
@@ -20,24 +23,30 @@ else:
 
 # Detect available browser binaries; skip tests at import-time if none present.
 _available = []
-for b in _requested:
-    if b == "chrome":
-        if (
-            shutil.which("google-chrome")
-            or shutil.which("chrome")
-            or shutil.which("chromium")
-            or shutil.which("chromium-browser")
-        ):
-            _available.append("chrome")
-    elif b == "firefox":
-        if shutil.which("firefox"):
-            _available.append("firefox")
+if remote_webdriver_url:
+    _available = list(dict.fromkeys(_requested))
+else:
+    for b in _requested:
+        if b == "chrome":
+            if (
+                shutil.which("google-chrome")
+                or shutil.which("chrome")
+                or shutil.which("chromium")
+                or shutil.which("chromium-browser")
+            ):
+                _available.append("chrome")
+        elif b == "firefox":
+            if shutil.which("firefox"):
+                _available.append("firefox")
 
 if not _available:
     pytest.skip(
-        "No Chrome/Firefox binary found on PATH; skipping UI tests.",
+        "No local browser found and SELENIUM_REMOTE_URL not set; skipping UI tests.",
         allow_module_level=True,
     )
+
+# Cache startup failures to avoid repeated expensive retries per test.
+_startup_failure_reason = {"chrome": None, "firefox": None}
 
 
 def _find_chrome_binary() -> str | None:
@@ -57,6 +66,9 @@ def browser(request):
     which browsers to attempt (comma-separated, e.g. "chrome,firefox").
     """
     browser_name = request.param
+    if _startup_failure_reason.get(browser_name):
+        pytest.skip(_startup_failure_reason[browser_name])
+
     driver = None
     headless = os.getenv("HEADLESS", "1") not in ("0", "false", "False")
 
@@ -77,46 +89,62 @@ def browser(request):
         else:
             options.add_argument("--start-maximized")
 
-        startup_errors = []
-        try:
-            # First try Selenium Manager/local driver resolution.
-            driver = webdriver.Chrome(options=options)
-        except Exception as first_error:
-            startup_errors.append(f"selenium-manager/local failed: {first_error}")
-
-            # Retry once with legacy headless flag, which can be more stable on some images.
+        if remote_webdriver_url:
             try:
-                retry_options = webdriver.ChromeOptions()
-                if chrome_binary:
-                    retry_options.binary_location = chrome_binary
-                retry_options.add_argument(
-                    "--disable-blink-features=AutomationControlled"
+                driver = webdriver.Remote(
+                    command_executor=remote_webdriver_url, options=options
                 )
-                retry_options.add_argument("--no-sandbox")
-                retry_options.add_argument("--disable-dev-shm-usage")
-                retry_options.add_argument("--disable-gpu")
-                retry_options.add_argument("--window-size=1920,1080")
-                retry_options.add_argument("--remote-debugging-port=9222")
-                if headless:
-                    retry_options.add_argument("--headless")
-                else:
-                    retry_options.add_argument("--start-maximized")
-                driver = webdriver.Chrome(options=retry_options)
-            except Exception as second_error:
-                startup_errors.append(
-                    f"selenium-manager legacy-headless failed: {second_error}"
+            except Exception as exc:  # pylint: disable=broad-except
+                _startup_failure_reason["chrome"] = (
+                    f"Could not start remote chrome driver: {exc}"
                 )
+                pytest.skip(_startup_failure_reason["chrome"])
+        else:
+            startup_errors = []
+            try:
+                # First try Selenium Manager/local driver resolution.
+                driver = webdriver.Chrome(options=options)
+            except Exception as first_error:
+                startup_errors.append(f"selenium-manager/local failed: {first_error}")
 
-                # Final fallback to webdriver-manager download path.
+                # Retry once with legacy headless flag, which can be more stable on some images.
                 try:
-                    driver = webdriver.Chrome(
-                        service=ChromeService(ChromeDriverManager().install()),
-                        options=retry_options if headless else options,
+                    retry_options = webdriver.ChromeOptions()
+                    if chrome_binary:
+                        retry_options.binary_location = chrome_binary
+                    retry_options.add_argument(
+                        "--disable-blink-features=AutomationControlled"
                     )
-                except Exception as third_error:
-                    startup_errors.append(f"webdriver-manager failed: {third_error}")
-                    joined = " | ".join(startup_errors)
-                    pytest.skip(f"Could not start chrome driver: {joined}")
+                    retry_options.add_argument("--no-sandbox")
+                    retry_options.add_argument("--disable-dev-shm-usage")
+                    retry_options.add_argument("--disable-gpu")
+                    retry_options.add_argument("--window-size=1920,1080")
+                    retry_options.add_argument("--remote-debugging-port=9222")
+                    if headless:
+                        retry_options.add_argument("--headless")
+                    else:
+                        retry_options.add_argument("--start-maximized")
+                    driver = webdriver.Chrome(options=retry_options)
+                except Exception as second_error:
+                    startup_errors.append(
+                        f"selenium-manager legacy-headless failed: {second_error}"
+                    )
+
+                    # Final fallback to webdriver-manager download path.
+                    try:
+                        driver = webdriver.Chrome(
+                            service=ChromeService(ChromeDriverManager().install()),
+                            options=retry_options if headless else options,
+                        )
+                    except Exception as third_error:
+                        startup_errors.append(
+                            f"webdriver-manager failed: {third_error}"
+                        )
+                        joined = " | ".join(startup_errors)
+                        _startup_failure_reason["chrome"] = (
+                            f"Could not start chrome driver: {joined}"
+                        )
+                        pytest.skip(_startup_failure_reason["chrome"])
 
     elif browser_name == "firefox":
         options = webdriver.FirefoxOptions()
@@ -124,12 +152,27 @@ def browser(request):
             options.add_argument("-headless")
         else:
             options.add_argument("--start-maximized")
-        try:
-            driver = webdriver.Firefox(
-                service=FirefoxService(GeckoDriverManager().install()), options=options
-            )
-        except Exception as e:
-            pytest.skip(f"Could not start firefox driver: {e}")
+        if remote_webdriver_url:
+            try:
+                driver = webdriver.Remote(
+                    command_executor=remote_webdriver_url, options=options
+                )
+            except Exception as exc:  # pylint: disable=broad-except
+                _startup_failure_reason["firefox"] = (
+                    f"Could not start remote firefox driver: {exc}"
+                )
+                pytest.skip(_startup_failure_reason["firefox"])
+        else:
+            try:
+                driver = webdriver.Firefox(
+                    service=FirefoxService(GeckoDriverManager().install()),
+                    options=options,
+                )
+            except Exception as exc:  # pylint: disable=broad-except
+                _startup_failure_reason["firefox"] = (
+                    f"Could not start firefox driver: {exc}"
+                )
+                pytest.skip(_startup_failure_reason["firefox"])
 
     yield driver
 

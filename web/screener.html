@@ -10,46 +10,6 @@
         min-height: 100vh;
         background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
     }
-    .screener-header {
-        background: white;
-        border-bottom: 1px solid #e5e7eb;
-        padding: 20px 0;
-        position: sticky;
-        top: 0;
-        z-index: 100;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    .screener-header-content {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 0 20px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 20px;
-    }
-    .screener-logo {
-        font-size: 1.8em;
-        font-weight: 300;
-        letter-spacing: -1px;
-        color: #1a73e8;
-        cursor: pointer;
-        text-decoration: none;
-    }
-    .screener-nav { display: flex; gap: 12px; align-items: center; }
-    .screener-nav a {
-        padding: 8px 16px;
-        border-radius: 20px;
-        text-decoration: none;
-        font-size: 0.9em;
-        font-weight: 500;
-        color: #374151;
-        background: #f3f4f6;
-        transition: all .15s ease;
-    }
-    .screener-nav a:hover { background: #e5e7eb; }
-    .screener-nav a.active { background: #1a73e8; color: #fff; }
-
     .screener-content {
         max-width: 1400px;
         margin: 0 auto;
@@ -243,7 +203,6 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     @media (max-width: 768px) {
-        .screener-header-content { flex-direction: column; align-items: stretch; }
         .filters-row { flex-direction: column; }
         .filter-group { min-width: 100%; }
         .stock-table-wrap { overflow-x: auto; }
@@ -252,14 +211,18 @@
 </head>
 <body>
     <div class="screener-page">
-        <div class="screener-header">
-            <div class="screener-header-content">
-                <a class="screener-logo" href="search.html">OOBIR</a>
-                <nav class="screener-nav">
+        <div class="screener-header app-header">
+            <div class="screener-header-content app-header-content">
+                <div class="app-header-left">
+                    <a class="screener-logo app-brand" href="search.html">OOBIR</a>
+                    <span class="app-page-label">Fundamentals</span>
+                </div>
+                <nav class="screener-nav app-nav" aria-label="Primary navigation">
                     <a href="search.html">Search</a>
                     <a href="index.html">Stock Screen</a>
                     <a href="screener.html" class="active">Fundamentals</a>
                     <a href="markets.html">Markets</a>
+                    <a href="stocks.html">AI Picks</a>
                 </nav>
             </div>
         </div>

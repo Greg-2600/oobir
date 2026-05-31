@@ -20,12 +20,7 @@
         }
 
         .stocks-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #e5e7eb;
         }
 
         .stocks-header-left {
@@ -47,17 +42,6 @@
         }
 
         .hero-tags { display:flex; gap:10px; flex-wrap:wrap; }
-
-        .logo-link {
-            text-decoration: none;
-            color: #3b82f6;
-            font-weight: bold;
-            font-size: 1.5em;
-            cursor: pointer;
-            transition: color 0.2s;
-        }
-
-        .logo-link:hover { color: #2563eb; }
 
         .stocks-grid {
             display: grid;
@@ -172,17 +156,29 @@
     </head>
     <body>
         <div class="stocks-page">
-            <div class="stocks-header">
-                <div class="stocks-header-left">
-                    <h1>🌐 International Market Indexes</h1>
-                    <p class="hero-subtitle">30-day mini candlesticks with trend tinting by region</p>
-                    <div class="hero-tags">
-                        <span class="pill">Live OHLC mini charts</span>
-                        <span class="pill soft">Region-tinted cards</span>
-                        <span class="pill neutral">Tap a card to drill in</span>
+            <div class="stocks-header app-header">
+                <div class="app-header-content">
+                    <div class="app-header-left">
+                        <a class="app-brand" href="search.html">OOBIR</a>
+                        <span class="app-page-label">Markets</span>
                     </div>
+                    <nav class="markets-nav app-nav" aria-label="Primary navigation">
+                        <a href="search.html">Search</a>
+                        <a href="index.html">Stock Screen</a>
+                        <a href="screener.html">Fundamentals</a>
+                        <a href="markets.html" class="active">Markets</a>
+                        <a href="stocks.html">AI Picks</a>
+                    </nav>
                 </div>
-                <a href="/" class="logo-link">OOBIR</a>
+            </div>
+            <div class="stocks-header-left" style="margin: 16px 0 10px 0;">
+                <h1>🌐 International Market Indexes</h1>
+                <p class="hero-subtitle">30-day mini candlesticks with trend tinting by region</p>
+                <div class="hero-tags">
+                    <span class="pill">Live OHLC mini charts</span>
+                    <span class="pill soft">Region-tinted cards</span>
+                    <span class="pill neutral">Tap a card to drill in</span>
+                </div>
             </div>
             <div class="stocks-grid" id="markets-grid">
                 <!-- US indexes first -->

@@ -110,9 +110,11 @@ def store_indicators(conn, ticker: str, df: pd.DataFrame) -> int:
     if not rows:
         return 0
 
-    cols = ", ".join(["ticker", "date"] + indicator_cols)
-    sql = f"""
-        INSERT INTO technical_indicators ({cols})
+    sql = """
+        INSERT INTO technical_indicators (
+            ticker, date, sma_20, sma_50, rsi_14, macd, macd_signal,
+            macd_histogram, bb_upper, bb_middle, bb_lower, volume_avg_20, volume_ratio
+        )
         VALUES %s
         ON CONFLICT (ticker, date) DO UPDATE SET
             sma_20 = EXCLUDED.sma_20,

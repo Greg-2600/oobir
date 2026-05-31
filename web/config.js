@@ -1,6 +1,8 @@
-// Override API base URL for the web UI
-// Automatically uses the same host as the web UI is served from
-// You can manually override by setting window.OOBIR_API_BASE before loading app.js
+/*jslint browser, single, long */
+
+// Override API base URL for the web UI.
+// Automatically uses the same host where the web UI is served.
+// You can manually override by setting window.OOBIR_API_BASE before app.js.
 if (!window.OOBIR_API_BASE) {
-    window.OOBIR_API_BASE = window.location.protocol + '//' + window.location.hostname + ':8000';
+    window.OOBIR_API_BASE = window.location.protocol + "//" + window.location.hostname + ":8000";
 }

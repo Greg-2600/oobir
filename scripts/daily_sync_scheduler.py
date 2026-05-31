@@ -17,7 +17,7 @@ Usage:
 from __future__ import annotations
 
 import os
-import subprocess
+import subprocess  # nosec B404
 import sys
 import time
 from datetime import datetime, timedelta
@@ -35,9 +35,10 @@ def run_sync():
     print(f"Running daily sync at {datetime.now()}")
     print(f"{'=' * 60}\n", flush=True)
 
-    result = subprocess.run(
+    result = subprocess.run(  # nosec B603
         [sys.executable, SYNC_SCRIPT],
         cwd=os.path.dirname(SCRIPT_DIR),
+        check=False,
     )
 
     print(f"\nSync finished with exit code {result.returncode}", flush=True)

@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import psycopg2
+from psycopg2 import sql
 from psycopg2.extras import Json
 
 
@@ -127,12 +128,14 @@ def load_file(conn, path: Path) -> int:
         cols.append(db_col)
         vals.append(val)
 
-    placeholders = ", ".join(["%s"] * len(vals))
-    col_names = ", ".join(cols)
-
-    sql = f"INSERT INTO fundamentals ({col_names}) VALUES ({placeholders}) ON CONFLICT (ticker, fetched_at) DO NOTHING"
+    query = sql.SQL(
+        "INSERT INTO fundamentals ({}) VALUES ({}) ON CONFLICT (ticker, fetched_at) DO NOTHING"
+    ).format(
+        sql.SQL(", ").join(sql.Identifier(col) for col in cols),
+        sql.SQL(", ").join(sql.Placeholder() for _ in vals),
+    )
     with conn.cursor() as cur:
-        cur.execute(sql, vals)
+        cur.execute(query, vals)
 
     print(f"Loaded {ticker} fundamentals ({len(cols)} fields)")
     return 1

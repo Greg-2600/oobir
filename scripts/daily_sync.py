@@ -21,6 +21,7 @@ from datetime import datetime, timedelta, timezone
 
 import psycopg2
 import yfinance as yf
+from psycopg2 import sql
 from psycopg2.extras import execute_values, RealDictCursor
 
 # ── DB connection ───────────────────────────────────────────────────────────
@@ -119,14 +120,14 @@ def sync_prices(conn, ticker: str) -> int:
     if not rows:
         return 0
 
-    sql = """
+    insert_sql = """
         INSERT INTO price_history
             (ticker, date, open, high, low, close, volume, dividends, stock_splits)
         VALUES %s
         ON CONFLICT (ticker, date) DO NOTHING
     """
     with conn.cursor() as cur:
-        execute_values(cur, sql, rows, page_size=1000)
+        execute_values(cur, insert_sql, rows, page_size=1000)
     conn.commit()
 
     print(f"  {ticker}: inserted {len(rows)} new price rows")
@@ -234,15 +235,14 @@ def sync_fundamentals(conn, ticker: str) -> bool:
         cols.append(db_col)
         vals.append(val)
 
-    placeholders = ", ".join(["%s"] * len(vals))
-    col_names = ", ".join(cols)
-
-    sql = (
-        f"INSERT INTO fundamentals ({col_names}) VALUES ({placeholders}) "
-        f"ON CONFLICT (ticker, fetched_at) DO NOTHING"
+    query = sql.SQL(
+        "INSERT INTO fundamentals ({}) VALUES ({}) ON CONFLICT (ticker, fetched_at) DO NOTHING"
+    ).format(
+        sql.SQL(", ").join(sql.Identifier(col) for col in cols),
+        sql.SQL(", ").join(sql.Placeholder() for _ in vals),
     )
     with conn.cursor() as cur:
-        cur.execute(sql, vals)
+        cur.execute(query, vals)
     conn.commit()
 
     print(f"  {ticker}: fundamentals refreshed ({len(cols)} fields)")
@@ -340,15 +340,19 @@ def recompute_indicators(conn, ticker: str) -> int:
     if not rows:
         return 0
 
-    col_str = ", ".join(["ticker", "date"] + indicator_cols)
-    update_str = ", ".join(f"{c} = EXCLUDED.{c}" for c in indicator_cols)
-    sql = f"""
-        INSERT INTO technical_indicators ({col_str})
-        VALUES %s
-        ON CONFLICT (ticker, date) DO UPDATE SET {update_str}
-    """
+    col_names = ["ticker", "date", *indicator_cols]
+    update_assignments = sql.SQL(", ").join(
+        sql.SQL("{} = EXCLUDED.{}").format(sql.Identifier(col), sql.Identifier(col))
+        for col in indicator_cols
+    )
+    query = sql.SQL(
+        "INSERT INTO technical_indicators ({}) VALUES %s ON CONFLICT (ticker, date) DO UPDATE SET {}"
+    ).format(
+        sql.SQL(", ").join(sql.Identifier(col) for col in col_names),
+        update_assignments,
+    )
     with conn.cursor() as cur:
-        execute_values(cur, sql, rows, page_size=1000)
+        execute_values(cur, query.as_string(conn), rows, page_size=1000)
     conn.commit()
 
     print(f"  {ticker}: {len(rows)} indicator rows upserted")

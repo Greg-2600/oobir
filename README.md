@@ -157,6 +157,10 @@ docker compose exec daily-sync python scripts/daily_sync.py --fundamentals-only
 - **Technical indicators overlay**: SMA 20 (blue), SMA 50 (orange), Bollinger Bands (purple)
 - **On-demand AI analysis** via buttons (no slow auto-loading)
 - **Responsive design** optimized for desktop and tablet
+- **Exploration rail** for quick backtracking and recent ticker jumps
+- **Saved compare workspace** to pin and compare multiple tickers side-by-side
+- **Market radar cards** for biggest moves, volume standouts, and dividend names
+- **Since-last-view context** with change badges and optional revisit markers
 - **Enhanced Data Visualization**:
   - ✓ **Color-coded Fundamentals**: Green (good) / Red (bad) indicators for P/E, PEG, Dividend Yield, etc.
   - ✓ **Smart Analyst Targets**: Visual arrows (↑↓→) showing upside/downside potential vs current price
@@ -888,7 +892,7 @@ Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model installed.
 - **Containerization**: Docker & Docker Compose (reproducible deployments)
 
 **Testing & Quality**
-- **Test Framework**: pytest (110 total tests; all passing including 21 Selenium UI tests)
+- **Test Framework**: pytest with API, integration, static-contract, and Selenium UI coverage
 - **Mocking**: unittest.mock (external dependency isolation)
 - **Code Quality**: Type hints, docstrings, PEP 8 compliance
 
@@ -901,7 +905,7 @@ Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model installed.
 
 ### Comprehensive Test Coverage
 
-OOBIR employs a rigorous testing strategy with **110 total tests** (**all passing**) across API, cache, and UI layers.
+OOBIR employs a rigorous testing strategy across API, cache, and UI layers, with fast local checks and targeted browser smoke tests in CI.
 
 #### Test Architecture
 - **Unit Tests**: Individual function testing with mocked external dependencies
@@ -912,13 +916,13 @@ OOBIR employs a rigorous testing strategy with **110 total tests** (**all passin
 - **Database Cache Mocking**: All endpoints test both cache miss and cache write paths using `@patch('db.get_cached_data')` and `@patch('db.set_cached_data')`
 
 #### Test Breakdown
-| Category | Tests | Coverage |
-|----------|-------|----------|
-| Data Endpoints | 13 | All data retrieval functions |
-| AI Analysis Endpoints | 38 | All AI analysis functions + news sentiment |
-| Technical Indicators | 2 | Indicator calculations + AI prompt integration |
-| Web UI Integration | 13 | API format validation, CORS, error handling |
-| **Total** | **110** | **110 passing** |
+| Category | Coverage |
+|----------|----------|
+| Data Endpoints | Data retrieval, formatting, and endpoint responses |
+| AI Analysis Endpoints | AI analysis paths, prompts, and error handling |
+| Technical Indicators | Indicator calculations and integration hooks |
+| Web UI Integration | Frontend-backend contracts, payload shape, and behavior |
+| Selenium UI | End-to-end browser flows and key user journeys |
 
 #### Test Execution
 
@@ -944,6 +948,7 @@ docker compose exec app pytest tests/ -v
 - ✅ **Proper mocking of external dependencies**: Ollama, yfinance, SQLite cache properly mocked
 - ✅ **Database caching behavior verified**: Cache hits/misses tested in all endpoints
 - ✅ **Cache behavior verified**: Tests validate `set_cached_data()` is called exactly once per successful request
+- ✅ **CI browser smoke tests**: GitHub Actions validates critical Selenium user flows on headless Chrome
 
 #### Test Files
 
@@ -991,7 +996,7 @@ docker compose exec app pytest tests/ -v
 
 ### Test Coverage
 
-- ✅ **110 tests total** (all passing, including 21 Selenium UI tests)
+- ✅ **Comprehensive multi-layer test suite** (API, cache, integration, and Selenium UI)
 - ✅ All 24 API endpoints tested
 - ✅ Web UI integration validated
 - ✅ Success and error paths verified
@@ -999,6 +1004,14 @@ docker compose exec app pytest tests/ -v
 - ✅ Database caching behavior verified in all endpoint tests
 - ✅ Cache mocks return `None` to simulate cache misses and test full data flow
 - ✅ Tests verify `set_cached_data()` is called exactly once per successful request
+
+### CI Smoke Workflow
+
+- GitHub Actions workflow: `.github/workflows/ui-selenium.yml`
+- Runs on push to `main` and pull requests
+- Boots API + web services, then runs targeted Selenium smoke coverage for:
+  - since-last-view revisit badge flow
+  - revisit marker toggle hide/show flow
 
 ## Contributing
 

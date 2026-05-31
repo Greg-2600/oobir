@@ -13,12 +13,7 @@
         }
 
         .stocks-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #e5e7eb;
         }
 
         .stocks-header h1 {
@@ -26,21 +21,6 @@
             font-size: 2em;
             color: #1f2937;
         }
-
-        .logo-link {
-            text-decoration: none;
-            color: #3b82f6;
-            font-weight: bold;
-            font-size: 1.5em;
-            cursor: pointer;
-            transition: color 0.2s;
-        }
-
-        .logo-link:hover {
-            color: #2563eb;
-        }
-
-        
 
         .stocks-grid {
             display: grid;
@@ -196,9 +176,23 @@
     </head>
     <body>
         <div class="stocks-page">
-            <div class="stocks-header">
+            <div class="stocks-header app-header">
+                <div class="app-header-content">
+                    <div class="app-header-left">
+                        <a class="app-brand" href="search.html">OOBIR</a>
+                        <span class="app-page-label">AI Picks</span>
+                    </div>
+                    <nav class="stocks-nav app-nav" aria-label="Primary navigation">
+                        <a href="search.html">Search</a>
+                        <a href="index.html">Stock Screen</a>
+                        <a href="screener.html">Fundamentals</a>
+                        <a href="markets.html">Markets</a>
+                        <a href="stocks.html" class="active">AI Picks</a>
+                    </nav>
+                </div>
+            </div>
+            <div style="margin-top: 16px; margin-bottom: 12px;">
                 <h1>📊 AI Selected Stocks</h1>
-                <a href="/" class="logo-link">OOBIR</a>
             </div>
             <div id="stocks-container">
                 <div class="loading-state">

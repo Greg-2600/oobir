@@ -1,3 +1,5 @@
+/*jslint browser, devel, for, single, long */
+
 // Configuration
 // Prefer explicit value from config.js (window.OOBIR_API_BASE), otherwise
 // derive from current host and default API port (8000).
@@ -7,9 +9,248 @@ const API_BASE_URL = (typeof window !== 'undefined' && window.OOBIR_API_BASE)
         ? 'http://localhost:8000'
         : 'http://' + window.location.hostname + ':8000');
 
+const RECENT_TICKERS_KEY = 'oobir_recent_tickers';
+const LAST_VIEW_SNAPSHOTS_KEY = 'oobir_last_view_snapshots';
+const SHOW_REVISIT_MARKERS_KEY = 'oobir_show_revisit_markers';
+
 // State
 let currentTicker = '';
 let fundamentalsData = {};
+const VISITED_TICKERS_KEY = 'oobir_visited_tickers';
+const COMPARE_TICKERS_KEY = 'oobir_compare_tickers';
+const COMPARE_SETS_KEY = 'oobir_compare_sets';
+const compareDataCache = {};
+const priceHistoryCache = {};
+let compareRenderNonce = 0;
+let currentViewToken = '';
+let persistedSnapshotToken = '';
+let latestRelatedData = null;
+let latestRadarStocks = [];
+
+function readStoredArray(key) {
+    const sources = [window.localStorage, window.sessionStorage];
+    for (const storage of sources) {
+        try {
+            const raw = storage.getItem(key);
+            if (!raw) continue;
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) return parsed;
+        } catch {
+            continue;
+        }
+    }
+    return [];
+}
+
+function readStoredObject(key) {
+    const sources = [window.localStorage, window.sessionStorage];
+    for (const storage of sources) {
+        try {
+            const raw = storage.getItem(key);
+            if (!raw) continue;
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                return parsed;
+            }
+        } catch {
+            continue;
+        }
+    }
+    return {};
+}
+
+function writeStoredArray(key, values) {
+    const payload = JSON.stringify(values);
+    try {
+        window.localStorage.setItem(key, payload);
+    } catch {
+        // Keep going: session storage is an acceptable fallback for this UI state.
+    }
+    try {
+        window.sessionStorage.setItem(key, payload);
+    } catch {
+        // Ignore storage failures in private or restricted browsing modes.
+    }
+}
+
+function writeStoredObject(key, value) {
+    const payload = JSON.stringify(value || {});
+    try {
+        window.localStorage.setItem(key, payload);
+    } catch {
+        // Keep going: session storage is an acceptable fallback for this UI state.
+    }
+    try {
+        window.sessionStorage.setItem(key, payload);
+    } catch {
+        // Ignore storage failures in private or restricted browsing modes.
+    }
+}
+
+function readStoredFlag(key, fallback = true) {
+    const sources = [window.localStorage, window.sessionStorage];
+    for (const storage of sources) {
+        try {
+            const raw = storage.getItem(key);
+            if (raw === '1') return true;
+            if (raw === '0') return false;
+        } catch {
+            continue;
+        }
+    }
+    return fallback;
+}
+
+function writeStoredFlag(key, enabled) {
+    const value = enabled ? '1' : '0';
+    try {
+        window.localStorage.setItem(key, value);
+    } catch {
+        // Keep going: session storage is an acceptable fallback for this UI state.
+    }
+    try {
+        window.sessionStorage.setItem(key, value);
+    } catch {
+        // Ignore storage failures in private or restricted browsing modes.
+    }
+}
+
+function isRevisitMarkersEnabled() {
+    return readStoredFlag(SHOW_REVISIT_MARKERS_KEY, true);
+}
+
+function setRevisitMarkersEnabled(enabled) {
+    writeStoredFlag(SHOW_REVISIT_MARKERS_KEY, Boolean(enabled));
+}
+
+function updateRevisitMarkerToggleLabel(enabled) {
+    const status = document.getElementById('revisit-marker-toggle-status');
+    if (!status) return;
+    status.textContent = enabled ? 'On' : 'Off';
+}
+
+function initializeRevisitMarkerToggle() {
+    const toggle = document.getElementById('revisit-marker-toggle');
+    if (!toggle) return;
+
+    const enabled = isRevisitMarkersEnabled();
+    toggle.checked = enabled;
+    updateRevisitMarkerToggleLabel(enabled);
+
+    toggle.addEventListener('change', (event) => {
+        const nextEnabled = Boolean(event.target && event.target.checked);
+        setRevisitMarkersEnabled(nextEnabled);
+        updateRevisitMarkerToggleLabel(nextEnabled);
+
+        if (latestRadarStocks.length) {
+            renderMarketRadar(latestRadarStocks);
+        }
+        const relatedContainer = document.getElementById('related-stocks-data');
+        if (relatedContainer && latestRelatedData) {
+            renderRelatedStocks(latestRelatedData, relatedContainer);
+        }
+    });
+}
+
+function getLastViewSnapshots() {
+    return readStoredObject(LAST_VIEW_SNAPSHOTS_KEY);
+}
+
+function getLastViewSnapshot(ticker) {
+    if (!ticker) return null;
+    const snapshots = getLastViewSnapshots();
+    const key = normalizeCompareTicker(ticker);
+    const value = snapshots[key];
+    if (!value || typeof value !== 'object') return null;
+    const price = Number(value.price || 0);
+    const updatedAt = Number(value.updatedAt || 0);
+    if (!price || !updatedAt) return null;
+    return { price, updatedAt };
+}
+
+function formatElapsedSince(timestampMs) {
+    if (!timestampMs) return 'recently';
+    const diffMs = Math.max(0, Date.now() - Number(timestampMs));
+    const minute = 60 * 1000;
+    const hour = 60 * minute;
+    const day = 24 * hour;
+    if (diffMs < hour) {
+        const mins = Math.max(1, Math.round(diffMs / minute));
+        return `${mins}m ago`;
+    }
+    if (diffMs < day) {
+        const hours = Math.max(1, Math.round(diffMs / hour));
+        return `${hours}h ago`;
+    }
+    const days = Math.max(1, Math.round(diffMs / day));
+    return `${days}d ago`;
+}
+
+function formatSnapshotTimestamp(timestampMs) {
+    if (!timestampMs) return 'unknown time';
+    try {
+        return new Date(Number(timestampMs)).toLocaleString();
+    } catch {
+        return 'unknown time';
+    }
+}
+
+function persistLastViewSnapshot(ticker, currentPrice) {
+    const normalized = normalizeCompareTicker(ticker);
+    const snapshots = getLastViewSnapshots();
+    snapshots[normalized] = {
+        price: Number(currentPrice),
+        updatedAt: Date.now()
+    };
+    writeStoredObject(LAST_VIEW_SNAPSHOTS_KEY, snapshots);
+}
+
+function renderSinceLastViewBadge(ticker, currentPrice, viewToken) {
+    const badge = document.getElementById('since-last-view');
+    if (!badge) return;
+    if (!ticker || !currentPrice || isNaN(currentPrice)) {
+        badge.innerHTML = '';
+        return;
+    }
+
+    if (viewToken && persistedSnapshotToken === viewToken) {
+        return;
+    }
+
+    const previous = getLastViewSnapshot(ticker);
+    const firstViewTooltip = 'Saved in your browser for this ticker after this view.';
+    if (!previous) {
+        badge.innerHTML = `<span class="since-last-view-badge since-last-view-new" title="${escapeHtml(firstViewTooltip)}">First tracked view</span>`;
+    } else {
+        const deltaPct = ((Number(currentPrice) - previous.price) / previous.price) * 100;
+        const direction = deltaPct >= 0 ? '▲' : '▼';
+        const cls = deltaPct >= 0 ? 'since-last-view-up' : 'since-last-view-down';
+        const tooltip = `Compared against your previous viewed price of ${formatCurrency(previous.price)} from ${formatSnapshotTimestamp(previous.updatedAt)}.`;
+        badge.innerHTML = `
+            <span class="since-last-view-badge ${cls}" title="${escapeHtml(tooltip)}">
+                ${direction} ${Math.abs(deltaPct).toFixed(2)}% since last view · ${formatElapsedSince(previous.updatedAt)}
+            </span>
+        `;
+    }
+
+    persistLastViewSnapshot(ticker, currentPrice);
+    if (viewToken) persistedSnapshotToken = viewToken;
+}
+
+function renderSeenMarker(ticker) {
+    if (!isRevisitMarkersEnabled()) return '';
+    const snapshot = getLastViewSnapshot(ticker);
+    if (!snapshot) return '';
+    return `<span class="seen-marker">↺ Seen ${escapeHtml(formatElapsedSince(snapshot.updatedAt))}</span>`;
+}
+
+function pushRecentTicker(ticker) {
+    if (!ticker) return;
+    const normalized = ticker.toUpperCase();
+    const recent = readStoredArray(RECENT_TICKERS_KEY).filter((item) => item !== normalized);
+    recent.unshift(normalized);
+    writeStoredArray(RECENT_TICKERS_KEY, recent.slice(0, 10));
+}
 
 // DOM Elements
 const unifiedPage = document.getElementById('unified-page');
@@ -30,7 +271,7 @@ searchForm.addEventListener('submit', handleSearch);
 searchFormCompact.addEventListener('submit', handleSearch);
 if (backButton) {
     backButton.addEventListener('click', () => {
-        window.history.pushState({ page: 'landing' }, 'OOBIR', '/');
+        window.history.pushState({ page: 'landing' }, 'OOBIR', 'index.html');
         showLandingPage();
     });
 }
@@ -181,7 +422,7 @@ function handleSearch(e) {
         return;
     }
 
-    if (!/^[A-Z0-9\-\^=]{1,10}$/.test(ticker)) {
+    if (!( /^[A-Z0-9\-\^=]{1,10}$/.test(ticker) )) {
         showError('Please enter a valid stock ticker (1-10 characters, letters, numbers, -, ^, =)');
         return;
     }
@@ -206,6 +447,662 @@ function showResultsPage() {
     resultsPage.classList.remove('hidden');
     loadingSpinner.classList.remove('hidden');
     resultsContainer.classList.add('hidden');
+}
+
+function getVisitedTickers() {
+    return readStoredArray(VISITED_TICKERS_KEY);
+}
+
+function markTickerVisited(ticker) {
+    if (!ticker) return;
+    const normalized = ticker.toUpperCase();
+    const visited = getVisitedTickers().filter((item) => item !== normalized);
+    visited.unshift(normalized);
+    writeStoredArray(VISITED_TICKERS_KEY, visited.slice(0, 40));
+    pushRecentTicker(normalized);
+}
+
+function getCompareTickers() {
+    return readStoredArray(COMPARE_TICKERS_KEY);
+}
+
+function saveCompareTickers(tickers) {
+    writeStoredArray(COMPARE_TICKERS_KEY, tickers.slice(0, 3));
+}
+
+function normalizeCompareSetName(value) {
+    return String(value || '').trim().replace(/\s+/g, ' ').slice(0, 36);
+}
+
+function getCompareSets() {
+    return readStoredArray(COMPARE_SETS_KEY)
+        .filter((item) => item && typeof item === 'object' && item.name && Array.isArray(item.tickers))
+        .map((item) => ({
+            name: normalizeCompareSetName(item.name),
+            tickers: item.tickers
+                .map((ticker) => normalizeCompareTicker(ticker))
+                .filter(Boolean)
+                .filter((ticker, index, array) => array.indexOf(ticker) === index)
+                .slice(0, 4),
+            updatedAt: Number(item.updatedAt || 0)
+        }))
+        .filter((item) => item.name && item.tickers.length >= 2)
+        .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+}
+
+function saveCompareSets(sets) {
+    writeStoredArray(COMPARE_SETS_KEY, sets.slice(0, 12));
+}
+
+function saveCurrentCompareSet(name, tickers) {
+    const normalizedName = normalizeCompareSetName(name);
+    const normalizedTickers = (tickers || [])
+        .map((ticker) => normalizeCompareTicker(ticker))
+        .filter(Boolean)
+        .filter((ticker, index, array) => array.indexOf(ticker) === index)
+        .slice(0, 4);
+
+    if (!normalizedName || normalizedTickers.length < 2) return false;
+
+    const sets = getCompareSets().filter((item) => item.name.toLowerCase() !== normalizedName.toLowerCase());
+    sets.unshift({
+        name: normalizedName,
+        tickers: normalizedTickers,
+        updatedAt: Date.now()
+    });
+    saveCompareSets(sets);
+    return true;
+}
+
+function deleteCompareSet(name) {
+    const normalizedName = normalizeCompareSetName(name);
+    if (!normalizedName) return;
+    const sets = getCompareSets().filter((item) => item.name.toLowerCase() !== normalizedName.toLowerCase());
+    saveCompareSets(sets);
+}
+
+function applyCompareSet(name, activeTicker) {
+    const normalizedName = normalizeCompareSetName(name);
+    const set = getCompareSets().find((item) => item.name === normalizedName || item.name.toLowerCase() === normalizedName.toLowerCase());
+    if (!set) return;
+
+    const active = normalizeCompareTicker(activeTicker);
+    const picks = set.tickers
+        .filter((ticker) => ticker !== active)
+        .slice(0, 3);
+
+    saveCompareTickers(picks);
+    renderComparePanel(activeTicker);
+}
+
+function renderCompareSetsMarkup() {
+    const sets = getCompareSets();
+    if (!sets.length) {
+        return '<div class="compare-sets-empty">No saved compare sets yet.</div>';
+    }
+
+    return sets.map((set) => `
+        <div class="compare-set-row">
+            <button type="button" class="compare-set-load" data-compare-set-load="${escapeHtml(set.name)}" title="Load ${escapeHtml(set.name)}">
+                ${escapeHtml(set.name)}
+                <span class="compare-set-tickers">${escapeHtml(set.tickers.join(' · '))}</span>
+            </button>
+            <button type="button" class="compare-set-delete" data-compare-set-delete="${escapeHtml(set.name)}" title="Delete ${escapeHtml(set.name)}">✕</button>
+        </div>
+    `).join('');
+}
+
+function wireCompareSetActions(panel, activeTicker) {
+    panel.querySelectorAll('[data-compare-set-load]').forEach((node) => {
+        node.addEventListener('click', (event) => {
+            const name = event.currentTarget.getAttribute('data-compare-set-load');
+            if (!name) return;
+            applyCompareSet(name, activeTicker);
+        });
+    });
+
+    panel.querySelectorAll('[data-compare-set-delete]').forEach((node) => {
+        node.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const name = event.currentTarget.getAttribute('data-compare-set-delete');
+            if (!name) return;
+            deleteCompareSet(name);
+            renderComparePanel(activeTicker);
+        });
+    });
+}
+
+function normalizeCompareTicker(ticker) {
+    return (ticker || '').trim().toUpperCase();
+}
+
+function addTickerToCompare(ticker) {
+    const normalized = normalizeCompareTicker(ticker);
+    if (!normalized || normalized === normalizeCompareTicker(currentTicker)) return;
+
+    const nextTickers = getCompareTickers().filter((item) => item !== normalized);
+    nextTickers.unshift(normalized);
+    saveCompareTickers(nextTickers);
+    renderComparePanel(currentTicker);
+}
+
+function removeTickerFromCompare(ticker) {
+    const normalized = normalizeCompareTicker(ticker);
+    const nextTickers = getCompareTickers().filter((item) => item !== normalized);
+    saveCompareTickers(nextTickers);
+    renderComparePanel(currentTicker);
+}
+
+function clearCompareTickers() {
+    saveCompareTickers([]);
+    renderComparePanel(currentTicker);
+}
+
+async function fetchCompareRecord(ticker) {
+    const normalized = normalizeCompareTicker(ticker);
+    if (!normalized) return null;
+
+    if (normalized === normalizeCompareTicker(currentTicker) && fundamentalsData && Object.keys(fundamentalsData).length > 0) {
+        return fundamentalsData;
+    }
+
+    if (compareDataCache[normalized]) {
+        return compareDataCache[normalized];
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/fundamentals/${encodeURIComponent(normalized)}`);
+        if (!response.ok) return null;
+        const data = await response.json();
+        compareDataCache[normalized] = data;
+        return data;
+    } catch {
+        return null;
+    }
+}
+
+function extractPriceSeries(data) {
+    const raw = Array.isArray(data) ? data : data?.data || data?.prices || data?.history || [];
+    return raw
+        .map((entry) => {
+            if (typeof entry === 'number') return entry;
+            if (!entry || typeof entry !== 'object') return null;
+            return Number(entry.Close || entry.close || entry.price || entry.value || 0);
+        })
+        .filter((value) => value && !isNaN(value))
+        .slice(-30);
+}
+
+async function fetchPriceHistorySeries(ticker) {
+    const normalized = normalizeCompareTicker(ticker);
+    if (!normalized) return [];
+
+    if (normalized === normalizeCompareTicker(currentTicker) && window.lastPriceData) {
+        return extractPriceSeries(window.lastPriceData);
+    }
+
+    if (priceHistoryCache[normalized]) {
+        return priceHistoryCache[normalized];
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/price-history/${encodeURIComponent(normalized)}`);
+        if (!response.ok) return [];
+        const data = await response.json();
+        const series = extractPriceSeries(data);
+        priceHistoryCache[normalized] = series;
+        return series;
+    } catch {
+        return [];
+    }
+}
+
+function buildSparklineSvg(series) {
+    if (!Array.isArray(series) || series.length < 2) {
+        return '<div class="mini-sparkline-empty">No trend</div>';
+    }
+
+    const width = 120;
+    const height = 32;
+    const min = Math.min(...series);
+    const max = Math.max(...series);
+    const range = max - min || 1;
+    const points = series.map((value, index) => {
+        const x = (index / Math.max(series.length - 1, 1)) * (width - 4) + 2;
+        const y = height - 2 - (((value - min) / range) * (height - 6));
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    const positive = series[series.length - 1] >= series[0];
+    const stroke = positive ? '#16a34a' : '#dc2626';
+    const fill = positive ? 'rgba(22, 163, 74, 0.12)' : 'rgba(220, 38, 38, 0.12)';
+    const areaPoints = `2,30 ${points} 118,30`;
+
+    return `
+        <svg class="mini-sparkline-svg" viewBox="0 0 120 32" preserveAspectRatio="none" aria-hidden="true">
+            <polyline class="mini-sparkline-area" points="${areaPoints}" fill="${fill}" stroke="none"></polyline>
+            <polyline class="mini-sparkline-line" points="${points}" fill="none" stroke="${stroke}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></polyline>
+        </svg>
+    `;
+}
+
+async function populateSparklineNode(node) {
+    if (!node) return;
+    const ticker = node.getAttribute('data-sparkline-ticker');
+    if (!ticker) return;
+    node.innerHTML = '<div class="mini-sparkline-empty">Loading trend...</div>';
+    const series = await fetchPriceHistorySeries(ticker);
+    if (!node.isConnected) return;
+    node.innerHTML = buildSparklineSvg(series);
+}
+
+function populateSparklineNodes(root) {
+    if (!root) return;
+    root.querySelectorAll('[data-sparkline-ticker]').forEach((node) => {
+        populateSparklineNode(node);
+    });
+}
+
+function buildRadarSnapshot(stock) {
+    const currentPrice = Number(stock.currentPrice || stock.current_price || stock.regularMarketPrice || 0);
+    const previousClose = Number(stock.regularMarketPreviousClose || stock.previousClose || stock.previous_close || 0);
+    const changePct = previousClose > 0 ? ((currentPrice - previousClose) / previousClose) * 100 : 0;
+    const volume = Number(stock.volume || stock.averageVolume || stock.average_volume || 0);
+    const dividendYield = Number(stock.dividendYield || stock.dividend_yield || 0);
+
+    return {
+        ticker: (stock.ticker || '').toUpperCase(),
+        name: stock.shortName || stock.companyName || stock.longName || stock.ticker || '',
+        price: currentPrice,
+        changePct,
+        volume,
+        dividendYield
+    };
+}
+
+function radarReason(groupKey, item, rank) {
+    if (groupKey === 'moves') {
+        return `${Math.abs(item.changePct).toFixed(2)}% move today, rank #${rank} by absolute move in this screen.`;
+    }
+    if (groupKey === 'volume') {
+        return `${formatLargeNumber(item.volume)} traded, rank #${rank} by activity in this screen.`;
+    }
+    if (groupKey === 'dividend') {
+        return `${formatPercent(item.dividendYield)} yield, rank #${rank} among dividend-paying names here.`;
+    }
+    return 'Flagged by current radar rules.';
+}
+
+function renderMarketRadar(stocks) {
+    const radarGrid = document.getElementById('market-radar-grid');
+    if (!radarGrid) return;
+
+    latestRadarStocks = Array.isArray(stocks) ? stocks : [];
+
+    const snapshots = (stocks || []).map(buildRadarSnapshot).filter((item) => item.ticker && item.price > 0);
+    if (!snapshots.length) {
+        radarGrid.innerHTML = '<div class="market-radar-empty">Market radar is warming up. Try again in a moment.</div>';
+        return;
+    }
+
+    const groups = [
+        {
+            key: 'moves',
+            title: 'Biggest Moves',
+            copy: 'Names with the sharpest day moves in the current screen.',
+            items: [...snapshots].sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct)).slice(0, 3),
+            metric: (item) => `${item.changePct >= 0 ? '▲' : '▼'} ${Math.abs(item.changePct).toFixed(2)}%`
+        },
+        {
+            key: 'volume',
+            title: 'Volume Radar',
+            copy: 'Heaviest trading activity from the names already on the page.',
+            items: [...snapshots].sort((a, b) => b.volume - a.volume).slice(0, 3),
+            metric: (item) => formatLargeNumber(item.volume)
+        },
+        {
+            key: 'dividend',
+            title: 'Dividend Radar',
+            copy: 'Highest-yield names worth checking for income ideas.',
+            items: [...snapshots].filter((item) => item.dividendYield > 0).sort((a, b) => b.dividendYield - a.dividendYield).slice(0, 3),
+            metric: (item) => formatPercent(item.dividendYield)
+        }
+    ];
+
+    radarGrid.innerHTML = groups.map((group) => `
+        <section class="market-radar-card">
+            <div class="market-radar-card-head">
+                <div>
+                    <h3>${group.title}</h3>
+                    <p>${group.copy}</p>
+                </div>
+            </div>
+            <div class="market-radar-list">
+                ${group.items.length ? group.items.map((item, index) => `
+                    <button type="button" class="market-radar-item" data-ticker="${escapeHtml(item.ticker)}">
+                        <div class="market-radar-item-main">
+                            <div>
+                                <div class="market-radar-item-ticker">${escapeHtml(item.ticker)}</div>
+                                <div class="market-radar-item-name">${escapeHtml(item.name)}</div>
+                                ${renderSeenMarker(item.ticker)}
+                            </div>
+                            <div class="market-radar-item-metric">${escapeHtml(group.metric(item))}</div>
+                        </div>
+                        <div class="market-radar-item-why">Why: ${escapeHtml(radarReason(group.key, item, index + 1))}</div>
+                        <div class="market-radar-item-sub">
+                            <span>${formatCurrency(item.price)}</span>
+                            <div class="mini-sparkline" data-sparkline-ticker="${escapeHtml(item.ticker)}"></div>
+                        </div>
+                    </button>
+                `).join('') : '<div class="market-radar-empty">No names match this radar yet.</div>'}
+            </div>
+        </section>
+    `).join('');
+
+    radarGrid.querySelectorAll('.market-radar-item[data-ticker]').forEach((node) => {
+        node.addEventListener('click', () => {
+            const ticker = node.getAttribute('data-ticker');
+            if (!ticker) return;
+            hideError();
+            currentTicker = ticker;
+            tickerInput.value = ticker;
+            loadStockData(ticker);
+        });
+    });
+
+    populateSparklineNodes(radarGrid);
+}
+
+function buildCompareRows(data) {
+    const currentPrice = Number(data.currentPrice || data.current_price || data.regularMarketPrice || data.price || 0);
+    const previousClose = Number(data.previousClose || data.previous_close || data.regularMarketPreviousClose || data.previous_close_price || 0);
+    const changePct = data.changePercent || data.change_pct || data.percentChange || data.percent_change || (
+        previousClose > 0 && currentPrice > 0 ? ((currentPrice - previousClose) / previousClose) * 100 : null
+    );
+
+    return {
+        price: currentPrice,
+        changePct,
+        marketCap: data.marketCap || data.market_cap,
+        peRatio: data.trailingPE || data.trailing_pe || data.forwardPE || data.forward_pe,
+        dividendYield: data.dividendYield || data.dividend_yield,
+        sector: data.sector || data.Sector,
+        industry: data.industry || data.Industry,
+        range: {
+            low: data.fiftyTwoWeekLow || data.fifty_two_week_low,
+            high: data.fiftyTwoWeekHigh || data.fifty_two_week_high
+        }
+    };
+}
+
+async function renderComparePanel(activeTicker) {
+    const panel = document.getElementById('compare-panel');
+    if (!panel) return;
+
+    const nonce = ++compareRenderNonce;
+    const selectedTickers = getCompareTickers()
+        .filter((item) => item !== normalizeCompareTicker(activeTicker));
+    const compareTickers = [normalizeCompareTicker(activeTicker), ...selectedTickers]
+        .filter(Boolean)
+        .filter((item, index, array) => array.indexOf(item) === index)
+        .slice(0, 4);
+
+    const recentSuggestions = getRecentTickers(6)
+        .filter((item) => item !== normalizeCompareTicker(activeTicker))
+        .filter((item) => !compareTickers.includes(item))
+        .slice(0, 4);
+
+    if (compareTickers.length < 2) {
+        panel.innerHTML = `
+            <div class="compare-panel-head">
+                <div>
+                    <div class="compare-panel-label">Compare mode</div>
+                    <div class="compare-panel-copy">Current stock is pinned automatically. Add one more ticker to compare side by side.</div>
+                </div>
+                <button type="button" class="compare-panel-clear" id="compare-clear-button" ${selectedTickers.length ? '' : 'disabled'}>Clear</button>
+            </div>
+            <div class="compare-panel-body">
+                <div class="compare-panel-empty">Pick a related or recent ticker to start a comparison.</div>
+                <div class="compare-panel-suggestions">
+                    ${recentSuggestions.length ? recentSuggestions.map((item) => `
+                        <button type="button" class="compare-chip" data-compare-add="${escapeHtml(item)}">+ ${escapeHtml(item)}</button>
+                    `).join('') : '<span class="compare-panel-empty-hint">Browse a few stocks to unlock comparison suggestions.</span>'}
+                </div>
+                <div class="compare-sets-block">
+                    <div class="compare-sets-title">Saved sets</div>
+                    <div class="compare-sets-list">
+                        ${renderCompareSetsMarkup()}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const clearButton = document.getElementById('compare-clear-button');
+        if (clearButton) {
+            clearButton.addEventListener('click', clearCompareTickers);
+        }
+        panel.querySelectorAll('[data-compare-add]').forEach((node) => {
+            node.addEventListener('click', (event) => {
+                const ticker = event.currentTarget.getAttribute('data-compare-add');
+                addTickerToCompare(ticker);
+            });
+        });
+        wireCompareSetActions(panel, activeTicker);
+        return;
+    }
+
+    panel.innerHTML = `
+        <div class="compare-panel-head">
+            <div>
+                <div class="compare-panel-label">Compare mode</div>
+                <div class="compare-panel-copy">Current stock is pinned. Compare up to three extras side by side.</div>
+            </div>
+            <button type="button" class="compare-panel-clear" id="compare-clear-button">Clear</button>
+        </div>
+        <div class="compare-panel-body">
+            <div class="compare-panel-tray" id="compare-tray"></div>
+            <div class="compare-set-save-row">
+                <input type="text" id="compare-set-name" class="compare-set-name-input" placeholder="Save as set name (e.g., AI Leaders)" maxlength="36">
+                <button type="button" class="compare-panel-clear" id="compare-save-button">Save set</button>
+            </div>
+            <div class="compare-sets-block">
+                <div class="compare-sets-title">Saved sets</div>
+                <div class="compare-sets-list">
+                    ${renderCompareSetsMarkup()}
+                </div>
+            </div>
+            <div class="compare-table-wrap" id="compare-table-wrap">
+                <div class="loading-placeholder">Loading comparison...</div>
+            </div>
+        </div>
+    `;
+
+    const tray = document.getElementById('compare-tray');
+    if (tray) {
+        tray.innerHTML = compareTickers.map((ticker) => {
+            const activeClass = ticker === normalizeCompareTicker(activeTicker) ? 'compare-chip compare-chip-active' : 'compare-chip';
+            const label = ticker === normalizeCompareTicker(activeTicker) ? `${escapeHtml(ticker)} (current)` : escapeHtml(ticker);
+            return `<button type="button" class="${activeClass}" data-compare-remove="${escapeHtml(ticker)}">${label} ×</button>`;
+        }).join('');
+    }
+
+    panel.querySelectorAll('[data-compare-remove]').forEach((node) => {
+        node.addEventListener('click', (event) => {
+            const ticker = event.currentTarget.getAttribute('data-compare-remove');
+            if (!ticker) return;
+            if (normalizeCompareTicker(ticker) === normalizeCompareTicker(activeTicker)) return;
+            removeTickerFromCompare(ticker);
+        });
+    });
+
+    const clearButton = document.getElementById('compare-clear-button');
+    if (clearButton) {
+        clearButton.addEventListener('click', clearCompareTickers);
+    }
+
+    const saveButton = document.getElementById('compare-save-button');
+    const saveInput = document.getElementById('compare-set-name');
+    if (saveButton && saveInput) {
+        const attemptSave = () => {
+            const ok = saveCurrentCompareSet(saveInput.value, compareTickers);
+            if (!ok) {
+                saveInput.value = '';
+                saveInput.placeholder = 'Name required (2+ tickers)';
+                return;
+            }
+            renderComparePanel(activeTicker);
+        };
+        saveButton.addEventListener('click', attemptSave);
+        saveInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                attemptSave();
+            }
+        });
+    }
+
+    wireCompareSetActions(panel, activeTicker);
+
+    const records = await Promise.all(compareTickers.map(fetchCompareRecord));
+    const histories = await Promise.all(compareTickers.map(fetchPriceHistorySeries));
+    if (nonce !== compareRenderNonce) return;
+
+    const validRecords = compareTickers
+        .map((ticker, index) => ({ ticker, data: records[index], history: histories[index] }))
+        .filter((item) => item.data);
+
+    const wrap = document.getElementById('compare-table-wrap');
+    if (!wrap) return;
+    if (validRecords.length < 2) {
+        wrap.innerHTML = '<div class="compare-panel-empty">Waiting for comparison data.</div>';
+        return;
+    }
+
+    const rows = [
+        { label: 'Trend', html: true, value: (item) => `<div class="mini-sparkline compare-sparkline">${buildSparklineSvg(item.history)}</div>` },
+        { label: 'Price', value: (item) => formatCurrency(item.metrics.price) },
+        { label: 'Day change', value: (item) => item.metrics.changePct === null || item.metrics.changePct === undefined || isNaN(item.metrics.changePct) ? 'N/A' : `${Number(item.metrics.changePct).toFixed(2)}%` },
+        { label: 'Market cap', value: (item) => formatLargeNumber(item.metrics.marketCap) },
+        { label: 'P/E', value: (item) => formatNumber(item.metrics.peRatio) },
+        { label: 'Dividend', value: (item) => formatPercent(item.metrics.dividendYield) },
+        { label: '52 week range', value: (item) => {
+            const low = item.metrics.range.low;
+            const high = item.metrics.range.high;
+            if (low === null || low === undefined || high === null || high === undefined) return 'N/A';
+            return `${formatCurrency(low)} - ${formatCurrency(high)}`;
+        } },
+        { label: 'Sector', value: (item) => item.metrics.sector || 'N/A' },
+        { label: 'Industry', value: (item) => item.metrics.industry || 'N/A' }
+    ];
+
+    const prepared = validRecords.map((item) => ({
+        ticker: item.ticker,
+        history: item.history,
+        metrics: buildCompareRows(item.data)
+    }));
+
+    let html = '<table class="compare-table"><thead><tr><th>Metric</th>';
+    html += prepared.map((item) => `<th>${escapeHtml(item.ticker)}</th>`).join('');
+    html += '</tr></thead><tbody>';
+    rows.forEach((row) => {
+        html += `<tr><td class="compare-row-label">${row.label}</td>`;
+        prepared.forEach((item) => {
+            const value = row.value(item);
+            html += row.html ? `<td>${value}</td>` : `<td>${escapeHtml(String(value))}</td>`;
+        });
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+}
+
+function getRecentTickers(limit = 5) {
+    return getVisitedTickers().slice(0, limit);
+}
+
+function renderExplorationRail(ticker) {
+    const rail = document.getElementById('exploration-rail');
+    if (!rail) return;
+
+    const recentTickers = getRecentTickers(6).filter((item) => item !== ticker);
+    const previousTicker = recentTickers[0] || '';
+    const quickPicks = recentTickers.slice(1, 5);
+
+    rail.innerHTML = `
+        <div class="exploration-rail-head">
+            <div>
+                <div class="exploration-rail-label">Continue exploring</div>
+                <div class="exploration-rail-copy">Step back, jump to a recent ticker, or move into related stocks.</div>
+            </div>
+            <a class="exploration-rail-link" href="#section-related-stocks">See related stocks</a>
+        </div>
+        <div class="exploration-rail-actions">
+            ${previousTicker ? `
+                <button type="button" class="exploration-chip exploration-chip-primary" data-ticker="${escapeHtml(previousTicker)}">
+                    ← Back to ${escapeHtml(previousTicker)}
+                </button>
+            ` : '<span class="exploration-chip exploration-chip-muted">Explore a related stock to build your path</span>'}
+            ${quickPicks.map((item) => `
+                <button type="button" class="exploration-chip" data-ticker="${escapeHtml(item)}">
+                    ${escapeHtml(item)}
+                </button>
+            `).join('')}
+        </div>
+    `;
+
+    rail.querySelectorAll('[data-ticker]').forEach((node) => {
+        node.addEventListener('click', (event) => {
+            const nextTicker = event.currentTarget.getAttribute('data-ticker');
+            if (!nextTicker || nextTicker === ticker) return;
+            hideError();
+            currentTicker = nextTicker;
+            tickerInput.value = nextTicker;
+            tickerInputCompact.value = nextTicker;
+            loadStockData(nextTicker, true);
+        });
+    });
+}
+
+function initializeResultsSectionNav() {
+    const chips = Array.from(document.querySelectorAll('.section-chip[data-target]'));
+    if (!chips.length) return;
+
+    const setActiveChip = (targetId) => {
+        chips.forEach((chip) => {
+            const isActive = chip.getAttribute('data-target') === targetId;
+            chip.classList.toggle('active', isActive);
+        });
+    };
+
+    chips.forEach((chip) => {
+        chip.addEventListener('click', () => {
+            const targetId = chip.getAttribute('data-target');
+            if (!targetId) return;
+            const target = document.getElementById(targetId);
+            if (!target) return;
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            setActiveChip(targetId);
+        });
+    });
+
+    const observer = new IntersectionObserver((entries) => {
+        const visible = entries
+            .filter((entry) => entry.isIntersecting)
+            .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        if (!visible.length) return;
+        const id = visible[0].target.id;
+        if (id) setActiveChip(id);
+    }, {
+        rootMargin: '-35% 0px -50% 0px',
+        threshold: [0.2, 0.4, 0.6]
+    });
+
+    chips.forEach((chip) => {
+        const targetId = chip.getAttribute('data-target');
+        if (!targetId) return;
+        const target = document.getElementById(targetId);
+        if (target) observer.observe(target);
+    });
 }
 
 // Handle browser back button
@@ -259,7 +1156,7 @@ async function exportResultsToPdf() {
         const el = clone.querySelector('#' + id);
         if (!el) return;
         const text = (el.textContent || '').trim();
-        const hasLoading = el.querySelector('.loading-placeholder') || /loading|analyzing|nothing/i.test(text);
+        const hasLoading = el.querySelector('.loading-placeholder') || ( /loading|analyzing|nothing/i.test(text) );
         if (!text || hasLoading) {
             const card = el.closest('.card');
             if (card && card.parentNode) card.parentNode.removeChild(card);
@@ -410,6 +1307,8 @@ async function loadAllStocks() {
             console.error('Error loading AI recommendations:', err);
         }
 
+        renderMarketRadar([...featuredStocks, ...aiStocks]);
+
         // Render stocks grid
         renderStocksGrid([...featuredStocks, ...aiStocks]);
         hideError();
@@ -441,12 +1340,31 @@ async function renderStocksGrid(stocks) {
         const marketCap = stock.marketCap;
         const chartContainerId = `chart-${ticker.replace(/[^A-Z0-9]/gi, '_')}`;
         const indicatorContainerId = `indicator-${ticker.replace(/[^A-Z0-9]/gi, '_')}`;
+        const companyName = stock.shortName || stock.companyName;
+        const companyHtml = companyName
+            ? '<p class="stock-company">' + escapeHtml(companyName) + '</p>'
+            : '';
+        const marketCapHtml = marketCap
+            ? '<div class="stock-metric"><span>Market Cap:</span> <strong>'
+                + formatLargeNumber(marketCap)
+                + '</strong></div>'
+            : '';
+        const peHtml = pe
+            ? '<div class="stock-metric"><span>P/E:</span> <strong>'
+                + pe.toFixed(2)
+                + '</strong></div>'
+            : '';
+        const dividendHtml = stock.dividendYield
+            ? '<div class="stock-metric"><span>💰 Dividend:</span> <strong>'
+                + (stock.dividendYield * 100).toFixed(2)
+                + '%</strong></div>'
+            : '';
 
         return `
-            <div class="stock-card" style="cursor: pointer; display: flex; flex-direction: column;" onclick="handleStockClick('${escapeHtml(ticker)}')">
+            <div class="stock-card" data-ticker="${escapeHtml(ticker)}" style="cursor: pointer; display: flex; flex-direction: column;">
                 <div class="stock-card-header">
                     <h3 class="stock-ticker">${symbol}</h3>
-                    <span class="stock-price-badge">\$${currentPrice.toFixed(2)}</span>
+                    <span class="stock-price-badge">$${currentPrice.toFixed(2)}</span>
                 </div>
 
                 <div class="stock-card-chart">
@@ -463,14 +1381,26 @@ async function renderStocksGrid(stocks) {
                     <div class="stock-change ${isPositive ? 'positive' : 'negative'}">
                         ${isPositive ? '↑' : '↓'} ${Math.abs(priceChangePercent)}%
                     </div>
-                    ${stock.shortName || stock.companyName ? `<p class="stock-company">${escapeHtml(stock.shortName || stock.companyName)}</p>` : ''}
-                    ${marketCap ? `<div class="stock-metric"><span>Market Cap:</span> <strong>${formatLargeNumber(marketCap)}</strong></div>` : ''}
-                    ${pe ? `<div class="stock-metric"><span>P/E:</span> <strong>${pe.toFixed(2)}</strong></div>` : ''}
-                    ${stock.dividendYield ? `<div class="stock-metric"><span>💰 Dividend:</span> <strong>${(stock.dividendYield * 100).toFixed(2)}%</strong></div>` : ''}
+                    ${companyHtml}
+                    ${marketCapHtml}
+                    ${peHtml}
+                    ${dividendHtml}
                 </div>
             </div>
         `;
     }).join('');
+
+    document.querySelectorAll('.stock-card[data-ticker]').forEach((card) => {
+        card.classList.add('reveal');
+        const delayMs = Math.min(360, Math.max(0, Array.from(card.parentElement.children).indexOf(card) * 28));
+        card.style.animationDelay = delayMs + 'ms';
+        card.addEventListener('click', () => {
+            const ticker = card.getAttribute('data-ticker');
+            if (!ticker) return;
+            currentTicker = ticker;
+            loadStockData(ticker, false);
+        });
+    });
 
     // Load chart data for each stock
     for (const stock of stocks) {
@@ -488,7 +1418,7 @@ async function renderStocksGrid(stocks) {
                     // Draw candlestick chart
                     const canvas = document.getElementById(chartContainerId);
                     if (canvas) {
-                        drawMiniStockChart(canvas, prices, ticker);
+                        drawMiniStockChart(canvas, prices);
                     }
 
                     // Calculate and display key indicator
@@ -506,7 +1436,7 @@ async function renderStocksGrid(stocks) {
 }
 
 // Draw mini candlestick chart with Bollinger Bands
-function drawMiniStockChart(canvas, prices, ticker) {
+function drawMiniStockChart(canvas, prices) {
     if (!canvas || !prices || prices.length === 0) return;
 
     const ctx = canvas.getContext('2d');
@@ -638,12 +1568,6 @@ function getKeyIndicator(prices) {
     }
 }
 
-// Handle stock card click
-function handleStockClick(ticker) {
-    currentTicker = ticker;
-    loadStockData(ticker, false);
-}
-
 // Load all stock data
 async function loadStockData(ticker, replaceHistory = false) {
     // Add to browser history
@@ -654,8 +1578,19 @@ async function loadStockData(ticker, replaceHistory = false) {
     }
 
     showResultsPage();
+    currentViewToken = `${normalizeCompareTicker(ticker)}:${Date.now()}`;
+    persistedSnapshotToken = '';
+    latestRelatedData = null;
+    markTickerVisited(ticker);
     loadingTicker.textContent = ticker;
     tickerInputCompact.value = ticker;
+    renderExplorationRail(ticker);
+    renderComparePanel(ticker);
+
+    const sinceLastViewEl = document.getElementById('since-last-view');
+    if (sinceLastViewEl) {
+        sinceLastViewEl.innerHTML = '';
+    }
 
     // Update stock header
     document.getElementById('stock-symbol').textContent = ticker;
@@ -674,7 +1609,12 @@ async function loadStockData(ticker, replaceHistory = false) {
         fetchData(`/api/news/${ticker}`, 'news-data', renderNews),
         fetchData(`/api/analyst-targets/${ticker}`, 'analyst-targets-data', renderAnalystTargets),
         fetchData(`/api/calendar/${ticker}`, 'calendar-data', renderCalendar),
-        fetchData(`/api/option-chain/${ticker}`, 'option-chain-data', renderOptionChain)
+        fetchData(`/api/option-chain/${ticker}`, 'option-chain-data', renderOptionChain),
+        fetchData(
+            `/api/related-stocks/${ticker}?limit=3&exclude=${encodeURIComponent(getVisitedTickers().join(','))}`,
+            'related-stocks-data',
+            renderRelatedStocks
+        )
     ];
 
     // Load sentiment analysis in background (non-blocking)
@@ -686,6 +1626,7 @@ async function loadStockData(ticker, replaceHistory = false) {
     if (techContainer) {
         renderTechnicalSignals(null, techContainer);
     }
+    renderDecisionSummary();
 
     // Show results
     loadingSpinner.classList.add('hidden');
@@ -699,10 +1640,17 @@ async function loadStockData(ticker, replaceHistory = false) {
 function initializeNewsSentiment(ticker) {
     const container = document.getElementById('news-sentiment-data');
     container.innerHTML = `
-        <button class="ai-button" onclick="loadNewsSentiment('${ticker}')">
+        <button class="ai-button" id="news-sentiment-button">
             🤖 Get News & Sentiment AI Analysis
         </button>
     `;
+
+    const button = document.getElementById('news-sentiment-button');
+    if (button) {
+        button.addEventListener('click', () => {
+            loadNewsSentiment(ticker);
+        });
+    }
 }
 
 // Load news sentiment on demand
@@ -723,10 +1671,16 @@ async function loadNewsSentiment(ticker) {
         console.error(`Error fetching news sentiment:`, error);
         container.innerHTML = `
             <p class="text-danger">❌ Failed to load news sentiment</p>
-            <button class="ai-button" onclick="loadNewsSentiment('${ticker}')" style="margin-top: 10px;">
+            <button class="ai-button" id="news-sentiment-retry" style="margin-top: 10px;">
                 🔄 Retry
             </button>
         `;
+        const retryButton = document.getElementById('news-sentiment-retry');
+        if (retryButton) {
+            retryButton.addEventListener('click', () => {
+                loadNewsSentiment(ticker);
+            });
+        }
     }
 }
 
@@ -790,6 +1744,9 @@ function renderFundamentals(data, container) {
 
     // Store fundamentals globally for use in other renderers
     fundamentalsData = data;
+    if (currentTicker) {
+        compareDataCache[normalizeCompareTicker(currentTicker)] = data;
+    }
 
     // Set company name and industry/sector in header if available
     const companyName = data.longName || data.shortName || data.long_name || data.short_name || '';
@@ -855,9 +1812,9 @@ function renderFundamentals(data, container) {
     // Helper function to evaluate metric quality
     function evaluateMetric(metricName, value) {
         if (!value || value === 'N/A') return { status: 'neutral', icon: '◯', color: '#999' };
-        
+
         const numValue = parseFloat(value);
-        
+
         switch (metricName) {
             case 'P/E Ratio':
                 if (numValue < 15) return { status: 'good', icon: '✓', color: '#34a853' };
@@ -897,17 +1854,89 @@ function renderFundamentals(data, container) {
 
     // Render table with visual indicators
     renderTableWithIndicators(fields, container, evaluateMetric);
+    renderDecisionSummary();
+    renderComparePanel(currentTicker);
+}
+
+function renderRelatedStocks(data, container) {
+    if (!container) return;
+
+    latestRelatedData = data;
+
+    const related = data && Array.isArray(data.related) ? data.related : [];
+    if (!related.length) {
+        container.innerHTML = '<p class="text-muted">No related stocks available yet. Try a different ticker or come back after loading more data.</p>';
+        return;
+    }
+
+    container.innerHTML = related.map((item) => {
+        const ticker = escapeHtml(item.ticker || 'N/A');
+        const name = escapeHtml(item.name || ticker);
+        const reason = escapeHtml(item.reason || 'similar price/volume profile');
+        const change = Number(item.change_pct || 0);
+        const changeColor = change >= 0 ? '#16a34a' : '#dc2626';
+        const dividendLabel = item.has_dividend ? 'Dividend' : 'No dividend';
+        const dividendClass = item.has_dividend ? 'related-pill related-pill-dividend' : 'related-pill related-pill-neutral';
+
+        return `
+            <div class="related-stock-item" data-ticker="${ticker}">
+                <div class="related-stock-top">
+                    <div>
+                        <div class="related-stock-ticker">${ticker}</div>
+                        <div class="related-stock-name">${name}</div>
+                        ${renderSeenMarker(item.ticker)}
+                    </div>
+                    <div class="related-stock-metrics">
+                        <span class="related-pill">$${Number(item.price || 0).toFixed(2)}</span>
+                        <span class="related-pill" style="color:${changeColor};">${change >= 0 ? '▲' : '▼'} ${Math.abs(change).toFixed(2)}%</span>
+                        <span class="${dividendClass}">${dividendLabel}</span>
+                    </div>
+                </div>
+                <div class="related-stock-actions">
+                    <button type="button" class="related-stock-compare" data-compare-ticker="${ticker}">Add to compare</button>
+                    <span class="related-stock-open">Open to analyze ${ticker} in the main flow.</span>
+                </div>
+                <div class="mini-sparkline related-stock-sparkline" data-sparkline-ticker="${ticker}"></div>
+                <div class="related-stock-next-step">Open to compare the same flow with ${ticker}.</div>
+                <div class="related-stock-reason">Why: ${reason}</div>
+            </div>
+        `;
+    }).join('');
+
+    container.querySelectorAll('.related-stock-item[data-ticker]').forEach((node) => {
+        node.addEventListener('click', (event) => {
+            const ticker = event.currentTarget.getAttribute('data-ticker');
+            if (!ticker) return;
+            event.preventDefault();
+            hideError();
+            currentTicker = ticker;
+            tickerInput.value = ticker;
+            loadStockData(ticker);
+        });
+    });
+
+    container.querySelectorAll('[data-compare-ticker]').forEach((node) => {
+        node.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const ticker = event.currentTarget.getAttribute('data-compare-ticker');
+            if (!ticker) return;
+            addTickerToCompare(ticker);
+        });
+    });
+
+    populateSparklineNodes(container);
 }
 
 function renderTableWithIndicators(fields, container, evaluateFn) {
     let html = '<table style="width: 100%; border-collapse: collapse;">';
-    
+
     for (const [key, value] of Object.entries(fields)) {
         const evaluation = evaluateFn(key, value);
-        const bgColor = evaluation.status === 'good' ? '#f0f8f4' : 
-                       evaluation.status === 'bad' ? '#fef3f2' : 
+        const bgColor = evaluation.status === 'good' ? '#f0f8f4' :
+                       evaluation.status === 'bad' ? '#fef3f2' :
                        'transparent';
-        
+
         html += `
             <tr style="border-bottom: 1px solid #e0e0e0; background-color: ${bgColor}; transition: background-color 0.2s;">
                 <td style="padding: 12px 0; font-weight: 500; color: #202124;">${tooltip(key)}</td>
@@ -918,7 +1947,7 @@ function renderTableWithIndicators(fields, container, evaluateFn) {
             </tr>
         `;
     }
-    
+
     html += '</table>';
     container.innerHTML = html;
 }
@@ -950,6 +1979,22 @@ function renderPriceHistory(data, container) {
     const change1W = calcPctChange(5);
     const change1M = calcPctChange(21);
 
+    const change1DHtml = change1D !== null
+        ? '<span style="color: ' + (change1D >= 0 ? '#22c55e' : '#ef4444') + ';">'
+            + '1D: ' + (change1D >= 0 ? '▲' : '▼') + ' ' + Math.abs(change1D).toFixed(2)
+            + '%</span><br>'
+        : '';
+    const change1WHtml = change1W !== null
+        ? '<span style="color: ' + (change1W >= 0 ? '#22c55e' : '#ef4444') + ';">'
+            + '1W: ' + (change1W >= 0 ? '▲' : '▼') + ' ' + Math.abs(change1W).toFixed(2)
+            + '%</span><br>'
+        : '';
+    const change1MHtml = change1M !== null
+        ? '<span style="color: ' + (change1M >= 0 ? '#22c55e' : '#ef4444') + ';">'
+            + '1M: ' + (change1M >= 0 ? '▲' : '▼') + ' ' + Math.abs(change1M).toFixed(2)
+            + '%</span>'
+        : '';
+
     const avgVolume = prices.reduce((sum, p) => sum + (p.Volume || 0), 0) / prices.length;
     const currentVolume = latest.Volume || 0;
     const volumeChange = ((currentVolume - avgVolume) / avgVolume) * 100;
@@ -958,9 +2003,9 @@ function renderPriceHistory(data, container) {
         <div style="display: flex; gap: 20px; line-height: 1.6;">
             <div>
                 <strong>Price Change</strong><br>
-                ${change1D !== null ? `<span style="color: ${change1D >= 0 ? '#22c55e' : '#ef4444'};">1D: ${change1D >= 0 ? '▲' : '▼'} ${Math.abs(change1D).toFixed(2)}%</span><br>` : ''}
-                ${change1W !== null ? `<span style="color: ${change1W >= 0 ? '#22c55e' : '#ef4444'};">1W: ${change1W >= 0 ? '▲' : '▼'} ${Math.abs(change1W).toFixed(2)}%</span><br>` : ''}
-                ${change1M !== null ? `<span style="color: ${change1M >= 0 ? '#22c55e' : '#ef4444'};">1M: ${change1M >= 0 ? '▲' : '▼'} ${Math.abs(change1M).toFixed(2)}%</span>` : ''}
+                ${change1DHtml}
+                ${change1WHtml}
+                ${change1MHtml}
             </div>
             <div style="border-left: 1px solid #ddd; padding-left: 20px;">
                 <strong>52W Range</strong><br>
@@ -989,6 +2034,8 @@ function renderPriceHistory(data, container) {
             ${formatPercent((latest.Close - oldest.Close) / oldest.Close)} (121d)
         </span>
     `;
+
+    renderSinceLastViewBadge(currentTicker, latest.Close, currentViewToken);
 
     // Calculate price range for scaling
     const minPrice = Math.min(...prices.map(p => p.Low));
@@ -1023,8 +2070,259 @@ function renderPriceHistory(data, container) {
     // Render trend prediction at the top
     renderTrendPrediction();
 
+    // Render quick decision summary strip
+    renderDecisionSummary();
+
     // Render trading strategy
     renderTradingStrategy();
+
+    const priceBarsHtml = prices.map((day, idx) => {
+        const open = day.Open;
+        const close = day.Close;
+        const high = day.High;
+        const low = day.Low;
+
+        // Normalize to 0-100 scale
+        const highPercent = ((high - minPrice) / range) * 100;
+        const lowPercent = ((low - minPrice) / range) * 100;
+        const openPercent = ((open - minPrice) / range) * 100;
+        const closePercent = ((close - minPrice) / range) * 100;
+
+        // Technical indicators positioning
+        const sma20Percent = sma20[idx] ? ((sma20[idx] - minPrice) / range) * 100 : null;
+        const sma50Percent = sma50[idx] ? ((sma50[idx] - minPrice) / range) * 100 : null;
+        const bbUpperPercent = bbUpper[idx] ? ((bbUpper[idx] - minPrice) / range) * 100 : null;
+        const bbLowerPercent = bbLower[idx] ? ((bbLower[idx] - minPrice) / range) * 100 : null;
+
+        // Determine color (green for up, red for down)
+        const isUp = close >= open;
+        const color = isUp ? '#22c55e' : '#ef4444';
+
+        // Body is between open and close
+        const bodyTop = Math.min(openPercent, closePercent);
+        const bodyHeight = Math.abs(closePercent - openPercent) || 1;
+        const wickTop = lowPercent;
+        const wickHeight = highPercent - lowPercent;
+
+        // Check for news on this date
+        const dateLabel = (typeof day.Date === 'string') ? day.Date.split('T')[0] : day.Date;
+        const newsOnDate = (window.newsArticles || []).filter(n => n.dateStr === dateLabel);
+        let newsMarker = '';
+        if (newsOnDate.length > 0) {
+            const newsTitle = newsOnDate.map(n => n.title).join('\\n');
+            const firstNewsLink = newsOnDate[0].link;
+            const sentiment = newsOnDate[0].sentiment || 'neutral';
+
+            // Choose emoji and color based on sentiment
+            let sentimentEmoji = '⚪'; // Grey dot for neutral/loading
+            let sentimentColor = '#9ca3af'; // grey for neutral
+            if (sentiment === 'positive') {
+                sentimentEmoji = '🟢';
+                sentimentColor = '#10b981';
+            } else if (sentiment === 'negative') {
+                sentimentEmoji = '🔴';
+                sentimentColor = '#ef4444';
+            }
+
+            newsMarker = '<a href="' + escapeHtml(firstNewsLink) + '" target="_blank" style="position: absolute; top: -8px; left: 50%; transform: translateX(-50%); font-size: 18px; cursor: pointer; z-index: 10; text-decoration: none; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); color: ' + sentimentColor + ';" title="' + newsTitle.replace(/"/g, '&quot;') + '">' + sentimentEmoji + '</a>';
+        }
+
+        // Build indicator HTML
+        let indicatorHtml = '';
+        if (bbUpperPercent && bbLowerPercent) {
+            indicatorHtml += '<div style="position: absolute; bottom: ' + bbLowerPercent + '%; width: 100%; height: ' + (bbUpperPercent - bbLowerPercent) + '%; background: rgba(167, 139, 250, 0.1); border-top: 0.5px solid rgba(167, 139, 250, 0.5); border-bottom: 0.5px solid rgba(167, 139, 250, 0.5);"></div>';
+        }
+        if (sma50Percent) {
+            indicatorHtml += '<div style="position: absolute; bottom: ' + sma50Percent + '%; width: 100%; height: 1px; background: #f59e0b;"></div>';
+        }
+        if (sma20Percent) {
+            indicatorHtml += '<div style="position: absolute; bottom: ' + sma20Percent + '%; width: 100%; height: 1px; background: #3b82f6;"></div>';
+        }
+
+        return '<div style="flex: 1; position: relative; height: 100%;" title="' + dateLabel + ': O:$' + open.toFixed(2) + ' H:$' + high.toFixed(2) + ' L:$' + low.toFixed(2) + ' C:$' + close.toFixed(2) + '">' +
+            newsMarker +
+            indicatorHtml +
+            '<div style="position: absolute; bottom: ' + wickTop + '%; width: 2px; height: ' + wickHeight + '%; background: ' + color + '; left: 50%; transform: translateX(-50%);"></div>' +
+            '<div style="position: absolute; bottom: ' + bodyTop + '%; width: 100%; height: ' + bodyHeight + '%; background: ' + color + '; opacity: 0.8; border: 1px solid ' + color + ';"></div>' +
+            '</div>';
+    }).join('');
+
+    const dateLabelsHtml = (() => {
+        const labels = [];
+        const step = Math.max(1, Math.floor(prices.length / 8)); // Show ~8 dates
+        for (let i = 0; i < prices.length; i += step) {
+            const dateStr = prices[i].Date;
+            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
+            const [, month, day] = base.split('-');
+            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
+        }
+        // Always show last date
+        if ((prices.length - 1) % step !== 0) {
+            const dateStr = prices[prices.length - 1].Date;
+            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
+            const [, month, day] = base.split('-');
+            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
+        }
+        return labels.join('');
+    })();
+
+    const volumeBarsHtml = prices.map((day) => {
+        const volume = day.Volume || 0;
+        const volumePercent = maxVolume > 0 ? (volume / maxVolume) * 100 : 0;
+        const isUp = day.Close >= day.Open;
+        const color = isUp ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)';
+
+        const dateLabel = (typeof day.Date === 'string') ? day.Date.split('T')[0] : day.Date;
+        return '<div style="flex: 1; position: relative; height: 100%;" title="' + dateLabel + ': Volume ' + volume.toLocaleString() + '">' +
+            '<div style="position: absolute; bottom: 0; width: 100%; height: ' + volumePercent + '%; background: ' + color + ';"></div>' +
+            '</div>';
+    }).join('');
+
+    const volumeDateLabelsHtml = (() => {
+        const labels = [];
+        const step = Math.max(1, Math.floor(prices.length / 8));
+        for (let i = 0; i < prices.length; i += step) {
+            const dateStr = prices[i].Date;
+            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
+            const [, month, day] = base.split('-');
+            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
+        }
+        if ((prices.length - 1) % step !== 0) {
+            const dateStr = prices[prices.length - 1].Date;
+            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
+            const [, month, day] = base.split('-');
+            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
+        }
+        return labels.join('');
+    })();
+
+    const rsiBarsHtml = rsi.map(function (val, idx) {
+        if (val === null) return '<div style="flex: 1;"></div>';
+        const color = val > 70 ? '#ef4444' : val < 30 ? '#22c55e' : '#6b7280';
+        const dateLabel = (typeof prices[idx].Date === 'string')
+            ? prices[idx].Date.split('T')[0]
+            : prices[idx].Date;
+        return '<div style="flex: 1; height: ' + val + '%; background: ' + color + '; opacity: 0.7;" title="' + dateLabel + ': RSI ' + val.toFixed(1) + '"></div>';
+    }).join('');
+
+    const rsiDateLabelsHtml = (() => {
+        const labels = [];
+        const step = Math.max(1, Math.floor(rsi.length / 8));
+        for (let i = 0; i < rsi.length; i += step) {
+            const dateStr = prices[i].Date;
+            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
+            const [, month, day] = base.split('-');
+            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
+        }
+        if ((rsi.length - 1) % step !== 0) {
+            const dateStr = prices[rsi.length - 1].Date;
+            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
+            const [, month, day] = base.split('-');
+            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
+        }
+        return labels.join('');
+    })();
+
+    const macdBarsHtml = (() => {
+        const maxHist = Math.max(
+            ...histogram.filter(v => v !== null && !isNaN(v)).map(v => Math.abs(v)),
+            0.01,
+        );
+        return histogram.map(function (val, idx) {
+            if (val === null || isNaN(val)) {
+                return '<div style="flex: 1; background: rgba(200,200,200,0.2);"></div>';
+            }
+            const absVal = Math.abs(val);
+            const barHeight = (absVal / maxHist) * 40;
+            const color = val >= 0 ? '#10b981' : '#ef4444';
+            const dateLabel = (typeof prices[idx]?.Date === 'string')
+                ? prices[idx].Date.split('T')[0]
+                : prices[idx]?.Date || 'N/A';
+
+            if (val >= 0) {
+                return '<div style="flex: 1; height: 100%; display: flex; align-items: center; justify-content: center;"><div style="width: 80%; height: ' + barHeight + '%; background: ' + color + '; margin-top: auto; margin-bottom: 50%; border-radius: 2px;" title="' + dateLabel + ': ' + val.toFixed(4) + '"></div></div>';
+            }
+            return '<div style="flex: 1; height: 100%; display: flex; align-items: center; justify-content: center;"><div style="width: 80%; height: ' + barHeight + '%; background: ' + color + '; margin-top: 50%; border-radius: 2px;" title="' + dateLabel + ': ' + val.toFixed(4) + '"></div></div>';
+        }).join('');
+    })();
+
+    const macdDateLabelsHtml = (() => {
+        const labels = [];
+        const step = Math.max(1, Math.floor(histogram.length / 8));
+        for (let i = 0; i < histogram.length; i += step) {
+            const dateStr = prices[i].Date;
+            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
+            const [, month, day] = base.split('-');
+            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
+        }
+        if ((histogram.length - 1) % step !== 0) {
+            const dateStr = prices[histogram.length - 1].Date;
+            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
+            const [, month, day] = base.split('-');
+            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
+        }
+        return labels.join('');
+    })();
+
+    const stochBarsHtml = stoch.map(function (val, idx) {
+        if (val === null) return '<div style="flex: 1;"></div>';
+        const color = val > 80 ? '#ef4444' : val < 20 ? '#22c55e' : '#6b7280';
+        const dateLabel = (typeof prices[idx].Date === 'string')
+            ? prices[idx].Date.split('T')[0]
+            : prices[idx].Date;
+        return '<div style="flex: 1; height: ' + val + '%; background: ' + color + '; opacity: 0.7;" title="' + dateLabel + ': ' + val.toFixed(1) + '"></div>';
+    }).join('');
+
+    const stochDateLabelsHtml = (() => {
+        const labels = [];
+        const step = Math.max(1, Math.floor(stoch.length / 8));
+        for (let i = 0; i < stoch.length; i += step) {
+            const dateStr = prices[i].Date;
+            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
+            const [, month, day] = base.split('-');
+            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
+        }
+        if ((stoch.length - 1) % step !== 0) {
+            const dateStr = prices[stoch.length - 1].Date;
+            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
+            const [, month, day] = base.split('-');
+            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
+        }
+        return labels.join('');
+    })();
+
+    const compactVolumeBarsHtml = prices.map(function (day) {
+        const volume = day.Volume || 0;
+        const volumePercent = maxVolume > 0 ? (volume / maxVolume) * 100 : 0;
+        const isUp = day.Close >= day.Open;
+        const color = isUp ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)';
+
+        return '<div style="flex: 1; position: relative; height: 100%;" title="' + day.Date + ': Volume ' + volume.toLocaleString() + '">'
+            + '<div style="position: absolute; bottom: 0; width: 100%; height: ' + volumePercent + '%; background: ' + color + ';"></div>'
+            + '</div>';
+    }).join('');
+
+    const compactRsiBarsHtml = rsi.map(function (val, idx) {
+        if (val === null) return '<div style="flex: 1;"></div>';
+        const color = val > 70 ? '#ef4444' : val < 30 ? '#22c55e' : '#6b7280';
+        return '<div style="flex: 1; height: ' + val + '%; background: ' + color + '; opacity: 0.7;" title="' + prices[idx].Date + ': RSI ' + val.toFixed(1) + '"></div>';
+    }).join('');
+
+    const compactMacdBarsHtml = (() => {
+        const maxHist = Math.max(...histogram.filter(v => v !== null).map(v => Math.abs(v)), 0.0001);
+        return histogram.map(function (val, idx) {
+            if (val === null) return '<div style="flex: 1;"></div>';
+            const h = (Math.abs(val) / maxHist) * 50;
+            const color = val >= 0 ? '#22c55e' : '#ef4444';
+            return '<div style="flex: 1; display: flex; align-items: flex-end; justify-content: center; height: 100%;"><div style="width: 100%; height: ' + h + '%; background: ' + color + '; opacity: 0.75;" title="' + prices[idx].Date + ': ' + val.toFixed(3) + '"></div></div>';
+        }).join('');
+    })();
+
+    const compactStochBarsHtml = stoch.map(function (val, idx) {
+        if (val === null) return '<div style="flex: 1;"></div>';
+        const color = val > 80 ? '#ef4444' : val < 20 ? '#22c55e' : '#6b7280';
+        return '<div style="flex: 1; height: ' + val + '%; background: ' + color + '; opacity: 0.7;" title="' + prices[idx].Date + ': ' + val.toFixed(1) + '"></div>';
+    }).join('');
 
     // Create candlestick chart with technical indicators
     const chartHtml = `
@@ -1041,134 +2339,22 @@ function renderPriceHistory(data, container) {
             <!-- Chart -->
             <div style="display: flex; flex-direction: column; gap: 0;">
                 <div style="display: flex; align-items: flex-end; justify-content: space-around; gap: 2px; height: 300px; padding: 16px; background: linear-gradient(to bottom, #1e293b 0%, #0f172a 100%); border-radius: 12px 12px 0 0; position: relative; box-shadow: 0 8px 16px rgba(0,0,0,0.2);">
-                    ${prices.map((day, idx) => {
-                        const open = day.Open;
-                        const close = day.Close;
-                        const high = day.High;
-                        const low = day.Low;
-
-                        // Normalize to 0-100 scale
-                        const highPercent = ((high - minPrice) / range) * 100;
-                        const lowPercent = ((low - minPrice) / range) * 100;
-                        const openPercent = ((open - minPrice) / range) * 100;
-                        const closePercent = ((close - minPrice) / range) * 100;
-
-                        // Technical indicators positioning
-                        const sma20Percent = sma20[idx] ? ((sma20[idx] - minPrice) / range) * 100 : null;
-                        const sma50Percent = sma50[idx] ? ((sma50[idx] - minPrice) / range) * 100 : null;
-                        const bbUpperPercent = bbUpper[idx] ? ((bbUpper[idx] - minPrice) / range) * 100 : null;
-                        const bbLowerPercent = bbLower[idx] ? ((bbLower[idx] - minPrice) / range) * 100 : null;
-
-                        // Determine color (green for up, red for down)
-                        const isUp = close >= open;
-                        const color = isUp ? '#22c55e' : '#ef4444';
-
-                        // Body is between open and close
-                        const bodyTop = Math.min(openPercent, closePercent);
-                        const bodyHeight = Math.abs(closePercent - openPercent) || 1;
-                        const wickTop = lowPercent;
-                        const wickHeight = highPercent - lowPercent;
-
-                        // Check for news on this date
-                        const dateLabel = (typeof day.Date === 'string') ? day.Date.split('T')[0] : day.Date;
-                        const newsOnDate = (window.newsArticles || []).filter(n => n.dateStr === dateLabel);
-                        let newsMarker = '';
-                        if (newsOnDate.length > 0) {
-                            const newsTitle = newsOnDate.map(n => n.title).join('\\n');
-                            const firstNewsLink = newsOnDate[0].link;
-                            const sentiment = newsOnDate[0].sentiment || 'neutral';
-
-                            // Choose emoji and color based on sentiment
-                            let sentimentEmoji = '⚪'; // Grey dot for neutral/loading
-                            let sentimentColor = '#9ca3af'; // grey for neutral
-                            if (sentiment === 'positive') {
-                                sentimentEmoji = '🟢';
-                                sentimentColor = '#10b981';
-                            } else if (sentiment === 'negative') {
-                                sentimentEmoji = '🔴';
-                                sentimentColor = '#ef4444';
-                            }
-
-                            newsMarker = `<a href="${escapeHtml(firstNewsLink)}" target="_blank" style="position: absolute; top: -8px; left: 50%; transform: translateX(-50%); font-size: 18px; cursor: pointer; z-index: 10; text-decoration: none; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); color: ${sentimentColor};" title="${newsTitle.replace(/"/g, '&quot;')}">${sentimentEmoji}</a>`;
-                        }
-
-                        // Build indicator HTML
-                        let indicatorHtml = '';
-                        if (bbUpperPercent && bbLowerPercent) {
-                            indicatorHtml += '<div style="position: absolute; bottom: ' + bbLowerPercent + '%; width: 100%; height: ' + (bbUpperPercent - bbLowerPercent) + '%; background: rgba(167, 139, 250, 0.1); border-top: 0.5px solid rgba(167, 139, 250, 0.5); border-bottom: 0.5px solid rgba(167, 139, 250, 0.5);"></div>';
-                        }
-                        if (sma50Percent) {
-                            indicatorHtml += '<div style="position: absolute; bottom: ' + sma50Percent + '%; width: 100%; height: 1px; background: #f59e0b;"></div>';
-                        }
-                        if (sma20Percent) {
-                            indicatorHtml += '<div style="position: absolute; bottom: ' + sma20Percent + '%; width: 100%; height: 1px; background: #3b82f6;"></div>';
-                        }
-
-                        return '<div style="flex: 1; position: relative; height: 100%;" title="' + dateLabel + ': O:$' + open.toFixed(2) + ' H:$' + high.toFixed(2) + ' L:$' + low.toFixed(2) + ' C:$' + close.toFixed(2) + '">' +
-                            newsMarker +
-                            indicatorHtml +
-                            '<div style="position: absolute; bottom: ' + wickTop + '%; width: 2px; height: ' + wickHeight + '%; background: ' + color + '; left: 50%; transform: translateX(-50%);"></div>' +
-                            '<div style="position: absolute; bottom: ' + bodyTop + '%; width: 100%; height: ' + bodyHeight + '%; background: ' + color + '; opacity: 0.8; border: 1px solid ' + color + ';"></div>' +
-                            '</div>';
-                    }).join('')}
+                    ${priceBarsHtml}
                 </div>
                 <!-- Date Labels -->
                 <div style="display: flex; justify-content: space-around; gap: 2px; padding: 4px 10px; background: #f9f9f9; border-radius: 0 0 4px 4px; font-size: 0.75em; color: #666;">
-                    ${(() => {
-                        const labels = [];
-                        const step = Math.max(1, Math.floor(prices.length / 8)); // Show ~8 dates
-                        for (let i = 0; i < prices.length; i += step) {
-                            const dateStr = prices[i].Date;
-                            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
-                            const [year, month, day] = base.split('-');
-                            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
-                        }
-                        // Always show last date
-                        if ((prices.length - 1) % step !== 0) {
-                            const dateStr = prices[prices.length - 1].Date;
-                            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
-                            const [year, month, day] = base.split('-');
-                            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
-                        }
-                        return labels.join('');
-                    })()}
+                    ${dateLabelsHtml}
                 </div>
             </div>
 
             <!-- Volume Chart -->
             <div style="display: flex; flex-direction: column; gap: 0; margin-top: 4px;">
                 <div style="display: flex; align-items: flex-end; justify-content: space-around; gap: 2px; height: 80px; padding: 10px; background: #f9f9f9; border-radius: 4px 4px 0 0;">
-                    ${prices.map((day) => {
-                        const volume = day.Volume || 0;
-                        const volumePercent = maxVolume > 0 ? (volume / maxVolume) * 100 : 0;
-                        const isUp = day.Close >= day.Open;
-                        const color = isUp ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)';
-
-                        const dateLabel = (typeof day.Date === 'string') ? day.Date.split('T')[0] : day.Date;
-                        return '<div style="flex: 1; position: relative; height: 100%;" title="' + dateLabel + ': Volume ' + volume.toLocaleString() + '">' +
-                            '<div style="position: absolute; bottom: 0; width: 100%; height: ' + volumePercent + '%; background: ' + color + ';"></div>' +
-                            '</div>';
-                    }).join('')}
+                    ${volumeBarsHtml}
                 </div>
                 <!-- Date Labels for Volume -->
                 <div style="display: flex; justify-content: space-around; gap: 2px; padding: 4px 10px; background: #f9f9f9; border-radius: 0 0 4px 4px; font-size: 0.75em; color: #666;">
-                    ${(() => {
-                        const labels = [];
-                        const step = Math.max(1, Math.floor(prices.length / 8));
-                        for (let i = 0; i < prices.length; i += step) {
-                            const dateStr = prices[i].Date;
-                            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
-                            const [year, month, day] = base.split('-');
-                            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
-                        }
-                        if ((prices.length - 1) % step !== 0) {
-                            const dateStr = prices[prices.length - 1].Date;
-                            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
-                            const [year, month, day] = base.split('-');
-                            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
-                        }
-                        return labels.join('');
-                    })()}
+                    ${volumeDateLabelsHtml}
                 </div>
             </div>
 
@@ -1179,33 +2365,12 @@ function renderPriceHistory(data, container) {
                     <div style="position: absolute; top: 20%; width: 100%; height: 1px; background: rgba(239, 68, 68, 0.3);"></div>
                     <div style="position: absolute; bottom: 20%; width: 100%; height: 1px; background: rgba(34, 197, 94, 0.3);"></div>
                     <div style="display: flex; align-items: flex-end; height: 100%; gap: 1px;">
-                        ${rsi.map((val, idx) => {
-                            if (val === null) return '<div style="flex: 1;"></div>';
-                            const color = val > 70 ? '#ef4444' : val < 30 ? '#22c55e' : '#6b7280';
-                            const dateLabel = (typeof prices[idx].Date === 'string') ? prices[idx].Date.split('T')[0] : prices[idx].Date;
-                            return '<div style="flex: 1; height: ' + val + '%; background: ' + color + '; opacity: 0.7;" title="' + dateLabel + ': RSI ' + val.toFixed(1) + '"></div>';
-                        }).join('')}
+                        ${rsiBarsHtml}
                     </div>
                 </div>
                 <!-- Date Labels for RSI -->
                 <div style="display: flex; justify-content: space-around; gap: 1px; padding: 2px 0; font-size: 0.65em; color: #999; margin-top: 2px;">
-                    ${(() => {
-                        const labels = [];
-                        const step = Math.max(1, Math.floor(rsi.length / 8));
-                        for (let i = 0; i < rsi.length; i += step) {
-                            const dateStr = prices[i].Date;
-                            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
-                            const [year, month, day] = base.split('-');
-                            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
-                        }
-                        if ((rsi.length - 1) % step !== 0) {
-                            const dateStr = prices[rsi.length - 1].Date;
-                            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
-                            const [year, month, day] = base.split('-');
-                            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
-                        }
-                        return labels.join('');
-                    })()}
+                    ${rsiDateLabelsHtml}
                 </div>
             </div>
 
@@ -1215,41 +2380,12 @@ function renderPriceHistory(data, container) {
                 <div style="position: relative; height: 100px; background: white; border-radius: 4px; padding: 8px; border: 2px solid #3b82f6;">
                     <div style="position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: #3b82f6; z-index: 1;"></div>
                     <div style="display: flex; align-items: flex-end; width: 100%; height: 100%; gap: 1px;">
-                        ${histogram.map((val, idx) => {
-                            if (val === null || isNaN(val)) return '<div style="flex: 1; background: rgba(200,200,200,0.2);"></div>';
-                            const maxHist = Math.max(...histogram.filter(v => v !== null && !isNaN(v)).map(v => Math.abs(v)), 0.01);
-                            const absVal = Math.abs(val);
-                            let barHeight = (absVal / maxHist) * 40;
-                            const color = val >= 0 ? '#10b981' : '#ef4444';
-                            const dateLabel = (typeof prices[idx]?.Date === 'string') ? prices[idx].Date.split('T')[0] : prices[idx]?.Date || 'N/A';
-
-                            if (val >= 0) {
-                                return `<div style="flex: 1; height: 100%; display: flex; align-items: center; justify-content: center;"><div style="width: 80%; height: ${barHeight}%; background: ${color}; margin-top: auto; margin-bottom: 50%; border-radius: 2px;" title="${dateLabel}: ${val.toFixed(4)}"></div></div>`;
-                            } else {
-                                return `<div style="flex: 1; height: 100%; display: flex; align-items: center; justify-content: center;"><div style="width: 80%; height: ${barHeight}%; background: ${color}; margin-top: 50%; border-radius: 2px;" title="${dateLabel}: ${val.toFixed(4)}"></div></div>`;
-                            }
-                        }).join('')}
+                        ${macdBarsHtml}
                     </div>
                 </div>
                 <!-- Date Labels for MACD -->
                 <div style="display: flex; justify-content: space-around; gap: 1px; padding: 2px 0; font-size: 0.65em; color: #999; margin-top: 2px;">
-                    ${(() => {
-                        const labels = [];
-                        const step = Math.max(1, Math.floor(histogram.length / 8));
-                        for (let i = 0; i < histogram.length; i += step) {
-                            const dateStr = prices[i].Date;
-                            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
-                            const [year, month, day] = base.split('-');
-                            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
-                        }
-                        if ((histogram.length - 1) % step !== 0) {
-                            const dateStr = prices[histogram.length - 1].Date;
-                            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
-                            const [year, month, day] = base.split('-');
-                            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
-                        }
-                        return labels.join('');
-                    })()}
+                    ${macdDateLabelsHtml}
                 </div>
             </div>
 
@@ -1260,48 +2396,18 @@ function renderPriceHistory(data, container) {
                     <div style="position: absolute; top: 20%; width: 100%; height: 1px; background: rgba(239, 68, 68, 0.3);"></div>
                     <div style="position: absolute; bottom: 20%; width: 100%; height: 1px; background: rgba(34, 197, 94, 0.3);"></div>
                     <div style="display: flex; align-items: flex-end; height: 100%; gap: 1px;">
-                        ${stoch.map((val, idx) => {
-                            if (val === null) return '<div style="flex: 1;"></div>';
-                            const color = val > 80 ? '#ef4444' : val < 20 ? '#22c55e' : '#6b7280';
-                            const dateLabel = (typeof prices[idx].Date === 'string') ? prices[idx].Date.split('T')[0] : prices[idx].Date;
-                            return '<div style="flex: 1; height: ' + val + '%; background: ' + color + '; opacity: 0.7;" title="' + dateLabel + ': ' + val.toFixed(1) + '"></div>';
-                        }).join('')}
+                        ${stochBarsHtml}
                     </div>
                 </div>
                 <!-- Date Labels for Stochastic -->
                 <div style="display: flex; justify-content: space-around; gap: 1px; padding: 2px 0; font-size: 0.65em; color: #999; margin-top: 2px;">
-                    ${(() => {
-                        const labels = [];
-                        const step = Math.max(1, Math.floor(stoch.length / 8));
-                        for (let i = 0; i < stoch.length; i += step) {
-                            const dateStr = prices[i].Date;
-                            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
-                            const [year, month, day] = base.split('-');
-                            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
-                        }
-                        if ((stoch.length - 1) % step !== 0) {
-                            const dateStr = prices[stoch.length - 1].Date;
-                            const base = (typeof dateStr === 'string') ? dateStr.split('T')[0] : dateStr;
-                            const [year, month, day] = base.split('-');
-                            labels.push('<div style="flex: 1; text-align: center;">' + month + '/' + day + '</div>');
-                        }
-                        return labels.join('');
-                    })()}
+                    ${stochDateLabelsHtml}
                 </div>
             </div>
 
             <!-- Volume Chart -->
             <div style="display: flex; align-items: flex-end; justify-content: space-around; gap: 2px; height: 80px; padding: 10px; background: #f9f9f9; border-radius: 4px; margin-top: 4px;">
-                ${prices.map((day) => {
-                    const volume = day.Volume || 0;
-                    const volumePercent = maxVolume > 0 ? (volume / maxVolume) * 100 : 0;
-                    const isUp = day.Close >= day.Open;
-                    const color = isUp ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)';
-
-                    return '<div style="flex: 1; position: relative; height: 100%;" title="' + day.Date + ': Volume ' + volume.toLocaleString() + '">' +
-                        '<div style="position: absolute; bottom: 0; width: 100%; height: ' + volumePercent + '%; background: ' + color + ';"></div>' +
-                        '</div>';
-                }).join('')}
+                ${compactVolumeBarsHtml}
             </div>
 
             <!-- RSI Oscillator -->
@@ -1311,11 +2417,7 @@ function renderPriceHistory(data, container) {
                     <div style="position: absolute; top: 20%; width: 100%; height: 1px; background: rgba(239, 68, 68, 0.3);"></div>
                     <div style="position: absolute; bottom: 20%; width: 100%; height: 1px; background: rgba(34, 197, 94, 0.3);"></div>
                     <div style="display: flex; align-items: flex-end; height: 100%; gap: 1px;">
-                        ${rsi.map((val, idx) => {
-                            if (val === null) return '<div style="flex: 1;"></div>';
-                            const color = val > 70 ? '#ef4444' : val < 30 ? '#22c55e' : '#6b7280';
-                            return '<div style="flex: 1; height: ' + val + '%; background: ' + color + '; opacity: 0.7;" title="' + prices[idx].Date + ': RSI ' + val.toFixed(1) + '"></div>';
-                        }).join('')}
+                        ${compactRsiBarsHtml}
                     </div>
                 </div>
             </div>
@@ -1326,15 +2428,7 @@ function renderPriceHistory(data, container) {
                 <div style="position: relative; height: 70px; border-left: 1px solid #ccc; border-bottom: 1px solid #ccc; display: flex; align-items: center;">
                     <div style="position: absolute; top: 50%; width: 100%; height: 1px; background: #bbb;"></div>
                     <div style="display: flex; align-items: center; width: 100%; gap: 1px;">
-                        ${(() => {
-                            const maxHist = Math.max(...histogram.filter(v => v !== null).map(v => Math.abs(v)), 0.0001);
-                            return histogram.map((val, idx) => {
-                                if (val === null) return '<div style="flex: 1;"></div>';
-                                const h = (Math.abs(val) / maxHist) * 50;
-                                const color = val >= 0 ? '#22c55e' : '#ef4444';
-                                return '<div style="flex: 1; display: flex; align-items: flex-end; justify-content: center; height: 100%;"><div style="width: 100%; height: ' + h + '%; background: ' + color + '; opacity: 0.75;" title="' + prices[idx].Date + ': ' + val.toFixed(3) + '"></div></div>';
-                            }).join('');
-                        })()}
+                        ${compactMacdBarsHtml}
                     </div>
                 </div>
             </div>
@@ -1346,11 +2440,7 @@ function renderPriceHistory(data, container) {
                     <div style="position: absolute; top: 20%; width: 100%; height: 1px; background: rgba(239, 68, 68, 0.3);"></div>
                     <div style="position: absolute; bottom: 20%; width: 100%; height: 1px; background: rgba(34, 197, 94, 0.3);"></div>
                     <div style="display: flex; align-items: flex-end; height: 100%; gap: 1px;">
-                        ${stoch.map((val, idx) => {
-                            if (val === null) return '<div style="flex: 1;"></div>';
-                            const color = val > 80 ? '#ef4444' : val < 20 ? '#22c55e' : '#6b7280';
-                            return '<div style="flex: 1; height: ' + val + '%; background: ' + color + '; opacity: 0.7;" title="' + prices[idx].Date + ': ' + val.toFixed(1) + '"></div>';
-                        }).join('')}
+                        ${compactStochBarsHtml}
                     </div>
                 </div>
             </div>
@@ -1384,9 +2474,9 @@ function renderAnalystTargets(data, container) {
     // Helper function to evaluate analyst target metrics
     function evaluateAnalystMetric(metricName, value) {
         if (!value || value === 'N/A') return { status: 'neutral', icon: '◯', color: '#999' };
-        
+
         const numValue = parseFloat(value);
-        
+
         switch (metricName) {
             case 'Current Price':
                 return { status: 'neutral', icon: '◯', color: '#999' };
@@ -1572,22 +2662,11 @@ function renderOptionChain(data, container) {
         return null;
     };
     const formatNum = (val, decimals = 2) => (val === null || val === undefined || isNaN(val) ? '—' : Number(val).toFixed(decimals));
-    const formatPct = (val) => (val === null || val === undefined || isNaN(val) ? '—' : `${Number(val).toFixed(2)}%`);
     const formatInt = (val) => (val === null || val === undefined || isNaN(val) ? '—' : Number(val).toLocaleString());
     const formatIV = (val) => {
         if (val === null || val === undefined || isNaN(val)) return '—';
         const num = Number(val);
         return num > 5 ? `${num.toFixed(2)}` : `${(num * 100).toFixed(1)}%`;
-    };
-    const formatDate = (val) => {
-        if (!val) return '—';
-        const d = new Date(val);
-        return isNaN(d.getTime()) ? val : d.toLocaleDateString();
-    };
-    const formatBool = (val) => {
-        if (val === true || val === 1) return 'Yes';
-        if (val === false || val === 0) return 'No';
-        return '—';
     };
     const rows = normalize(data)
         .map(r => ({
@@ -1607,7 +2686,7 @@ function renderOptionChain(data, container) {
         }))
         .filter(r => r.contract || r.strike !== undefined)
         .sort((a, b) => (Number(a.strike) || 0) - (Number(b.strike) || 0));
-    
+
     if (!rows.length) {
         hideCardIfEmpty(container);
         return;
@@ -1620,13 +2699,13 @@ function renderOptionChain(data, container) {
     // Create summary statistics
     function getSummaryStats(optionRows) {
         if (!optionRows.length) return null;
-        
+
         const itmCount = optionRows.filter(r => r.inTheMoney === true || r.inTheMoney === 1).length;
         const totalVolume = optionRows.reduce((sum, r) => sum + (Number(r.volume) || 0), 0);
         const totalOI = optionRows.reduce((sum, r) => sum + (Number(r.openInterest) || 0), 0);
         const avgIV = optionRows.reduce((sum, r) => sum + (Number(r.impliedVol) || 0), 0) / optionRows.length;
         const midPrice = optionRows.find(r => formatNum(r.bid) !== '—' && formatNum(r.ask) !== '—');
-        
+
         return {
             itmCount,
             totalVolume,
@@ -1639,9 +2718,9 @@ function renderOptionChain(data, container) {
     // Evaluate option health
     function evaluateOptionMetric(metricName, value, context) {
         if (!value || value === '—') return { status: 'neutral', icon: '◯', color: '#999' };
-        
+
         const numValue = parseFloat(value);
-        
+
         switch (metricName) {
             case 'In-The-Money':
                 const itmPct = context.count > 0 ? (numValue / context.count) * 100 : 0;
@@ -1667,10 +2746,10 @@ function renderOptionChain(data, container) {
 
     function renderOptionSummary(sideLabel, optionRows) {
         if (!optionRows.length) return '';
-        
+
         const stats = getSummaryStats(optionRows);
         if (!stats) return '';
-        
+
         const summaryFields = {
             'In-The-Money': `${stats.itmCount}/${optionRows.length}`,
             'Total Volume': formatInt(stats.totalVolume),
@@ -1680,13 +2759,13 @@ function renderOptionChain(data, container) {
 
         let html = `<div style="margin-bottom: 20px;"><h4 style="margin-bottom: 12px; color: #202124; font-size: 0.95em;">${sideLabel}</h4>`;
         html += '<table style="width: 100%; border-collapse: collapse;">';
-        
+
         for (const [key, value] of Object.entries(summaryFields)) {
             const evaluation = evaluateOptionMetric(key, value, { count: optionRows.length });
-            const bgColor = evaluation.status === 'good' ? '#f0f8f4' : 
-                           evaluation.status === 'bad' ? '#fef3f2' : 
+            const bgColor = evaluation.status === 'good' ? '#f0f8f4' :
+                           evaluation.status === 'bad' ? '#fef3f2' :
                            'transparent';
-            
+
             html += `
                 <tr style="border-bottom: 1px solid #e0e0e0; background-color: ${bgColor}; transition: background-color 0.2s;">
                     <td style="padding: 10px 0; font-size: 0.9em; color: #202124;">${tooltip(key)}</td>
@@ -1697,7 +2776,7 @@ function renderOptionChain(data, container) {
                 </tr>
             `;
         }
-        
+
         html += '</table></div>';
         return html;
     }
@@ -1860,6 +2939,12 @@ function renderTrendPrediction() {
         }
     }
 
+    const keySignalsHtml = signals.length > 0
+        ? '<div style="font-size: 0.85em; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 12px; margin-top: 12px;">'
+            + '<strong>Key Signals:</strong> ' + signals.join(', ')
+            + '</div>'
+        : '';
+
     const html = `
         <div style="padding: 20px;">
             <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
@@ -1879,11 +2964,7 @@ function renderTrendPrediction() {
                     <div>Bearish Signals</div>
                 </div>
             </div>
-            ${signals.length > 0 ? `
-                <div style="font-size: 0.85em; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 12px; margin-top: 12px;">
-                    <strong>Key Signals:</strong> ${signals.join(', ')}
-                </div>
-            ` : ''}
+            ${keySignalsHtml}
         </div>
     `;
 
@@ -1891,6 +2972,89 @@ function renderTrendPrediction() {
     container.style.borderLeftColor = borderColor;
     container.style.background = bgGradient;
     container.style.display = 'block';
+}
+
+function renderDecisionSummary() {
+    const container = document.getElementById('decision-summary-content');
+    if (!container) return;
+
+    const ind = window.technicalIndicators || {};
+    const currentPrice = window.currentPrice || 0;
+    const pe = parseFloat(fundamentalsData.trailingPE || fundamentalsData.trailing_pe || '0') || 0;
+    const dividend = parseFloat(fundamentalsData.dividendYield || fundamentalsData.dividend_yield || '0') || 0;
+
+    let bullish = 0;
+    let bearish = 0;
+    const notes = [];
+
+    if (ind.rsi !== undefined && ind.rsi !== null) {
+        if (ind.rsi < 35) {
+            bullish += 1;
+            notes.push('RSI indicates oversold conditions');
+        } else if (ind.rsi > 70) {
+            bearish += 1;
+            notes.push('RSI indicates overbought conditions');
+        }
+    }
+
+    if (ind.macdHistogram !== undefined && ind.macdHistogram !== null) {
+        if (ind.macdHistogram > 0) {
+            bullish += 1;
+            notes.push('MACD momentum is positive');
+        } else if (ind.macdHistogram < 0) {
+            bearish += 1;
+            notes.push('MACD momentum is negative');
+        }
+    }
+
+    if (ind.sma20 && ind.sma50 && currentPrice) {
+        if (currentPrice > ind.sma20 && ind.sma20 > ind.sma50) {
+            bullish += 1;
+            notes.push('Price is above key moving averages');
+        } else if (currentPrice < ind.sma20 && ind.sma20 < ind.sma50) {
+            bearish += 1;
+            notes.push('Price is below key moving averages');
+        }
+    }
+
+    if (pe > 0) {
+        if (pe < 20) {
+            bullish += 1;
+            notes.push('Valuation appears reasonable (P/E < 20)');
+        } else if (pe > 35) {
+            bearish += 1;
+            notes.push('Valuation is elevated (P/E > 35)');
+        }
+    }
+
+    let action = 'WAIT';
+    let actionColor = '#6b7280';
+    if (bullish >= bearish + 2) {
+        action = 'CONSIDER LONG';
+        actionColor = '#10b981';
+    } else if (bearish >= bullish + 2) {
+        action = 'REDUCE RISK';
+        actionColor = '#ef4444';
+    }
+
+    const noteHtml = notes.length > 0
+        ? '<ul class="decision-notes">'
+            + notes.slice(0, 3).map(function (note) { return '<li>' + escapeHtml(note) + '</li>'; }).join('')
+            + '</ul>'
+        : '<div class="decision-fallback">Collecting additional signals...</div>';
+
+    container.innerHTML = `
+        <div class="decision-summary-head">
+            <div class="decision-metrics">
+                <span class="decision-pill decision-pill-bullish">Bullish: ${bullish}</span>
+                <span class="decision-pill decision-pill-bearish">Bearish: ${bearish}</span>
+                <span class="decision-pill decision-pill-neutral">P/E: ${pe ? pe.toFixed(1) : 'N/A'}</span>
+                <span class="decision-pill decision-pill-neutral">Dividend: ${(dividend * 100).toFixed(2)}%</span>
+            </div>
+            <div class="decision-action" style="color: ${actionColor};">Action: ${action}</div>
+        </div>
+        ${noteHtml}
+    `;
 }
 
 // Fetch and display trading strategy
@@ -1942,19 +3106,20 @@ async function renderTradingStrategy() {
         // Build exit targets HTML
         let targetsHtml = '';
         if (strategy.exit_targets && strategy.exit_targets.length > 0) {
+            const targetCardsHtml = strategy.exit_targets.map(function (target) {
+                const gainColor = target.gain_pct >= 0 ? '#10b981' : '#ef4444';
+                const gainPrefix = target.gain_pct >= 0 ? '+' : '';
+                return '<div style="background: white; padding: 12px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">'
+                    + '<div style="font-size: 0.75em; color: #6b7280; text-transform: uppercase; margin-bottom: 4px;">' + escapeHtml(target.level) + '</div>'
+                    + '<div style="font-size: 1.2em; font-weight: 700; color: #1f2937;">$' + target.price.toFixed(2) + '</div>'
+                    + '<div style="font-size: 0.85em; color: ' + gainColor + ';">' + gainPrefix + target.gain_pct + '%</div>'
+                    + '</div>';
+            }).join('');
             targetsHtml = `
                 <div style="margin-top: 20px;">
                     <div style="font-weight: 600; margin-bottom: 12px; color: #374151;">Exit Targets:</div>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;">
-                        ${strategy.exit_targets.map(target => `
-                            <div style="background: white; padding: 12px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                                <div style="font-size: 0.75em; color: #6b7280; text-transform: uppercase; margin-bottom: 4px;">${escapeHtml(target.level)}</div>
-                                <div style="font-size: 1.2em; font-weight: 700; color: #1f2937;">$${target.price.toFixed(2)}</div>
-                                <div style="font-size: 0.85em; color: ${target.gain_pct >= 0 ? '#10b981' : '#ef4444'};">
-                                    ${target.gain_pct >= 0 ? '+' : ''}${target.gain_pct}%
-                                </div>
-                            </div>
-                        `).join('')}
+                        ${targetCardsHtml}
                     </div>
                 </div>
             `;
@@ -1963,17 +3128,71 @@ async function renderTradingStrategy() {
         // Build signals HTML
         let signalsHtml = '';
         if (strategy.signals && strategy.signals.length > 0) {
+            const signalItemsHtml = strategy.signals
+                .slice(0, 5)
+                .map(function (signal) {
+                    return '<li>' + escapeHtml(signal) + '</li>';
+                })
+                .join('');
             signalsHtml = `
                 <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.1);">
                     <div style="font-size: 0.85em; color: #6b7280;">
                         <strong>Supporting Signals:</strong><br/>
                         <ul style="margin: 8px 0; padding-left: 20px;">
-                            ${strategy.signals.slice(0, 5).map(signal => `<li>${escapeHtml(signal)}</li>`).join('')}
+                            ${signalItemsHtml}
                         </ul>
                     </div>
                 </div>
             `;
         }
+
+        const timeframeHtml = strategy.timeframe
+            ? '<div style="font-size: 0.9em; color: #6b7280;">Timeframe: '
+                + escapeHtml(strategy.timeframe)
+                + '</div>'
+            : '';
+
+        let currentPriceCardHtml = '';
+        if (strategy.current_price) {
+            currentPriceCardHtml += '<div style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: 8px;">'
+                + '<div style="font-size: 0.75em; color: #6b7280; margin-bottom: 4px;">Current Price</div>'
+                + '<div style="font-size: 1.3em; font-weight: 700; color: #1f2937;">$' + strategy.current_price.toFixed(2) + '</div>'
+                + '</div>';
+        }
+
+        let entryTargetCardHtml = '';
+        if (strategy.entry_target) {
+            entryTargetCardHtml = '<div style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: 8px;">'
+                + '<div style="font-size: 0.75em; color: #6b7280; margin-bottom: 4px;">Entry Target</div>'
+                + '<div style="font-size: 1.3em; font-weight: 700; color: #3b82f6;">$' + strategy.entry_target.toFixed(2) + '</div>'
+                + '</div>';
+        }
+
+        let stopLossCardHtml = '';
+        if (strategy.stop_loss) {
+            stopLossCardHtml = '<div style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: 8px;">'
+                + '<div style="font-size: 0.75em; color: #6b7280; margin-bottom: 4px;">Stop Loss</div>'
+                + '<div style="font-size: 1.3em; font-weight: 700; color: #ef4444;">$' + strategy.stop_loss.toFixed(2) + '</div>'
+                + '</div>';
+        }
+
+        let riskRewardCardHtml = '';
+        if (strategy.risk_reward_ratio) {
+            const rrColor = strategy.risk_reward_ratio >= 2 ? '#10b981' : '#f59e0b';
+            riskRewardCardHtml = '<div style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: 8px;">'
+                + '<div style="font-size: 0.75em; color: #6b7280; margin-bottom: 4px;">Risk/Reward</div>'
+                + '<div style="font-size: 1.3em; font-weight: 700; color: ' + rrColor + ';">' + strategy.risk_reward_ratio.toFixed(2) + ':1</div>'
+                + '</div>';
+        }
+
+        const priceSectionHtml = strategy.current_price
+            ? '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px;">'
+                + currentPriceCardHtml
+                + entryTargetCardHtml
+                + stopLossCardHtml
+                + riskRewardCardHtml
+                + '</div>'
+            : '';
 
         const html = `
             <div style="padding: 20px;">
@@ -1988,45 +3207,11 @@ async function renderTradingStrategy() {
                                 ${strategy.confidence} CONFIDENCE
                             </div>
                         </div>
-                        ${strategy.timeframe ? `
-                            <div style="font-size: 0.9em; color: #6b7280;">
-                                Timeframe: ${escapeHtml(strategy.timeframe)}
-                            </div>
-                        ` : ''}
+                        ${timeframeHtml}
                     </div>
                 </div>
 
-                ${strategy.current_price ? `
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px;">
-                        <div style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: 8px;">
-                            <div style="font-size: 0.75em; color: #6b7280; margin-bottom: 4px;">Current Price</div>
-                            <div style="font-size: 1.3em; font-weight: 700; color: #1f2937;">$${strategy.current_price.toFixed(2)}</div>
-                        </div>
-
-                        ${strategy.entry_target ? `
-                            <div style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: 8px;">
-                                <div style="font-size: 0.75em; color: #6b7280; margin-bottom: 4px;">Entry Target</div>
-                                <div style="font-size: 1.3em; font-weight: 700; color: #3b82f6;">$${strategy.entry_target.toFixed(2)}</div>
-                            </div>
-                        ` : ''}
-
-                        ${strategy.stop_loss ? `
-                            <div style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: 8px;">
-                                <div style="font-size: 0.75em; color: #6b7280; margin-bottom: 4px;">Stop Loss</div>
-                                <div style="font-size: 1.3em; font-weight: 700; color: #ef4444;">$${strategy.stop_loss.toFixed(2)}</div>
-                            </div>
-                        ` : ''}
-
-                        ${strategy.risk_reward_ratio ? `
-                            <div style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: 8px;">
-                                <div style="font-size: 0.75em; color: #6b7280; margin-bottom: 4px;">Risk/Reward</div>
-                                <div style="font-size: 1.3em; font-weight: 700; color: ${strategy.risk_reward_ratio >= 2 ? '#10b981' : '#f59e0b'};">
-                                    ${strategy.risk_reward_ratio.toFixed(2)}:1
-                                </div>
-                            </div>
-                        ` : ''}
-                    </div>
-                ` : ''}
+                ${priceSectionHtml}
 
                 ${targetsHtml}
                 ${signalsHtml}
@@ -2068,6 +3253,18 @@ function renderTechnicalSignals(_data, container) {
         }
 
         const barColor = signal === 'Overbought' ? '#ef4444' : signal === 'Oversold' ? '#10b981' : '#3b82f6';
+        const barRgb = barColor === '#ef4444'
+            ? '239,68,68'
+            : barColor === '#10b981'
+                ? '16,185,129'
+                : '59,130,246';
+        const techBarHtml = thresholds.min !== undefined
+            ? '<div class="tech-bar" style="background: linear-gradient(90deg, '
+                + barColor + ' 0%, '
+                + barColor + ' ' + fillPercent + '%, '
+                + 'rgba(' + barRgb + ',0.1) ' + fillPercent + '%, '
+                + 'rgba(' + barRgb + ',0.1) 100%);"></div>'
+            : '';
 
         return `
             <div class="tech-indicator-card">
@@ -2079,42 +3276,28 @@ function renderTechnicalSignals(_data, container) {
                     <div class="tech-value">${value}</div>
                     <div class="tech-signal" style="color: ${signalColor};">${signal}</div>
                 </div>
-                ${thresholds.min !== undefined ? `<div class="tech-bar" style="background: linear-gradient(90deg, ${barColor} 0%, ${barColor} ${fillPercent}%, rgba(${barColor === '#ef4444' ? '239,68,68' : barColor === '#10b981' ? '16,185,129' : '59,130,246'},0.1) ${fillPercent}%, rgba(${barColor === '#ef4444' ? '239,68,68' : barColor === '#10b981' ? '16,185,129' : '59,130,246'},0.1) 100%);"></div>` : ''}
+                ${techBarHtml}
             </div>
         `;
     };
 
+    const indicatorsHtml = [
+        indicator('📊', 'RSI (14)', ind.rsi ? ind.rsi.toFixed(1) : 'N/A', rsiSignal, { min: 0, max: 100 }),
+        indicator('📈', 'MACD', ind.macd ? ind.macd.toFixed(3) : 'N/A', macdSignal),
+        indicator('🎯', 'Stochastic', ind.stochastic ? ind.stochastic.toFixed(1) : 'N/A', stochSignal, { min: 0, max: 100 }),
+        indicator('📍', 'ADX', ind.adx ? ind.adx.toFixed(1) : 'N/A', adxSignal, { min: 0, max: 50 }),
+        indicator('💰', 'SMA 20', ind.sma20 ? formatCurrency(ind.sma20) : 'N/A', smaSignal),
+        indicator('💰', 'SMA 50', ind.sma50 ? formatCurrency(ind.sma50) : 'N/A', smaSignal),
+        indicator('🎁', 'BB Upper', ind.bbUpper ? formatCurrency(ind.bbUpper) : 'N/A', '-'),
+        indicator('🎁', 'BB Lower', ind.bbLower ? formatCurrency(ind.bbLower) : 'N/A', '-'),
+    ].join('');
+
     const html = `
         <div class="tech-indicators-grid">
-            ${indicator('📊', 'RSI (14)', ind.rsi ? ind.rsi.toFixed(1) : 'N/A', rsiSignal, {min: 0, max: 100})}
-            ${indicator('📈', 'MACD', ind.macd ? ind.macd.toFixed(3) : 'N/A', macdSignal)}
-            ${indicator('🎯', 'Stochastic', ind.stochastic ? ind.stochastic.toFixed(1) : 'N/A', stochSignal, {min: 0, max: 100})}
-            ${indicator('📍', 'ADX', ind.adx ? ind.adx.toFixed(1) : 'N/A', adxSignal, {min: 0, max: 50})}
-            ${indicator('💰', 'SMA 20', ind.sma20 ? formatCurrency(ind.sma20) : 'N/A', smaSignal)}
-            ${indicator('💰', 'SMA 50', ind.sma50 ? formatCurrency(ind.sma50) : 'N/A', smaSignal)}
-            ${indicator('🎁', 'BB Upper', ind.bbUpper ? formatCurrency(ind.bbUpper) : 'N/A', '-')}
-            ${indicator('🎁', 'BB Lower', ind.bbLower ? formatCurrency(ind.bbLower) : 'N/A', '-')}
+            ${indicatorsHtml}
         </div>
     `;
     container.innerHTML = html;
-}
-
-// Utility functions
-function renderTable(fields, container) {
-    const rows = Object.entries(fields)
-        .filter(([_, value]) => value !== null && value !== undefined && value !== 'N/A')
-        .map(([key, value]) => `
-            <tr>
-                <td>${key}</td>
-                <td class="value">${value}</td>
-            </tr>
-        `).join('');
-
-    if (rows) {
-        container.innerHTML = `<table>${rows}</table>`;
-    } else {
-        hideCardIfEmpty(container);
-    }
 }
 
 function formatCurrency(value) {
@@ -2158,14 +3341,14 @@ const METRIC_TOOLTIPS = {
     'Dividend Yield': 'Annual dividend as % of stock price. Higher = more income to shareholders.',
     '52 Week High': 'Highest price in past year. Current position in yearly range.',
     '52 Week Low': 'Lowest price in past year. Shows support levels.',
-    
+
     // Analyst Targets
     'Current Price': 'Today\'s closing price for the stock.',
     'Target High': 'Most bullish analyst price target.',
     'Target Mean': 'Average of all analyst price targets.',
     'Target Low': 'Most bearish analyst price target.',
     'Target Median': 'Middle analyst price target.',
-    
+
     // Technical Signals
     'RSI (14)': 'Momentum indicator (0-100). >70 = overbought, <30 = oversold.',
     'MACD': 'Trend-following momentum indicator. Positive = bullish, negative = bearish.',
@@ -2175,7 +3358,7 @@ const METRIC_TOOLTIPS = {
     'SMA 50': '50-day moving average. Longer-term trend indicator.',
     'BB Upper': 'Bollinger Band upper limit. Support/resistance level.',
     'BB Lower': 'Bollinger Band lower limit. Support/resistance level.',
-    
+
     // Option Chain
     'In-The-Money': 'Options with intrinsic value. Call: strike < price, Put: strike > price.',
     'Total Volume': 'Number of contracts traded today. Higher = more active trading.',
@@ -2247,13 +3430,21 @@ async function loadAIBuys() {
             }).filter(Boolean)
         ));
 
-        container.innerHTML = tickers.map(ticker => `
-            <div class="ai-buy-ticker" id="ticker-box-${escapeHtml(ticker)}" onclick="handleTickerClick('${escapeHtml(ticker)}')" title="Analyze ${escapeHtml(ticker)}">
+          container.innerHTML = tickers.map(ticker => `
+              <div class="ai-buy-ticker" id="ticker-box-${escapeHtml(ticker)}" data-ticker="${escapeHtml(ticker)}" title="Analyze ${escapeHtml(ticker)}">
                 <span class="ticker-symbol">${escapeHtml(ticker)}</span>
                 <span class="ticker-price" id="price-${escapeHtml(ticker)}">...</span>
                 <span class="dividend-badge" id="dividend-${escapeHtml(ticker)}" style="display: none; margin-left: 4px; font-size: 12px; color: #10b981;">💰</span>
             </div>
         `).join('');
+
+          container.querySelectorAll('.ai-buy-ticker[data-ticker]').forEach((tickerBox) => {
+              tickerBox.addEventListener('click', () => {
+                  const ticker = tickerBox.getAttribute('data-ticker');
+                  if (!ticker) return;
+                  handleTickerClick(ticker);
+              });
+          });
 
         // Fetch prices and dividend info for each ticker
         tickers.forEach(async (ticker) => {
@@ -2284,7 +3475,7 @@ async function loadAIBuys() {
                         if (dividendBadge) dividendBadge.style.display = 'inline';
                     }
                 }
-            } catch (err) {
+            } catch {
                 const priceEl = document.getElementById(`price-${ticker}`);
                 if (priceEl) priceEl.textContent = '';
             }
@@ -2306,6 +3497,36 @@ function handleTickerClick(ticker) {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    initializeResultsSectionNav();
+    initializeRevisitMarkerToggle();
+
+    document.addEventListener('keydown', (event) => {
+        const activeTag = document.activeElement && document.activeElement.tagName
+            ? document.activeElement.tagName.toLowerCase()
+            : '';
+        const isTyping = activeTag === 'input' || activeTag === 'textarea';
+
+        if (event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey && !isTyping) {
+            event.preventDefault();
+            if (!unifiedPage.classList.contains('hidden')) {
+                tickerInput.focus();
+            } else {
+                tickerInputCompact.focus();
+            }
+        }
+
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+            event.preventDefault();
+            if (!unifiedPage.classList.contains('hidden')) {
+                tickerInput.focus();
+                tickerInput.select();
+            } else {
+                tickerInputCompact.focus();
+                tickerInputCompact.select();
+            }
+        }
+    });
+
     // Check if ticker is in URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     const tickerParam = urlParams.get('ticker');
@@ -2320,6 +3541,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Normal landing page - load all stocks
         tickerInput.focus();
         loadAllStocks();
+        loadAIBuys();
     }
 });
 
