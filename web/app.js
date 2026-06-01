@@ -1752,18 +1752,21 @@ async function loadStockData(ticker, replaceHistory = false) {
             }
             return fetchData(`/api/option-chain/${ticker}`, 'option-chain-data', renderOptionChain, requestSignal);
         });
-        registerDeferredSectionLoader('section-related-stocks', () => {
-            if (snapshot.related_stocks) {
-                renderRelatedStocks(snapshot.related_stocks, document.getElementById('related-stocks-data'));
-                return;
-            }
+        if (snapshot.related_stocks) {
+            renderRelatedStocks(
+                snapshot.related_stocks,
+                document.getElementById('related-stocks-data')
+            );
+        } else {
+            registerDeferredSectionLoader('section-related-stocks', () => {
             return fetchData(
                 `/api/related-stocks/${ticker}?limit=3&exclude=${excludeQuery}`,
                 'related-stocks-data',
                 renderRelatedStocks,
                 requestSignal
             );
-        });
+            });
+        }
         registerDeferredSectionLoader('section-fundamentals', () => {
             // Calendar renders in the fundamentals grid and should appear with it.
             if (snapshot.calendar) {
