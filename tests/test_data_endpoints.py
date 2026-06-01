@@ -230,11 +230,113 @@ class TestDataEndpoints(unittest.TestCase):
 
         self.assertEqual(response.status_code, 500)
 
+    @patch("flow_api.get_related_stocks_payload")
+    @patch("flow_api.get_decision_engine_payload")
+    @patch("flow_api.with_cache")
+    @patch("flow_api.get_price_history_payload")
+    @patch("flow_api.get_fundamentals_payload")
+    def test_stock_snapshot_endpoint_returns_all_sections(
+        self,
+        mock_get_fundamentals_payload,
+        mock_get_price_history_payload,
+        mock_with_cache,
+        mock_get_decision_engine_payload,
+        mock_get_related_stocks_payload,
+    ):
+        """Test aggregated snapshot endpoint returns primary section payloads."""
+        mock_get_fundamentals_payload.return_value = {"symbol": "AAPL", "pe_ratio": 25.5}
+        mock_get_price_history_payload.return_value = {"data": [{"Date": "2024-01-01", "Close": 150.0}]}
+        mock_with_cache.side_effect = [
+            [{"title": "Apple News"}],
+            {"target_mean": 180.0},
+            [{"event": "Earnings"}],
+            {"calls": [], "puts": []},
+        ]
+        mock_get_related_stocks_payload.return_value = {
+            "symbol": "AAPL",
+            "related": [{"ticker": "MSFT", "link": "index.html?ticker=MSFT"}],
+        }
+        mock_get_decision_engine_payload.return_value = {
+            "symbol": "AAPL",
+            "action": "CONSIDER_LONG",
+            "score": 42.0,
+            "confidence": 0.74,
+        }
+
+        response = self.client.get(
+            "/api/stock-snapshot/AAPL?related_limit=3&exclude=MSFT&portfolio=MSFT,NVDA,AAPL"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["symbol"], "AAPL")
+        self.assertIn("fundamentals", data)
+        self.assertIn("price_history", data)
+        self.assertIn("related_stocks", data)
+        self.assertIn("decision_engine", data)
+        self.assertEqual(data["section_errors"], {})
+        mock_get_decision_engine_payload.assert_called_with("AAPL", ["MSFT", "NVDA"])
+
+    @patch("flow_api.get_related_stocks_payload")
+    @patch("flow_api.get_decision_engine_payload")
+    @patch("flow_api.with_cache")
+    @patch("flow_api.get_price_history_payload")
+    @patch("flow_api.get_fundamentals_payload")
+    def test_stock_snapshot_endpoint_records_section_errors(
+        self,
+        mock_get_fundamentals_payload,
+        mock_get_price_history_payload,
+        mock_with_cache,
+        mock_get_decision_engine_payload,
+        mock_get_related_stocks_payload,
+    ):
+        """Test snapshot endpoint returns partial data with section-level errors."""
+        mock_get_fundamentals_payload.side_effect = Exception("fundamentals failed")
+        mock_get_price_history_payload.return_value = {"data": []}
+        mock_with_cache.side_effect = [{}, {}, {}, {}]
+        mock_get_related_stocks_payload.return_value = {"symbol": "AAPL", "related": []}
+        mock_get_decision_engine_payload.side_effect = Exception("decision failed")
+
+        response = self.client.get("/api/stock-snapshot/AAPL")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIsNone(data["fundamentals"])
+        self.assertIn("fundamentals", data["section_errors"])
+        self.assertIn("decision_engine", data["section_errors"])
+        mock_get_decision_engine_payload.assert_called_with("AAPL", [])
+
+    @patch("flow_api.get_decision_engine_payload")
+    def test_decision_engine_endpoint_returns_payload(self, mock_get_decision_engine):
+        """Decision engine endpoint should expose deterministic score payload."""
+        mock_get_decision_engine.return_value = {
+            "symbol": "AAPL",
+            "action": "WAIT",
+            "score": 11.5,
+            "confidence": 0.58,
+            "risk_gates": {"weak_data": False},
+            "reason_codes": ["MOMENTUM_POSITIVE"],
+        }
+
+        response = self.client.get("/api/decision-engine/AAPL?portfolio=MSFT,NVDA,AAPL")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["symbol"], "AAPL")
+        self.assertIn("score", data)
+        self.assertIn("confidence", data)
+        mock_get_decision_engine.assert_called_with("AAPL", ["MSFT", "NVDA"])
+
     @patch("db_timescale.get_conn")
     @patch("db_timescale.list_fundamental_tickers")
+    @patch("db_timescale.fetch_latest_fundamentals_bulk")
     @patch("db_timescale.fetch_latest_fundamentals")
     def test_related_stocks_endpoint_returns_ranked_results(
-        self, mock_fetch_fundamentals, mock_list_tickers, mock_get_conn
+        self,
+        mock_fetch_fundamentals,
+        mock_fetch_fundamentals_bulk,
+        mock_list_tickers,
+        mock_get_conn,
     ):
         """Test related stocks endpoint returns similarity-ranked related symbols."""
         mock_conn = MagicMock()
@@ -295,10 +397,11 @@ class TestDataEndpoints(unittest.TestCase):
             },
         }
 
-        def _fetch_side_effect(_conn, ticker):
-            return fundamentals_map.get(ticker)
-
-        mock_fetch_fundamentals.side_effect = _fetch_side_effect
+        mock_fetch_fundamentals.return_value = fundamentals_map["TSLA"]
+        mock_fetch_fundamentals_bulk.return_value = {
+            ticker: fundamentals_map[ticker]
+            for ticker in ["RIVN", "NIO", "F", "GM"]
+        }
 
         response = self.client.get("/api/related-stocks/TSLA?limit=3")
 
@@ -315,9 +418,14 @@ class TestDataEndpoints(unittest.TestCase):
 
     @patch("db_timescale.get_conn")
     @patch("db_timescale.list_fundamental_tickers")
+    @patch("db_timescale.fetch_latest_fundamentals_bulk")
     @patch("db_timescale.fetch_latest_fundamentals")
     def test_related_stocks_respects_exclude_list(
-        self, mock_fetch_fundamentals, mock_list_tickers, mock_get_conn
+        self,
+        mock_fetch_fundamentals,
+        mock_fetch_fundamentals_bulk,
+        mock_list_tickers,
+        mock_get_conn,
     ):
         """Test related stocks endpoint does not return explicitly excluded symbols."""
         mock_conn = MagicMock()
@@ -336,6 +444,11 @@ class TestDataEndpoints(unittest.TestCase):
             }
         }
         mock_fetch_fundamentals.return_value = fundamentals
+        mock_fetch_fundamentals_bulk.return_value = {
+            "RIVN": fundamentals,
+            "NIO": fundamentals,
+            "F": fundamentals,
+        }
 
         response = self.client.get("/api/related-stocks/TSLA?limit=3&exclude=RIVN,NIO")
 

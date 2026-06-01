@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 import pandas as pd
 import numpy as np
@@ -89,6 +90,9 @@ app.add_middleware(
     allow_methods=["GET"],
     allow_headers=["*"],
 )
+
+# Compress larger JSON responses to reduce page-load transfer time.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 # Set Ollama host from environment or use default
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
@@ -272,7 +276,11 @@ def get_price_history_payload(symbol: str):
     try:
         conn = db_timescale.get_conn()
         try:
-            db_rows = db_timescale.fetch_price_history(conn, symbol)
+            db_rows = db_timescale.fetch_price_history(
+                conn,
+                symbol,
+                limit=PRICE_HISTORY_WINDOW,
+            )
         finally:
             conn.close()
     except Exception as exc:  # pylint: disable=broad-except
@@ -472,6 +480,414 @@ def _similarity_reason(base: dict, candidate: dict) -> str:
     return ", ".join(reasons[:2])
 
 
+def get_fundamentals_payload(symbol: str):
+    """Return fundamentals payload with DB-first strategy and cache."""
+    cached = db.get_cached_data("fundamentals", symbol)
+    if cached is not None:
+        return cached
+
+    # Prefer stored fundamentals from TimescaleDB, fallback to yfinance.
+    try:
+        conn = db_timescale.get_conn()
+        try:
+            db_result = db_timescale.fetch_latest_fundamentals(conn, symbol)
+        finally:
+            conn.close()
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.warning(
+            "DB fundamentals lookup failed for %s, falling back: %s",
+            symbol,
+            str(exc),
+        )
+        db_result = None
+
+    if db_result is not None:
+        payload = db_result
+        if isinstance(db_result, dict) and isinstance(db_result.get("raw_info"), dict):
+            payload = db_result["raw_info"]
+
+        if isinstance(payload, dict) and "symbol" not in payload:
+            payload = {**payload, "symbol": symbol}
+
+        # Preserve legacy field aliases expected by existing clients/tests.
+        if isinstance(payload, dict):
+            if "pe_ratio" not in payload:
+                payload["pe_ratio"] = payload.get("trailingPE") or payload.get(
+                    "trailing_pe"
+                )
+            if "market_cap" not in payload:
+                payload["market_cap"] = payload.get("marketCap") or payload.get(
+                    "market_cap"
+                )
+
+        serialized = serialize_value(payload)
+        db.set_cached_data("fundamentals", serialized, symbol)
+        return serialized
+
+    result = with_cache("fundamentals", symbol, flow.get_fundamentals)
+    if isinstance(result, str):
+        result = json.loads(result)
+    return result
+
+
+def get_related_stocks_payload(symbol: str, limit: int, exclude: str):
+    """Return related stocks payload used by both standalone and snapshot endpoints."""
+    excluded = {value.strip().upper() for value in exclude.split(",") if value.strip()}
+    excluded.add(symbol)
+
+    conn = db_timescale.get_conn()
+    try:
+        base_row = db_timescale.fetch_latest_fundamentals(conn, symbol)
+        base_payload = _extract_fundamentals_payload(base_row, symbol)
+        base_features = _feature_vector(base_payload)
+
+        # If base ticker lacks fundamentals, fallback to flow data.
+        if base_features["price"] <= 0:
+            raw = flow.get_fundamentals(symbol)
+            parsed = json.loads(raw) if isinstance(raw, str) else (raw or {})
+            base_payload = parsed if isinstance(parsed, dict) else {"symbol": symbol}
+            base_features = _feature_vector(base_payload)
+
+        candidate_tickers = [
+            ticker.upper() for ticker in db_timescale.list_fundamental_tickers(conn)
+        ]
+        candidate_rows = db_timescale.fetch_latest_fundamentals_bulk(
+            conn,
+            candidate_tickers,
+        )
+        scored = []
+
+        for candidate_ticker in candidate_tickers:
+            cand = candidate_ticker
+            if cand in excluded:
+                continue
+
+            cand_row = candidate_rows.get(cand)
+            cand_payload = _extract_fundamentals_payload(cand_row, cand)
+            cand_features = _feature_vector(cand_payload)
+
+            if cand_features["price"] <= 0:
+                continue
+
+            score = _similarity_score(base_features, cand_features)
+            scored.append(
+                {
+                    "ticker": cand,
+                    "name": cand_payload.get("shortName")
+                    or cand_payload.get("longName")
+                    or cand,
+                    "score": round(score, 4),
+                    "reason": _similarity_reason(base_features, cand_features),
+                    "price": round(cand_features["price"], 2),
+                    "change_pct": round(cand_features["change_pct"], 2),
+                    "dividend_yield": round(cand_features["dividend_yield"] * 100.0, 2),
+                    "has_dividend": cand_features["has_dividend"],
+                    "link": f"index.html?ticker={cand}",
+                }
+            )
+
+        scored.sort(key=lambda row: row["score"])
+        result = scored[:limit]
+        return {"symbol": symbol, "related": result}
+    finally:
+        conn.close()
+
+
+def _compute_rsi(closes: list[float], period: int = 14) -> float | None:
+    """Compute a simple RSI value from close prices."""
+    if len(closes) < period + 1:
+        return None
+
+    deltas = [closes[i] - closes[i - 1] for i in range(1, len(closes))]
+    gains = [max(delta, 0.0) for delta in deltas]
+    losses = [abs(min(delta, 0.0)) for delta in deltas]
+
+    avg_gain = sum(gains[-period:]) / period
+    avg_loss = sum(losses[-period:]) / period
+    if avg_loss <= 1e-12:
+        return 100.0
+
+    rs = avg_gain / avg_loss
+    return 100.0 - (100.0 / (1.0 + rs))
+
+
+def _parse_portfolio_tickers(portfolio: str, symbol: str) -> list[str]:
+    """Parse comma-separated portfolio tickers and exclude current symbol."""
+    values = [item.strip().upper() for item in (portfolio or "").split(",") if item.strip()]
+    unique = []
+    for value in values:
+        if value == symbol:
+            continue
+        if value in unique:
+            continue
+        unique.append(value)
+    return unique[:12]
+
+
+def _extract_close_series(payload) -> list[float]:
+    """Extract close price series from price-history payload."""
+    rows = []
+    if isinstance(payload, dict):
+        rows = payload.get("data") or []
+    elif isinstance(payload, list):
+        rows = payload
+
+    closes = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        close_value = _to_float(row.get("Close") or row.get("close"), default=0.0)
+        if close_value > 0:
+            closes.append(close_value)
+    return closes
+
+
+def get_decision_engine_payload(symbol: str, portfolio_tickers: list[str] | None = None):
+    """Build deterministic investment decision payload with risk gating."""
+    fundamentals = get_fundamentals_payload(symbol)
+    price_payload = get_price_history_payload(symbol)
+
+    closes = _extract_close_series(price_payload)
+
+    latest_price = closes[-1] if closes else _to_float(
+        (fundamentals or {}).get("currentPrice")
+        or (fundamentals or {}).get("current_price")
+        or (fundamentals or {}).get("regularMarketPrice"),
+        default=0.0,
+    )
+
+    momentum_5 = 0.0
+    momentum_20 = 0.0
+    if len(closes) >= 6 and closes[-6] > 0:
+        momentum_5 = ((closes[-1] - closes[-6]) / closes[-6]) * 100.0
+    if len(closes) >= 21 and closes[-21] > 0:
+        momentum_20 = ((closes[-1] - closes[-21]) / closes[-21]) * 100.0
+
+    returns: list[float] = []
+    if len(closes) >= 2:
+        for idx in range(1, len(closes)):
+            prev = closes[idx - 1]
+            curr = closes[idx]
+            if prev > 0:
+                returns.append((curr - prev) / prev)
+
+    annual_vol = 0.0
+    if len(returns) >= 5:
+        annual_vol = float(np.std(returns) * np.sqrt(252.0))
+
+    rsi = _compute_rsi(closes)
+
+    pe_ratio = _to_float(
+        (fundamentals or {}).get("trailingPE")
+        or (fundamentals or {}).get("trailing_pe")
+        or (fundamentals or {}).get("pe_ratio"),
+        default=0.0,
+    )
+    dividend_yield = _to_float(
+        (fundamentals or {}).get("dividendYield")
+        or (fundamentals or {}).get("dividend_yield"),
+        default=0.0,
+    )
+    return_on_equity = _to_float(
+        (fundamentals or {}).get("returnOnEquity")
+        or (fundamentals or {}).get("return_on_equity"),
+        default=0.0,
+    )
+
+    momentum_score = max(-100.0, min(100.0, (momentum_20 * 3.2) + (momentum_5 * 1.4)))
+
+    valuation_score = 0.0
+    if pe_ratio > 0:
+        if pe_ratio < 18:
+            valuation_score = 55.0
+        elif pe_ratio < 30:
+            valuation_score = 20.0
+        elif pe_ratio < 45:
+            valuation_score = -10.0
+        else:
+            valuation_score = -45.0
+
+    quality_score = max(-100.0, min(100.0, (return_on_equity - 0.12) * 500.0))
+    income_score = max(-100.0, min(100.0, dividend_yield * 900.0))
+    risk_score = max(-100.0, min(100.0, -annual_vol * 140.0))
+
+    base_score = (
+        momentum_score * 0.35
+        + valuation_score * 0.25
+        + quality_score * 0.20
+        + income_score * 0.10
+        + risk_score * 0.10
+    )
+
+    portfolio_tickers = portfolio_tickers or []
+    sector_penalty = 0.0
+    corr_penalty = 0.0
+    portfolio_notes: list[str] = []
+
+    if portfolio_tickers:
+        target_sector = str(
+            (fundamentals or {}).get("sector")
+            or (fundamentals or {}).get("Sector")
+            or ""
+        )
+        same_sector = 0
+        max_abs_corr = 0.0
+
+        base_returns = []
+        if len(closes) >= 2:
+            for idx in range(1, len(closes)):
+                prev = closes[idx - 1]
+                curr = closes[idx]
+                if prev > 0:
+                    base_returns.append((curr - prev) / prev)
+
+        for holding in portfolio_tickers:
+            try:
+                h_fund = get_fundamentals_payload(holding)
+                h_sector = str((h_fund or {}).get("sector") or (h_fund or {}).get("Sector") or "")
+                if target_sector and h_sector and h_sector.lower() == target_sector.lower():
+                    same_sector += 1
+
+                h_prices = _extract_close_series(get_price_history_payload(holding))
+                h_returns = []
+                if len(h_prices) >= 2:
+                    for idx in range(1, len(h_prices)):
+                        prev = h_prices[idx - 1]
+                        curr = h_prices[idx]
+                        if prev > 0:
+                            h_returns.append((curr - prev) / prev)
+
+                overlap = min(len(base_returns), len(h_returns), 30)
+                if overlap >= 10:
+                    base_slice = np.array(base_returns[-overlap:])
+                    hold_slice = np.array(h_returns[-overlap:])
+                    if np.std(base_slice) > 1e-12 and np.std(hold_slice) > 1e-12:
+                        corr = float(np.corrcoef(base_slice, hold_slice)[0, 1])
+                        if not np.isnan(corr):
+                            max_abs_corr = max(max_abs_corr, abs(corr))
+            except Exception:  # pylint: disable=broad-except
+                continue
+
+        if same_sector >= 2:
+            sector_penalty = min(25.0, 8.0 * same_sector)
+            portfolio_notes.append(
+                f"Sector overlap detected with {same_sector} existing holdings."
+            )
+
+        if max_abs_corr >= 0.75:
+            corr_penalty = min(25.0, (max_abs_corr - 0.75) * 100.0)
+            portfolio_notes.append(
+                f"High correlation to current holdings (max |rho|={max_abs_corr:.2f})."
+            )
+
+    weighted_score = base_score - sector_penalty - corr_penalty
+
+    reason_codes: list[str] = []
+    if momentum_score >= 25:
+        reason_codes.append("MOMENTUM_POSITIVE")
+    elif momentum_score <= -25:
+        reason_codes.append("MOMENTUM_NEGATIVE")
+
+    if valuation_score >= 30:
+        reason_codes.append("VALUATION_ATTRACTIVE")
+    elif valuation_score <= -20:
+        reason_codes.append("VALUATION_STRETCHED")
+
+    if quality_score >= 20:
+        reason_codes.append("QUALITY_STRONG")
+    elif quality_score <= -20:
+        reason_codes.append("QUALITY_WEAK")
+
+    if annual_vol >= 0.65:
+        reason_codes.append("VOLATILITY_HIGH")
+
+    risk_gates = {
+        "weak_data": len(closes) < 40,
+        "volatility_high": annual_vol >= 0.65,
+        "valuation_stretched": pe_ratio >= 45,
+        "rsi_overextended": bool(rsi is not None and (rsi >= 78 or rsi <= 22)),
+    }
+
+    confidence = 0.35
+    if len(closes) >= 40:
+        confidence += 0.20
+    if pe_ratio > 0:
+        confidence += 0.10
+    if return_on_equity != 0:
+        confidence += 0.10
+    if abs(momentum_score) >= 25:
+        confidence += 0.10
+    if abs(weighted_score) >= 30:
+        confidence += 0.10
+    if risk_gates["volatility_high"]:
+        confidence -= 0.10
+    if risk_gates["weak_data"]:
+        confidence -= 0.10
+    if sector_penalty > 0 or corr_penalty > 0:
+        confidence -= 0.08
+    confidence = max(0.0, min(0.95, confidence))
+
+    action = "WAIT"
+    action_label = "WAIT"
+    if not (risk_gates["weak_data"] or risk_gates["volatility_high"]):
+        if weighted_score >= 25 and confidence >= 0.55:
+            action = "CONSIDER_LONG"
+            action_label = "CONSIDER LONG"
+        elif weighted_score <= -25:
+            action = "REDUCE_RISK"
+            action_label = "REDUCE RISK"
+
+    risk_notes: list[str] = []
+    if risk_gates["weak_data"]:
+        risk_notes.append("Limited price history; confidence reduced.")
+    if risk_gates["volatility_high"]:
+        risk_notes.append("Volatility is elevated; position sizing should be smaller.")
+    if risk_gates["valuation_stretched"]:
+        risk_notes.append("Valuation is stretched relative to baseline thresholds.")
+    if risk_gates["rsi_overextended"]:
+        risk_notes.append("RSI is near an extreme; pullback risk is higher.")
+    risk_notes.extend(portfolio_notes)
+
+    return {
+        "symbol": symbol,
+        "action": action,
+        "action_label": action_label,
+        "score": round(weighted_score, 2),
+        "base_score": round(base_score, 2),
+        "confidence": round(confidence, 2),
+        "confidence_label": (
+            "HIGH" if confidence >= 0.75 else "MEDIUM" if confidence >= 0.5 else "LOW"
+        ),
+        "risk_gates": risk_gates,
+        "risk_notes": risk_notes,
+        "reason_codes": reason_codes,
+        "metrics": {
+            "price": round(latest_price, 4),
+            "momentum_5d_pct": round(momentum_5, 2),
+            "momentum_20d_pct": round(momentum_20, 2),
+            "annualized_volatility": round(annual_vol, 4),
+            "rsi_14": round(rsi, 2) if rsi is not None else None,
+            "pe_ratio": round(pe_ratio, 2) if pe_ratio else None,
+            "dividend_yield": round(dividend_yield, 4) if dividend_yield else 0.0,
+            "return_on_equity": round(return_on_equity, 4) if return_on_equity else None,
+            "data_points": len(closes),
+        },
+        "component_scores": {
+            "momentum": round(momentum_score, 2),
+            "valuation": round(valuation_score, 2),
+            "quality": round(quality_score, 2),
+            "income": round(income_score, 2),
+            "risk": round(risk_score, 2),
+        },
+        "portfolio_adjustments": {
+            "tickers": portfolio_tickers,
+            "sector_penalty": round(sector_penalty, 2),
+            "correlation_penalty": round(corr_penalty, 2),
+            "total_penalty": round(sector_penalty + corr_penalty, 2),
+        },
+    }
+
+
 # ============================================================================
 # Data Endpoints
 # ============================================================================
@@ -483,53 +899,7 @@ def get_fundamentals(symbol: str):
     symbol = symbol.upper()
     logger.info("Fetching fundamentals for %s", symbol)
     try:
-        cached = db.get_cached_data("fundamentals", symbol)
-        if cached is not None:
-            return JSONResponse(content=cached)
-
-        # Prefer stored fundamentals from TimescaleDB, fallback to yfinance.
-        try:
-            conn = db_timescale.get_conn()
-            try:
-                db_result = db_timescale.fetch_latest_fundamentals(conn, symbol)
-            finally:
-                conn.close()
-        except Exception as exc:  # pylint: disable=broad-except
-            logger.warning(
-                "DB fundamentals lookup failed for %s, falling back: %s",
-                symbol,
-                str(exc),
-            )
-            db_result = None
-
-        if db_result is not None:
-            payload = db_result
-            if isinstance(db_result, dict) and isinstance(
-                db_result.get("raw_info"), dict
-            ):
-                payload = db_result["raw_info"]
-
-            if isinstance(payload, dict) and "symbol" not in payload:
-                payload = {**payload, "symbol": symbol}
-
-            # Preserve legacy field aliases expected by existing clients/tests.
-            if isinstance(payload, dict):
-                if "pe_ratio" not in payload:
-                    payload["pe_ratio"] = payload.get("trailingPE") or payload.get(
-                        "trailing_pe"
-                    )
-                if "market_cap" not in payload:
-                    payload["market_cap"] = payload.get("marketCap") or payload.get(
-                        "market_cap"
-                    )
-
-            serialized = serialize_value(payload)
-            db.set_cached_data("fundamentals", serialized, symbol)
-            return JSONResponse(content=serialized)
-
-        result = with_cache("fundamentals", symbol, flow.get_fundamentals)
-        if isinstance(result, str):
-            result = json.loads(result)
+        result = get_fundamentals_payload(symbol)
         return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error fetching fundamentals for %s: %s", symbol, str(exc))
@@ -635,69 +1005,71 @@ def get_related_stocks(
     """
     symbol = symbol.upper()
     logger.info("Fetching related stocks for %s", symbol)
-
-    excluded = {value.strip().upper() for value in exclude.split(",") if value.strip()}
-    excluded.add(symbol)
-
     try:
-        conn = db_timescale.get_conn()
-        try:
-            base_row = db_timescale.fetch_latest_fundamentals(conn, symbol)
-            base_payload = _extract_fundamentals_payload(base_row, symbol)
-            base_features = _feature_vector(base_payload)
-
-            # If base ticker lacks fundamentals, fallback to flow data.
-            if base_features["price"] <= 0:
-                raw = flow.get_fundamentals(symbol)
-                parsed = json.loads(raw) if isinstance(raw, str) else (raw or {})
-                base_payload = (
-                    parsed if isinstance(parsed, dict) else {"symbol": symbol}
-                )
-                base_features = _feature_vector(base_payload)
-
-            candidate_tickers = db_timescale.list_fundamental_tickers(conn)
-            scored = []
-
-            for candidate_ticker in candidate_tickers:
-                cand = candidate_ticker.upper()
-                if cand in excluded:
-                    continue
-
-                cand_row = db_timescale.fetch_latest_fundamentals(conn, cand)
-                cand_payload = _extract_fundamentals_payload(cand_row, cand)
-                cand_features = _feature_vector(cand_payload)
-
-                if cand_features["price"] <= 0:
-                    continue
-
-                score = _similarity_score(base_features, cand_features)
-                scored.append(
-                    {
-                        "ticker": cand,
-                        "name": cand_payload.get("shortName")
-                        or cand_payload.get("longName")
-                        or cand,
-                        "score": round(score, 4),
-                        "reason": _similarity_reason(base_features, cand_features),
-                        "price": round(cand_features["price"], 2),
-                        "change_pct": round(cand_features["change_pct"], 2),
-                        "dividend_yield": round(
-                            cand_features["dividend_yield"] * 100.0, 2
-                        ),
-                        "has_dividend": cand_features["has_dividend"],
-                        "link": f"index.html?ticker={cand}",
-                    }
-                )
-
-            scored.sort(key=lambda row: row["score"])
-            result = scored[:limit]
-
-            return JSONResponse(content={"symbol": symbol, "related": result})
-        finally:
-            conn.close()
+        result = get_related_stocks_payload(symbol, limit, exclude)
+        return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error fetching related stocks for %s: %s", symbol, str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/stock-snapshot/{symbol}")
+def get_stock_snapshot(
+    symbol: str,
+    related_limit: int = Query(default=3, ge=1, le=10),
+    exclude: str = "",
+    portfolio: str = "",
+):
+    """Return a single payload for initial stock page rendering."""
+    symbol = symbol.upper()
+    logger.info("Fetching stock snapshot for %s", symbol)
+    portfolio_tickers = _parse_portfolio_tickers(portfolio, symbol)
+
+    snapshot = {
+        "symbol": symbol,
+        "fundamentals": None,
+        "price_history": None,
+        "news": None,
+        "analyst_targets": None,
+        "calendar": None,
+        "option_chain": None,
+        "related_stocks": None,
+        "decision_engine": None,
+        "section_errors": {},
+    }
+
+    section_getters = {
+        "fundamentals": lambda: get_fundamentals_payload(symbol),
+        "price_history": lambda: get_price_history_payload(symbol),
+        "news": lambda: with_cache("news", symbol, flow.get_news),
+        "analyst_targets": lambda: with_cache(
+            "analyst-targets", symbol, flow.get_analyst_price_targets
+        ),
+        "calendar": lambda: with_cache("calendar", symbol, flow.get_calendar),
+        "option_chain": lambda: serialize_value(
+            with_cache("option-chain", symbol, flow.get_option_chain)
+        ),
+        "related_stocks": lambda: get_related_stocks_payload(
+            symbol,
+            related_limit,
+            exclude,
+        ),
+        "decision_engine": lambda: get_decision_engine_payload(symbol, portfolio_tickers),
+    }
+
+    for section, getter in section_getters.items():
+        try:
+            snapshot[section] = getter()
+        except Exception as exc:  # pylint: disable=broad-except
+            logger.warning(
+                "Snapshot section failed for %s/%s: %s",
+                symbol,
+                section,
+                str(exc),
+            )
+            snapshot["section_errors"][section] = str(exc)
+
+    return JSONResponse(content=snapshot)
 
 
 @app.get("/api/screen-undervalued")
@@ -975,6 +1347,22 @@ def get_trading_strategy(symbol: str):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+@app.get("/api/decision-engine/{symbol}")
+def get_decision_engine(symbol: str, portfolio: str = ""):
+    """Return deterministic decision score with confidence and risk gates."""
+    symbol = symbol.upper()
+    logger.info("Decision engine requested for %s", symbol)
+    try:
+        payload = get_decision_engine_payload(
+            symbol,
+            _parse_portfolio_tickers(portfolio, symbol),
+        )
+        return JSONResponse(content=payload)
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.error("Decision engine error for %s: %s", symbol, str(exc))
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 # ── Fundamental Screener Endpoints ──────────────────────────────────────────
 
 
@@ -1040,24 +1428,25 @@ def list_fundamentals_db(
         params.append(max_debt_to_equity)
 
     base_sql = """
-        SELECT DISTINCT ON (ticker)
-            ticker, short_name, long_name, sector, industry, exchange, currency,
-            market_cap, enterprise_value,
-            trailing_pe, forward_pe, peg_ratio, price_to_book, price_to_sales,
-            trailing_eps, forward_eps,
-            profit_margins, operating_margins, gross_margins,
-            return_on_equity, return_on_assets,
-            total_revenue, revenue_growth, earnings_growth,
-            ebitda, free_cashflow,
-            total_cash, total_debt, current_ratio, debt_to_equity,
-            dividend_yield, dividend_rate, payout_ratio,
-            current_price, previous_close,
-            fifty_two_week_high, fifty_two_week_low,
-            fifty_day_average, two_hundred_day_average,
-            target_mean_price, recommendation_key, number_of_analyst_opinions,
-            fetched_at
-        FROM fundamentals
-        WHERE ticker IS NOT NULL
+        WITH latest AS (
+            SELECT DISTINCT ON (ticker)
+                ticker, short_name, long_name, sector, industry, exchange, currency,
+                market_cap, enterprise_value,
+                trailing_pe, forward_pe, peg_ratio, price_to_book, price_to_sales,
+                trailing_eps, forward_eps,
+                profit_margins, operating_margins, gross_margins,
+                return_on_equity, return_on_assets,
+                total_revenue, revenue_growth, earnings_growth,
+                ebitda, free_cashflow,
+                total_cash, total_debt, current_ratio, debt_to_equity,
+                dividend_yield, dividend_rate, payout_ratio,
+                current_price, previous_close,
+                fifty_two_week_high, fifty_two_week_low,
+                fifty_day_average, two_hundred_day_average,
+                target_mean_price, recommendation_key, number_of_analyst_opinions,
+                fetched_at
+            FROM fundamentals
+            WHERE ticker IS NOT NULL
     """
 
     try:
@@ -1073,21 +1462,24 @@ def list_fundamentals_db(
                 query += psql.SQL(" AND ") + psql.SQL(" AND ").join(
                     psql.SQL(condition) for condition in conditions
                 )
-            query += psql.SQL(" ORDER BY ticker, fetched_at DESC")
+            query += psql.SQL(
+                """
+                    ORDER BY ticker, fetched_at DESC
+                )
+                SELECT * FROM latest
+                ORDER BY {sort_col} {sort_dir} NULLS LAST
+                LIMIT %s
+                """
+            ).format(
+                sort_col=psql.Identifier(sort_by),
+                sort_dir=psql.SQL(sort_dir.upper()),
+            )
+
+            query_params = [*params, limit]
 
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(query, params)
+                cur.execute(query, query_params)
                 rows = cur.fetchall()
-
-            # Post-query sort (since DISTINCT ON forces ORDER BY ticker first)
-            def sort_key(r):
-                v = r.get(sort_by)
-                if v is None:
-                    return float("-inf") if sort_dir == "desc" else float("inf")
-                return v
-
-            rows.sort(key=sort_key, reverse=sort_dir == "desc")
-            rows = rows[:limit]
 
             results = []
             for row in rows:

@@ -110,6 +110,35 @@ def fetch_latest_fundamentals(conn, ticker: str) -> dict | None:
     return result
 
 
+def fetch_latest_fundamentals_bulk(conn, tickers: Iterable[str]) -> dict[str, dict]:
+    """Return the most recent fundamentals snapshot for each ticker."""
+    normalized = sorted({str(ticker).upper() for ticker in tickers if ticker})
+    if not normalized:
+        return {}
+
+    sql = """
+        SELECT DISTINCT ON (ticker) *
+        FROM fundamentals
+        WHERE ticker = ANY(%s)
+        ORDER BY ticker, fetched_at DESC
+    """
+
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(sql, (normalized,))
+        rows = cur.fetchall()
+
+    by_ticker: dict[str, dict] = {}
+    for row in rows:
+        result = dict(row)
+        for key in ("fetched_at", "ex_dividend_date"):
+            if result.get(key) is not None:
+                result[key] = result[key].isoformat()
+        ticker = str(result.get("ticker") or "").upper()
+        if ticker:
+            by_ticker[ticker] = result
+    return by_ticker
+
+
 def list_fundamental_tickers(conn) -> list[str]:
     """Return all tickers that have fundamental data."""
     with conn.cursor() as cur:

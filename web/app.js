@@ -21,12 +21,95 @@ const COMPARE_TICKERS_KEY = 'oobir_compare_tickers';
 const COMPARE_SETS_KEY = 'oobir_compare_sets';
 const compareDataCache = {};
 const priceHistoryCache = {};
+const decisionEngineCache = {};
 let compareRenderNonce = 0;
 let currentViewToken = '';
 let persistedSnapshotToken = '';
 let latestRelatedData = null;
 let latestRadarStocks = [];
 const PRICE_HISTORY_CHART_LIMIT = 121;
+let activeLoadController = null;
+const deferredSectionLoaders = new Map();
+let deferredSectionObserver = null;
+
+function beginNewLoadSession() {
+    if (activeLoadController) {
+        try {
+            activeLoadController.abort();
+        } catch {
+            // Ignore abort errors from completed sessions.
+        }
+    }
+    activeLoadController = new AbortController();
+    return activeLoadController.signal;
+}
+
+function resetDeferredSectionLoaders() {
+    deferredSectionLoaders.clear();
+    if (deferredSectionObserver) {
+        deferredSectionObserver.disconnect();
+        deferredSectionObserver = null;
+    }
+}
+
+function registerDeferredSectionLoader(sectionId, loader) {
+    if (!sectionId || typeof loader !== 'function') return;
+    deferredSectionLoaders.set(sectionId, loader);
+}
+
+function triggerDeferredSectionLoader(sectionId) {
+    const loader = deferredSectionLoaders.get(sectionId);
+    if (!loader) return;
+
+    deferredSectionLoaders.delete(sectionId);
+    Promise.resolve()
+        .then(() => loader())
+        .catch((error) => {
+            console.error(`Deferred section load failed for ${sectionId}:`, error);
+        });
+
+    if (deferredSectionObserver) {
+        const target = document.getElementById(sectionId);
+        if (target) {
+            deferredSectionObserver.unobserve(target);
+        }
+    }
+}
+
+function initializeDeferredSectionLoading() {
+    if (deferredSectionObserver) {
+        deferredSectionObserver.disconnect();
+        deferredSectionObserver = null;
+    }
+
+    if (!deferredSectionLoaders.size) return;
+
+    if (typeof IntersectionObserver === 'undefined') {
+        deferredSectionLoaders.forEach((_loader, sectionId) => {
+            triggerDeferredSectionLoader(sectionId);
+        });
+        return;
+    }
+
+    deferredSectionObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+            const sectionId = entry.target && entry.target.id;
+            if (!sectionId) return;
+            triggerDeferredSectionLoader(sectionId);
+        });
+    }, {
+        rootMargin: '220px 0px 220px 0px',
+        threshold: 0.01
+    });
+
+    deferredSectionLoaders.forEach((_loader, sectionId) => {
+        const target = document.getElementById(sectionId);
+        if (target) {
+            deferredSectionObserver.observe(target);
+        }
+    });
+}
 
 function readStoredArray(key) {
     const sources = [window.localStorage, window.sessionStorage];
@@ -465,6 +548,16 @@ function markTickerVisited(ticker) {
 
 function getCompareTickers() {
     return readStoredArray(COMPARE_TICKERS_KEY);
+}
+
+function buildPortfolioContext(ticker) {
+    const active = normalizeCompareTicker(ticker);
+    return getCompareTickers()
+        .map((item) => normalizeCompareTicker(item))
+        .filter(Boolean)
+        .filter((item) => item !== active)
+        .filter((item, index, array) => array.indexOf(item) === index)
+        .slice(0, 8);
 }
 
 function saveCompareTickers(tickers) {
@@ -1079,6 +1172,7 @@ function initializeResultsSectionNav() {
         chip.addEventListener('click', () => {
             const targetId = chip.getAttribute('data-target');
             if (!targetId) return;
+            triggerDeferredSectionLoader(targetId);
             const target = document.getElementById(targetId);
             if (!target) return;
             target.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1571,6 +1665,9 @@ function getKeyIndicator(prices) {
 
 // Load all stock data
 async function loadStockData(ticker, replaceHistory = false) {
+    const requestSignal = beginNewLoadSession();
+    resetDeferredSectionLoaders();
+
     // Add to browser history
     if (replaceHistory) {
         window.history.replaceState({ page: 'results', ticker: ticker }, `${ticker} - OOBIR`, `?ticker=${ticker}`);
@@ -1599,30 +1696,126 @@ async function loadStockData(ticker, replaceHistory = false) {
     // Initialize News & Sentiment
     initializeNewsSentiment(ticker);
 
-    // Start all requests immediately, but only block first render on core sections.
-    // Optional sections continue loading in the background so the page becomes usable faster.
-    const corePromises = [
-        fetchData(`/api/price-history/${ticker}`, 'price-history-data', renderPriceHistory),
-        fetchData(`/api/fundamentals/${ticker}`, 'fundamentals-data', renderFundamentals)
-    ];
+    // Reset section content to avoid showing stale data from previous ticker.
+    [
+        'price-history-data',
+        'fundamentals-data',
+        'news-data',
+        'analyst-targets-data',
+        'calendar-data',
+        'option-chain-data',
+        'related-stocks-data',
+        'technical-signals-data'
+    ].forEach((containerId) => {
+        const container = document.getElementById(containerId);
+        if (container) {
+            container.innerHTML = '<div class="loading-placeholder"></div>';
+        }
+    });
 
-    const optionalPromises = [
-        fetchData(`/api/news/${ticker}`, 'news-data', renderNews),
-        fetchData(`/api/analyst-targets/${ticker}`, 'analyst-targets-data', renderAnalystTargets),
-        fetchData(`/api/calendar/${ticker}`, 'calendar-data', renderCalendar),
-        fetchData(`/api/option-chain/${ticker}`, 'option-chain-data', renderOptionChain),
-        fetchData(
-            `/api/related-stocks/${ticker}?limit=3&exclude=${encodeURIComponent(getVisitedTickers().join(','))}`,
-            'related-stocks-data',
-            renderRelatedStocks
-        )
-    ];
+    const excludeQuery = encodeURIComponent(getVisitedTickers().join(','));
+    const portfolioQuery = encodeURIComponent(buildPortfolioContext(ticker).join(','));
+    let usedSnapshot = false;
+
+    try {
+        const snapshot = await fetchStockSnapshot(ticker, excludeQuery, portfolioQuery, requestSignal);
+
+        if (snapshot.price_history) {
+            renderPriceHistory(snapshot.price_history, document.getElementById('price-history-data'));
+        }
+        if (snapshot.fundamentals) {
+            renderFundamentals(snapshot.fundamentals, document.getElementById('fundamentals-data'));
+        }
+        if (snapshot.decision_engine) {
+            decisionEngineCache[normalizeCompareTicker(ticker)] = snapshot.decision_engine;
+            renderDecisionSummary(snapshot.decision_engine);
+        }
+
+        registerDeferredSectionLoader('section-news', () => {
+            if (snapshot.news) {
+                renderNews(snapshot.news, document.getElementById('news-data'));
+                return;
+            }
+            return fetchData(`/api/news/${ticker}`, 'news-data', renderNews, requestSignal);
+        });
+        registerDeferredSectionLoader('section-analyst-targets', () => {
+            if (snapshot.analyst_targets) {
+                renderAnalystTargets(snapshot.analyst_targets, document.getElementById('analyst-targets-data'));
+                return;
+            }
+            return fetchData(`/api/analyst-targets/${ticker}`, 'analyst-targets-data', renderAnalystTargets, requestSignal);
+        });
+        registerDeferredSectionLoader('section-options', () => {
+            if (snapshot.option_chain) {
+                renderOptionChain(snapshot.option_chain, document.getElementById('option-chain-data'));
+                return;
+            }
+            return fetchData(`/api/option-chain/${ticker}`, 'option-chain-data', renderOptionChain, requestSignal);
+        });
+        registerDeferredSectionLoader('section-related-stocks', () => {
+            if (snapshot.related_stocks) {
+                renderRelatedStocks(snapshot.related_stocks, document.getElementById('related-stocks-data'));
+                return;
+            }
+            return fetchData(
+                `/api/related-stocks/${ticker}?limit=3&exclude=${excludeQuery}`,
+                'related-stocks-data',
+                renderRelatedStocks,
+                requestSignal
+            );
+        });
+        registerDeferredSectionLoader('section-fundamentals', () => {
+            // Calendar renders in the fundamentals grid and should appear with it.
+            if (snapshot.calendar) {
+                renderCalendar(snapshot.calendar, document.getElementById('calendar-data'));
+                return;
+            }
+            return fetchData(`/api/calendar/${ticker}`, 'calendar-data', renderCalendar, requestSignal);
+        });
+
+        usedSnapshot = Boolean(snapshot.price_history && snapshot.fundamentals);
+    } catch (error) {
+        if (!(error && error.name === 'AbortError')) {
+            console.error('Snapshot load failed, using per-section fallback:', error);
+        }
+    }
+
+    // Fallback: preserve existing per-section loading behavior if snapshot fails.
+    if (!usedSnapshot) {
+        const corePromises = [
+            fetchData(`/api/price-history/${ticker}`, 'price-history-data', renderPriceHistory, requestSignal),
+            fetchData(`/api/fundamentals/${ticker}`, 'fundamentals-data', renderFundamentals, requestSignal)
+        ];
+
+        registerDeferredSectionLoader('section-news', () =>
+            fetchData(`/api/news/${ticker}`, 'news-data', renderNews, requestSignal)
+        );
+        registerDeferredSectionLoader('section-analyst-targets', () =>
+            fetchData(`/api/analyst-targets/${ticker}`, 'analyst-targets-data', renderAnalystTargets, requestSignal)
+        );
+        registerDeferredSectionLoader('section-fundamentals', () =>
+            fetchData(`/api/calendar/${ticker}`, 'calendar-data', renderCalendar, requestSignal)
+        );
+        registerDeferredSectionLoader('section-options', () =>
+            fetchData(`/api/option-chain/${ticker}`, 'option-chain-data', renderOptionChain, requestSignal)
+        );
+        registerDeferredSectionLoader('section-related-stocks', () =>
+            fetchData(
+                `/api/related-stocks/${ticker}?limit=3&exclude=${excludeQuery}`,
+                'related-stocks-data',
+                renderRelatedStocks,
+                requestSignal
+            )
+        );
+
+        await Promise.allSettled(corePromises);
+    }
+
+    initializeDeferredSectionLoading();
 
     // Load sentiment analysis in background (non-blocking)
-    loadNewsSentimentBackground(ticker);
+    loadNewsSentimentBackground(ticker, requestSignal);
 
-    // Wait for core data before revealing the results view
-    await Promise.allSettled(corePromises);
     const techContainer = document.getElementById('technical-signals-data');
     if (techContainer) {
         renderTechnicalSignals(null, techContainer);
@@ -1632,9 +1825,6 @@ async function loadStockData(ticker, replaceHistory = false) {
     // Show results
     loadingSpinner.classList.add('hidden');
     resultsContainer.classList.remove('hidden');
-
-    // Keep optional work detached from initial page load latency
-    Promise.allSettled(optionalPromises);
 }
 
 // Initialize news sentiment with button
@@ -1686,9 +1876,9 @@ async function loadNewsSentiment(ticker) {
 }
 
 // Load news sentiment in background without blocking (updates chart markers on completion)
-async function loadNewsSentimentBackground(ticker) {
+async function loadNewsSentimentBackground(ticker, signal) {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/ai/news-sentiment/${ticker}`);
+        const response = await fetch(`${API_BASE_URL}/api/ai/news-sentiment/${ticker}`, { signal });
 
         if (!response.ok) {
             return; // Silently fail - grey dots will remain
@@ -1703,17 +1893,33 @@ async function loadNewsSentimentBackground(ticker) {
             renderPriceHistory(window.lastPriceData, priceHistoryContainer);
         }
     } catch (error) {
+        if (error && error.name === 'AbortError') {
+            return;
+        }
         console.error('Background sentiment fetch failed:', error);
         // Continue without sentiment - grey dots will remain
     }
 }
 
+async function fetchStockSnapshot(ticker, excludeQuery, portfolioQuery, signal) {
+    const response = await fetch(
+        `${API_BASE_URL}/api/stock-snapshot/${encodeURIComponent(ticker)}?related_limit=3&exclude=${excludeQuery}&portfolio=${portfolioQuery}`,
+        { signal }
+    );
+
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+    }
+
+    return response.json();
+}
+
 // Generic fetch function
-async function fetchData(endpoint, containerId, renderFunction) {
+async function fetchData(endpoint, containerId, renderFunction, signal) {
     const container = document.getElementById(containerId);
 
     try {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`);
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, { signal });
 
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
@@ -1722,6 +1928,9 @@ async function fetchData(endpoint, containerId, renderFunction) {
         const data = await response.json();
         renderFunction(data, container);
     } catch (error) {
+        if (error && error.name === 'AbortError') {
+            return;
+        }
         console.error(`Error fetching ${endpoint}:`, error);
         container.innerHTML = `<p class="text-danger">❌ Failed to load data</p>`;
     }
@@ -2978,6 +3187,94 @@ function renderTrendPrediction() {
 
 function renderDecisionSummary() {
     const container = document.getElementById('decision-summary-content');
+    if (!container) return;
+
+    const ticker = normalizeCompareTicker(currentTicker || document.getElementById('stock-symbol').textContent || '');
+    if (!ticker) {
+        renderDecisionSummaryFallback(container);
+        return;
+    }
+
+    const cached = decisionEngineCache[ticker];
+    if (cached && typeof cached === 'object') {
+        renderDecisionSummaryFromPayload(cached, container);
+        return;
+    }
+
+    const portfolioQuery = encodeURIComponent(buildPortfolioContext(ticker).join(','));
+    fetch(`${API_BASE_URL}/api/decision-engine/${encodeURIComponent(ticker)}?portfolio=${portfolioQuery}`)
+        .then((response) => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            return response.json();
+        })
+        .then((payload) => {
+            if (normalizeCompareTicker(currentTicker || '') !== ticker) {
+                return;
+            }
+            decisionEngineCache[ticker] = payload;
+            renderDecisionSummaryFromPayload(payload, container);
+        })
+        .catch(() => {
+            renderDecisionSummaryFallback(container);
+        });
+}
+
+function renderDecisionSummaryFromPayload(payload, container) {
+    if (!payload || typeof payload !== 'object') {
+        renderDecisionSummaryFallback(container);
+        return;
+    }
+
+    const score = Number(payload.score || 0);
+    const confidence = Number(payload.confidence || 0);
+    const confidencePct = Math.max(0, Math.min(100, Math.round(confidence * 100)));
+    const actionLabel = payload.action_label || payload.action || 'WAIT';
+    const confidenceLabel = payload.confidence_label || 'LOW';
+    const reasonCodes = Array.isArray(payload.reason_codes) ? payload.reason_codes : [];
+    const componentScores = payload.component_scores || {};
+    const riskNotes = Array.isArray(payload.risk_notes) ? payload.risk_notes : [];
+    const riskGates = payload.risk_gates || {};
+
+    let actionColor = '#6b7280';
+    if ((payload.action || '').toUpperCase() === 'CONSIDER_LONG') actionColor = '#10b981';
+    if ((payload.action || '').toUpperCase() === 'REDUCE_RISK') actionColor = '#ef4444';
+
+    const gatePills = Object.entries(riskGates)
+        .map(([gate, tripped]) => {
+            if (!tripped) return '';
+            const label = gate.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
+            return `<span class="decision-pill decision-pill-bearish">Gate: ${escapeHtml(label)}</span>`;
+        })
+        .filter(Boolean)
+        .join('');
+
+    const reasonHtml = reasonCodes.length
+        ? '<ul class="decision-notes">' + reasonCodes.slice(0, 4).map((code) => `<li>${escapeHtml(code.replace(/_/g, ' '))}</li>`).join('') + '</ul>'
+        : '<div class="decision-fallback">No strong reason codes yet.</div>';
+
+    const riskNoteHtml = riskNotes.length
+        ? '<div class="decision-fallback" style="margin-top: 10px;">' + escapeHtml(riskNotes.slice(0, 2).join(' ')) + '</div>'
+        : '';
+
+    container.innerHTML = `
+        <div class="decision-summary-head">
+            <div class="decision-metrics">
+                <span class="decision-pill decision-pill-neutral">Score: ${score.toFixed(1)}</span>
+                <span class="decision-pill decision-pill-neutral">Confidence: ${confidencePct}% (${escapeHtml(confidenceLabel)})</span>
+                <span class="decision-pill decision-pill-bullish">Momentum: ${Number(componentScores.momentum || 0).toFixed(0)}</span>
+                <span class="decision-pill decision-pill-neutral">Valuation: ${Number(componentScores.valuation || 0).toFixed(0)}</span>
+                ${gatePills}
+            </div>
+            <div class="decision-action" style="color: ${actionColor};">Action: ${escapeHtml(actionLabel)}</div>
+        </div>
+        ${reasonHtml}
+        ${riskNoteHtml}
+    `;
+}
+
+function renderDecisionSummaryFallback(container) {
     if (!container) return;
 
     const ind = window.technicalIndicators || {};

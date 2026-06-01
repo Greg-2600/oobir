@@ -96,8 +96,11 @@ class TestWebUIDataEndpoints(unittest.TestCase):
         self.assertIn("Close", first_day)
         self.assertIn("Volume", first_day)
 
+    @patch("db_timescale.get_conn", side_effect=Exception("db unavailable in test"))
     @patch("flow.get_price_history")
-    def test_price_history_endpoint_trims_oversized_payloads(self, mock_price_history):
+    def test_price_history_endpoint_trims_oversized_payloads(
+        self, mock_price_history, _mock_get_conn
+    ):
         """Oversized price history should be trimmed to the chart window."""
         mock_price_history.return_value = {
             "data": [
