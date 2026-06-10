@@ -4,5 +4,5 @@
 // Automatically uses the same host where the web UI is served.
 // You can manually override by setting window.OOBIR_API_BASE before app.js.
 if (!window.OOBIR_API_BASE) {
-    window.OOBIR_API_BASE = window.location.protocol + "//" + window.location.hostname + ":8000";
+    window.OOBIR_API_BASE = window.location.protocol + "//" + window.location.hostname + ":2009";
 }

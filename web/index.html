@@ -218,10 +218,13 @@
     <body>
         <div id="unified-page" class="unified-page">
             <!-- Header -->
-            <div class="unified-header app-header">
-                <div class="unified-header-content app-header-content">
-                    <a class="unified-logo app-brand" href="search.html">OOBIR</a>
-                    <form id="search-form" class="search-form unified-search-bar">
+            <header class="app-header">
+                <div class="app-header-content">
+                    <div class="app-header-left">
+                        <a class="app-brand" href="search.html">OOBIR</a>
+                        <span class="app-page-label">Stock Screen</span>
+                    </div>
+                    <form id="search-form" class="search-form">
                         <input type="text"
                                id="ticker-input"
                                class="search-input"
@@ -239,15 +242,18 @@
                             </svg>
                         </button>
                     </form>
-                    <nav class="unified-nav app-nav" aria-label="Primary navigation">
+                    <nav class="app-nav" aria-label="Primary navigation">
                         <a href="search.html">Search</a>
                         <a href="index.html" class="active">Stock Screen</a>
                         <a href="screener.html">Fundamentals</a>
                         <a href="markets.html">Markets</a>
                         <a href="stocks.html">AI Picks</a>
+                        <a href="crypto.html">Crypto</a>
+                        <a href="metals.html">Metals</a>
+                        <a href="commodities.html">Commodities</a>
                     </nav>
                 </div>
-            </div>
+            </header>
             <!-- Main Content -->
             <div class="unified-content">
                 <div id="error-message" class="error-message"></div>

@@ -32,10 +32,10 @@ ENV OLLAMA_HOST=http://ollama:11434
 # Helper script location
 ENV APP_RUNNER=/home/app/oobir/run-tests.sh
 
-EXPOSE 8000
+EXPOSE 2009
 
 # Default to running the FastAPI server
 # Can be overridden to run CLI or tests
-CMD ["python", "-m", "uvicorn", "flow_api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "flow_api:app", "--host", "0.0.0.0", "--port", "2009"]
 
 

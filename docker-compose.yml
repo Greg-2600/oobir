@@ -34,7 +34,7 @@ services:
       dockerfile: Dockerfile
     container_name: oobir_app
     ports:
-      - "8000:8000"
+      - "2009:2009"
     dns:
       - 8.8.8.8
       - 8.8.4.4

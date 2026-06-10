@@ -133,8 +133,149 @@ class TestSearchPageContracts(unittest.TestCase):
             "screener.html",
             "markets.html",
             "stocks.html",
+            "crypto.html",
+            "metals.html",
+            "commodities.html",
         ]:
             self.assertIn(f'href="{href}"', html)
+
+
+# ---------------------------------------------------------------------------
+# Shared nav contract helpers
+# ---------------------------------------------------------------------------
+
+ALL_NAV_PAGES = [
+    "search.html",
+    "index.html",
+    "screener.html",
+    "markets.html",
+    "stocks.html",
+    "crypto.html",
+    "metals.html",
+    "commodities.html",
+]
+
+
+def _assert_shared_header(test_case: unittest.TestCase, html: str) -> None:
+    """Assert canonical app-header structure is present."""
+    test_case.assertIn('class="app-header"', html)
+    test_case.assertIn('class="app-header-content"', html)
+    test_case.assertIn('class="app-header-left"', html)
+    test_case.assertIn('class="app-brand"', html)
+    test_case.assertIn('class="app-nav"', html)
+    for href in ALL_NAV_PAGES:
+        test_case.assertIn(f'href="{href}"', html)
+
+
+class TestNavConsistency(unittest.TestCase):
+    """Every page must share the same canonical header/nav structure."""
+
+    def _check_page(self, filename: str) -> None:
+        html = (WEB_DIR / filename).read_text(encoding="utf-8")
+        _assert_shared_header(self, html)
+        # The page itself must be marked active in its own nav
+        self.assertIn(f'href="{filename}" class="active"', html)
+
+    def test_search_nav(self):
+        """search.html nav is consistent."""
+        self._check_page("search.html")
+
+    def test_index_nav(self):
+        """index.html nav is consistent."""
+        self._check_page("index.html")
+
+    def test_screener_nav(self):
+        """screener.html nav is consistent."""
+        self._check_page("screener.html")
+
+    def test_markets_nav(self):
+        """markets.html nav is consistent."""
+        self._check_page("markets.html")
+
+    def test_stocks_nav(self):
+        """stocks.html nav is consistent."""
+        self._check_page("stocks.html")
+
+    def test_crypto_nav(self):
+        """crypto.html nav is consistent."""
+        self._check_page("crypto.html")
+
+    def test_metals_nav(self):
+        """metals.html nav is consistent."""
+        self._check_page("metals.html")
+
+    def test_commodities_nav(self):
+        """commodities.html nav is consistent."""
+        self._check_page("commodities.html")
+
+
+class TestCryptoPageContracts(unittest.TestCase):
+    """Ensure crypto.html keeps expected structure."""
+
+    def test_crypto_page_has_grid(self):
+        """Crypto page should expose the card grid."""
+        html = (WEB_DIR / "crypto.html").read_text(encoding="utf-8")
+        self.assertIn('id="crypto-grid"', html)
+
+    def test_crypto_page_has_expected_tickers(self):
+        """Crypto page should include major assets."""
+        html = (WEB_DIR / "crypto.html").read_text(encoding="utf-8")
+        for ticker in ["BTC-USD", "ETH-USD", "SOL-USD", "DOGE-USD"]:
+            self.assertIn(f'data-ticker="{ticker}"', html)
+
+    def test_crypto_page_loads_charts_via_api(self):
+        """Chart-loading script should call the price-history API."""
+        html = (WEB_DIR / "crypto.html").read_text(encoding="utf-8")
+        self.assertIn("api/price-history/", html)
+        self.assertIn("loadCryptoCharts", html)
+
+
+class TestMetalsPageContracts(unittest.TestCase):
+    """Ensure metals.html keeps expected structure."""
+
+    def test_metals_page_has_grid(self):
+        """Metals page should expose the card grid."""
+        html = (WEB_DIR / "metals.html").read_text(encoding="utf-8")
+        self.assertIn('id="metals-grid"', html)
+
+    def test_metals_page_has_expected_tickers(self):
+        """Metals page should include core futures and ETFs."""
+        html = (WEB_DIR / "metals.html").read_text(encoding="utf-8")
+        for ticker in ["GC=F", "SI=F", "PL=F", "GLD", "GDX"]:
+            self.assertIn(f'data-ticker="{ticker}"', html)
+
+    def test_metals_page_loads_charts_via_api(self):
+        """Chart-loading script should call the price-history API."""
+        html = (WEB_DIR / "metals.html").read_text(encoding="utf-8")
+        self.assertIn("api/price-history/", html)
+        self.assertIn("loadMetalsCharts", html)
+
+
+class TestCommoditiesPageContracts(unittest.TestCase):
+    """Ensure commodities.html keeps expected structure."""
+
+    def test_commodities_page_has_grid(self):
+        """Commodities page should expose the card grid."""
+        html = (WEB_DIR / "commodities.html").read_text(encoding="utf-8")
+        self.assertIn('id="commodities-grid"', html)
+
+    def test_commodities_page_has_expected_tickers(self):
+        """Commodities page should include energy, grains, softs and livestock."""
+        html = (WEB_DIR / "commodities.html").read_text(encoding="utf-8")
+        for ticker in ["CL=F", "NG=F", "ZC=F", "ZW=F", "KC=F", "LE=F"]:
+            self.assertIn(f'data-ticker="{ticker}"', html)
+
+    def test_commodities_page_section_labels_present(self):
+        """Commodities page should have section dividers for each category."""
+        html = (WEB_DIR / "commodities.html").read_text(encoding="utf-8")
+        for label in ["Energy", "Grains", "Softs", "Livestock"]:
+            self.assertIn(label, html)
+
+    def test_commodities_page_loads_charts_via_api(self):
+        """Chart-loading script should call the price-history API."""
+        html = (WEB_DIR / "commodities.html").read_text(encoding="utf-8")
+        self.assertIn("api/price-history/", html)
+        self.assertIn("loadCommoditiesCharts", html)
 
 
 if __name__ == "__main__":

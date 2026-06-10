@@ -244,8 +244,13 @@ class TestDataEndpoints(unittest.TestCase):
         mock_get_related_stocks_payload,
     ):
         """Test aggregated snapshot endpoint returns primary section payloads."""
-        mock_get_fundamentals_payload.return_value = {"symbol": "AAPL", "pe_ratio": 25.5}
-        mock_get_price_history_payload.return_value = {"data": [{"Date": "2024-01-01", "Close": 150.0}]}
+        mock_get_fundamentals_payload.return_value = {
+            "symbol": "AAPL",
+            "pe_ratio": 25.5,
+        }
+        mock_get_price_history_payload.return_value = {
+            "data": [{"Date": "2024-01-01", "Close": 150.0}]
+        }
         mock_with_cache.side_effect = [
             [{"title": "Apple News"}],
             {"target_mean": 180.0},
@@ -399,8 +404,7 @@ class TestDataEndpoints(unittest.TestCase):
 
         mock_fetch_fundamentals.return_value = fundamentals_map["TSLA"]
         mock_fetch_fundamentals_bulk.return_value = {
-            ticker: fundamentals_map[ticker]
-            for ticker in ["RIVN", "NIO", "F", "GM"]
+            ticker: fundamentals_map[ticker] for ticker in ["RIVN", "NIO", "F", "GM"]
         }
 
         response = self.client.get("/api/related-stocks/TSLA?limit=3")

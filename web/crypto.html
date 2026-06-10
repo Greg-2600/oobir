@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Crypto - OOBIR</title>
+        <link rel="stylesheet" href="styles.css">
+        <style>
+        body {
+            background: radial-gradient(circle at 20% 20%, #fff7ed, #f8fafc 45%),
+                        radial-gradient(circle at 80% 0%, #fef3c7, #f8fafc 40%),
+                        #f8fafc;
+            min-height: 100vh;
+        }
+
+        .crypto-page {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .crypto-header-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 16px 0 10px 0;
+        }
+
+        .crypto-header-section h1 {
+            margin: 0;
+            font-size: 2em;
+            color: #1f2937;
+        }
+
+        .hero-subtitle {
+            margin: 0;
+            color: #475569;
+            font-size: 1rem;
+        }
+
+        .hero-tags { display: flex; gap: 10px; flex-wrap: wrap; }
+
+        .crypto-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 18px;
+            margin-top: 20px;
+        }
+
+        .stock-card {
+            position: relative;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 18px 18px 16px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(15,23,42,0.06);
+            min-height: 220px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow: hidden;
+        }
+
+        .stock-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(245,158,11,0.06), rgba(245,158,11,0));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .stock-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(90deg, #f59e0b, #f97316);
+            opacity: 0.7;
+        }
+
+        .stock-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 38px rgba(15,23,42,0.12);
+            border-color: #f59e0b;
+        }
+
+        .stock-card:hover::before { opacity: 1; }
+
+        /* Category accent bars */
+        .stock-card[data-category="layer1"]::after   { background: linear-gradient(90deg, #f59e0b, #f97316); }
+        .stock-card[data-category="layer2"]::after   { background: linear-gradient(90deg, #8b5cf6, #6366f1); }
+        .stock-card[data-category="defi"]::after     { background: linear-gradient(90deg, #10b981, #06b6d4); }
+        .stock-card[data-category="exchange"]::after { background: linear-gradient(90deg, #3b82f6, #6366f1); }
+        .stock-card[data-category="meme"]::after     { background: linear-gradient(90deg, #ec4899, #f43f5e); }
+        .stock-card[data-category="stablecoin"]::after { background: linear-gradient(90deg, #94a3b8, #64748b); }
+
+        .stock-card[data-category="layer1"]   { background: linear-gradient(180deg, rgba(245,158,11,0.05), rgba(249,115,22,0.02)); }
+        .stock-card[data-category="layer2"]   { background: linear-gradient(180deg, rgba(139,92,246,0.05), rgba(99,102,241,0.02)); }
+        .stock-card[data-category="defi"]     { background: linear-gradient(180deg, rgba(16,185,129,0.05), rgba(6,182,212,0.02)); }
+        .stock-card[data-category="exchange"] { background: linear-gradient(180deg, rgba(59,130,246,0.05), rgba(99,102,241,0.02)); }
+        .stock-card[data-category="meme"]     { background: linear-gradient(180deg, rgba(236,72,153,0.05), rgba(244,63,94,0.02)); }
+        .stock-card[data-category="stablecoin"] { background: linear-gradient(180deg, rgba(148,163,184,0.04), rgba(203,213,225,0.02)); }
+
+        .stock-card.trend-up   { background: linear-gradient(180deg, rgba(16,185,129,0.06), rgba(16,185,129,0.02)); border-color: rgba(16,185,129,0.2); box-shadow: 0 8px 24px rgba(16,185,129,0.06); }
+        .stock-card.trend-down { background: linear-gradient(180deg, rgba(239,68,68,0.06), rgba(239,68,68,0.02)); border-color: rgba(239,68,68,0.2); box-shadow: 0 8px 24px rgba(239,68,68,0.06); }
+        .stock-card.trend-neutral { background: white; border-color: #e5e7eb; }
+        .stock-card.trend-up .stock-price   { color: #065f46; }
+        .stock-card.trend-down .stock-price { color: #7f1d1d; }
+        .stock-card.trend-up:hover, .stock-card.trend-down:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(2,6,23,0.12); }
+
+        .stock-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .stock-name { color: #1f2937; font-size: 1.25em; font-weight: 700; }
+        .stock-ticker { font-size: 0.95em; font-weight: 400; color: #6b7280; margin-top: 2px; }
+        .stock-price { font-size: 1.1em; font-weight: 700; color: #92400e; text-align: right; }
+
+        .crypto-icon { font-size: 26px; line-height: 1; display: block; margin-bottom: 4px; text-align: right; }
+
+        .stock-meta-row { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+        .pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.01em; background: #fef3c7; color: #92400e; border: 1px solid rgba(245,158,11,0.2); }
+        .pill.soft    { background: #ecfeff; color: #0e7490; border-color: rgba(14,116,144,0.2); }
+        .pill.neutral { background: #f8fafc; color: #475569; border-color: rgba(148,163,184,0.3); }
+
+        .trend-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 10px; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.01em; }
+        .trend-badge.up   { background: #ecfdf3; color: #166534; border: 1px solid rgba(22,101,52,0.2); }
+        .trend-badge.down { background: #fef2f2; color: #991b1b; border: 1px solid rgba(153,27,27,0.2); }
+        .trend-badge.flat { background: #f8fafc; color: #475569; border: 1px solid rgba(148,163,184,0.3); }
+
+        .mini-chart { height: 92px; border-radius: 10px; background: radial-gradient(circle at 20% 20%, #111827, #0b1220); display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-size: 0.9em; border: 1px solid #1f2937; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }
+
+        @media (max-width: 768px) {
+            .crypto-grid { grid-template-columns: 1fr; }
+        }
+        </style>
+    </head>
+    <body>
+        <div class="crypto-page">
+            <header class="app-header">
+                <div class="app-header-content">
+                    <div class="app-header-left">
+                        <a class="app-brand" href="search.html">OOBIR</a>
+                        <span class="app-page-label">Crypto</span>
+                    </div>
+                    <nav class="app-nav" aria-label="Primary navigation">
+                        <a href="search.html">Search</a>
+                        <a href="index.html">Stock Screen</a>
+                        <a href="screener.html">Fundamentals</a>
+                        <a href="markets.html">Markets</a>
+                        <a href="stocks.html">AI Picks</a>
+                        <a href="crypto.html" class="active">Crypto</a>
+                        <a href="metals.html">Metals</a>
+                        <a href="commodities.html">Commodities</a>
+                    </nav>
+                </div>
+            </header>
+
+            <div class="crypto-header-section">
+                <h1>₿ Crypto Dashboard</h1>
+                <p class="hero-subtitle">30-day mini candlesticks with 5-day trend signals</p>
+                <div class="hero-tags">
+                    <span class="pill">Live OHLC mini charts</span>
+                    <span class="pill soft">Category-tinted cards</span>
+                    <span class="pill neutral">Tap a card to drill in</span>
+                </div>
+            </div>
+
+            <div class="crypto-grid" id="crypto-grid">
+                <!-- Layer 1 -->
+                <div class="stock-card" data-ticker="BTC-USD" data-category="layer1">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Bitcoin</div>
+                                <div class="stock-ticker">BTC-USD</div>
+                            </div>
+                            <div>
+                                <span class="crypto-icon">₿</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-BTC-USD">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="ETH-USD" data-category="layer1">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Ethereum</div>
+                                <div class="stock-ticker">ETH-USD</div>
+                            </div>
+                            <div>
+                                <span class="crypto-icon">Ξ</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-ETH-USD">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="SOL-USD" data-category="layer1">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Solana</div>
+                                <div class="stock-ticker">SOL-USD</div>
+                            </div>
+                            <div>
+                                <span class="crypto-icon">◎</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-SOL-USD">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="BNB-USD" data-category="exchange">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">BNB</div>
+                                <div class="stock-ticker">BNB-USD</div>
+                            </div>
+                            <div>
+                                <span class="crypto-icon">🔶</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-BNB-USD">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="XRP-USD" data-category="layer1">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">XRP</div>
+                                <div class="stock-ticker">XRP-USD</div>
+                            </div>
+                            <div>
+                                <span class="crypto-icon">✕</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-XRP-USD">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="ADA-USD" data-category="layer1">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Cardano</div>
+                                <div class="stock-ticker">ADA-USD</div>
+                            </div>
+                            <div>
+                                <span class="crypto-icon">₳</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-ADA-USD">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="AVAX-USD" data-category="layer1">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Avalanche</div>
+                                <div class="stock-ticker">AVAX-USD</div>
+                            </div>
+                            <div>
+                                <span class="crypto-icon">🔺</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-AVAX-USD">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="DOT-USD" data-category="layer1">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Polkadot</div>
+                                <div class="stock-ticker">DOT-USD</div>
+                            </div>
+                            <div>
+                                <span class="crypto-icon">●</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-DOT-USD">Loading...</div>
+                    </div>
+                </div>
+                <!-- DeFi -->
+                <div class="stock-card" data-ticker="LINK-USD" data-category="defi">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Chainlink</div>
+                                <div class="stock-ticker">LINK-USD</div>
+                            </div>
+                            <div>
+                                <span class="crypto-icon">⬡</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-LINK-USD">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="UNI7083-USD" data-category="defi">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Uniswap</div>
+                                <div class="stock-ticker">UNI7083-USD</div>
+                            </div>
+                            <div>
+                                <span class="crypto-icon">🦄</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-UNI7083-USD">Loading...</div>
+                    </div>
+                </div>
+                <!-- Layer 2 -->
+                <div class="stock-card" data-ticker="MATIC-USD" data-category="layer2">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Polygon</div>
+                                <div class="stock-ticker">MATIC-USD</div>
+                            </div>
+                            <div>
+                                <span class="crypto-icon">⬟</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-MATIC-USD">Loading...</div>
+                    </div>
+                </div>
+                <!-- Meme -->
+                <div class="stock-card" data-ticker="DOGE-USD" data-category="meme">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Dogecoin</div>
+                                <div class="stock-ticker">DOGE-USD</div>
+                            </div>
+                            <div>
+                                <span class="crypto-icon">🐕</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-DOGE-USD">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="SHIB-USD" data-category="meme">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Shiba Inu</div>
+                                <div class="stock-ticker">SHIB-USD</div>
+                            </div>
+                            <div>
+                                <span class="crypto-icon">🐕‍🦺</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-SHIB-USD">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="PEPE24478-USD" data-category="meme">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Pepe</div>
+                                <div class="stock-ticker">PEPE24478-USD</div>
+                            </div>
+                            <div>
+                                <span class="crypto-icon">🐸</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-PEPE24478-USD">Loading...</div>
+                    </div>
+                </div>
+                <!-- Stablecoin reference -->
+                <div class="stock-card" data-ticker="USDT-USD" data-category="stablecoin">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Tether</div>
+                                <div class="stock-ticker">USDT-USD</div>
+                            </div>
+                            <div>
+                                <span class="crypto-icon">₮</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-USDT-USD">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="config.js"></script>
+        <script>
+        const CRYPTO_META = {
+            'BTC-USD':       { category: 'layer1',     label: 'Layer 1' },
+            'ETH-USD':       { category: 'layer1',     label: 'Layer 1' },
+            'SOL-USD':       { category: 'layer1',     label: 'Layer 1' },
+            'BNB-USD':       { category: 'exchange',   label: 'Exchange' },
+            'XRP-USD':       { category: 'layer1',     label: 'Layer 1' },
+            'ADA-USD':       { category: 'layer1',     label: 'Layer 1' },
+            'AVAX-USD':      { category: 'layer1',     label: 'Layer 1' },
+            'DOT-USD':       { category: 'layer1',     label: 'Layer 1' },
+            'LINK-USD':      { category: 'defi',       label: 'DeFi' },
+            'UNI7083-USD':   { category: 'defi',       label: 'DeFi' },
+            'MATIC-USD':     { category: 'layer2',     label: 'Layer 2' },
+            'DOGE-USD':      { category: 'meme',       label: 'Meme' },
+            'SHIB-USD':      { category: 'meme',       label: 'Meme' },
+            'PEPE24478-USD': { category: 'meme',       label: 'Meme' },
+            'USDT-USD':      { category: 'stablecoin', label: 'Stablecoin' },
+        };
+
+        document.getElementById('crypto-grid').addEventListener('click', function (e) {
+            let el = e.target;
+            while (el && !el.classList.contains('stock-card')) el = el.parentElement;
+            if (!el) return;
+            const ticker = el.getAttribute('data-ticker');
+            if (ticker) window.location.href = 'index.html?ticker=' + encodeURIComponent(ticker);
+        });
+
+        function drawCandles(container, data) {
+            container.innerHTML = '';
+            if (!data || data.length === 0) { container.textContent = 'No data'; return; }
+
+            const series = data.map(pt => ({
+                open:  Number(pt.Open  ?? pt.open  ?? pt.o ?? NaN),
+                high:  Number(pt.High  ?? pt.high  ?? pt.h ?? NaN),
+                low:   Number(pt.Low   ?? pt.low   ?? pt.l ?? NaN),
+                close: Number(pt.Close ?? pt.close ?? pt.c ?? NaN),
+            })).filter(p => !isNaN(p.open) && !isNaN(p.high) && !isNaN(p.low) && !isNaN(p.close));
+            if (series.length === 0) { container.textContent = 'No data'; return; }
+
+            const w = container.clientWidth || 300;
+            const h = container.clientHeight || 80;
+            const padding = 6;
+
+            const allPrices = series.flatMap(p => [p.high, p.low]);
+            const minPrice = Math.min(...allPrices);
+            const maxPrice = Math.max(...allPrices);
+            const range = maxPrice - minPrice || 1;
+
+            const svgNS = 'http://www.w3.org/2000/svg';
+            const svg = document.createElementNS(svgNS, 'svg');
+            svg.setAttribute('width', '100%');
+            svg.setAttribute('height', h);
+            svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+
+            const barWidth = Math.max(2, (w / series.length) * 0.6);
+            const step = w / Math.max(1, series.length - 1);
+
+            series.forEach((p, i) => {
+                const x = i * step;
+                const yHigh  = padding + ((maxPrice - p.high)  / range) * (h - padding * 2);
+                const yLow   = padding + ((maxPrice - p.low)   / range) * (h - padding * 2);
+                const yOpen  = padding + ((maxPrice - p.open)  / range) * (h - padding * 2);
+                const yClose = padding + ((maxPrice - p.close) / range) * (h - padding * 2);
+
+                const wick = document.createElementNS(svgNS, 'line');
+                wick.setAttribute('x1', x);
+                wick.setAttribute('x2', x);
+                wick.setAttribute('y1', yHigh);
+                wick.setAttribute('y2', yLow);
+                wick.setAttribute('stroke', '#e5e7eb');
+                wick.setAttribute('stroke-width', Math.max(1, barWidth / 6));
+                wick.setAttribute('stroke-linecap', 'round');
+                svg.appendChild(wick);
+
+                const isUp = p.close >= p.open;
+                const body = document.createElementNS(svgNS, 'rect');
+                const bodyTop    = Math.min(yOpen, yClose);
+                const bodyHeight = Math.max(1, Math.abs(yClose - yOpen));
+                body.setAttribute('x', x - barWidth / 2);
+                body.setAttribute('y', bodyTop);
+                body.setAttribute('width', barWidth);
+                body.setAttribute('height', bodyHeight);
+                body.setAttribute('fill',   isUp ? '#4ade80' : '#f87171');
+                body.setAttribute('stroke', isUp ? '#22c55e' : '#ef4444');
+                body.setAttribute('stroke-width', '0.5');
+                svg.appendChild(body);
+            });
+
+            const last = series[series.length - 1];
+            container.appendChild(svg);
+
+            const card = container.closest('.stock-card');
+            if (card) {
+                const priceEl = card.querySelector('.stock-price');
+                if (priceEl) {
+                    const val = last.close;
+                    priceEl.textContent = val >= 1
+                        ? '$' + val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        : '$' + val.toPrecision(4);
+                }
+            }
+        }
+
+        function decorateCard(card, ticker) {
+            const meta = CRYPTO_META[ticker] || { category: 'layer1', label: 'Crypto' };
+            card.setAttribute('data-category', meta.category);
+
+            if (!card.querySelector('.stock-meta-row')) {
+                const header = card.querySelector('.stock-card-header');
+                const row = document.createElement('div');
+                row.className = 'stock-meta-row';
+                row.innerHTML = `
+                    <span class="pill category-label">${meta.label}</span>
+                    <span class="pill soft">30d mini chart</span>
+                `;
+                if (header && header.parentNode) {
+                    header.parentNode.insertBefore(row, header.nextSibling);
+                }
+            }
+        }
+
+        function setTrendBadge(card, direction, pct) {
+            let badge = card.querySelector('.trend-badge');
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'trend-badge flat';
+                const row = card.querySelector('.stock-meta-row') || card.querySelector('.stock-card-header');
+                if (row && row.parentNode) {
+                    row.parentNode.insertBefore(badge, row.nextSibling);
+                } else {
+                    card.insertBefore(badge, card.firstChild);
+                }
+            }
+            badge.classList.remove('up', 'down', 'flat');
+            const pctText = isFinite(pct) ? (pct * 100).toFixed(1) + '% over 5d' : 'Flat';
+            if (direction === 'up') {
+                badge.classList.add('trend-badge', 'up');
+                badge.textContent = '▲ ' + pctText;
+            } else if (direction === 'down') {
+                badge.classList.add('trend-badge', 'down');
+                badge.textContent = '▼ ' + pctText;
+            } else {
+                badge.classList.add('trend-badge', 'flat');
+                badge.textContent = '— Flat 5d';
+            }
+        }
+
+        async function loadCryptoCharts() {
+            const apiBase = (typeof window !== 'undefined' && window.OOBIR_API_BASE)
+                ? window.OOBIR_API_BASE
+                : (window.location.hostname === 'localhost'
+                    ? 'http://localhost:8000'
+                    : `${window.location.protocol}//${window.location.hostname}:8000`);
+
+            const cards = document.querySelectorAll('.stock-card');
+            for (const card of cards) {
+                const ticker  = card.getAttribute('data-ticker');
+                const chartEl = card.querySelector('.mini-chart');
+                const priceEl = card.querySelector('.stock-price');
+                if (!ticker || !chartEl) continue;
+                decorateCard(card, ticker);
+                try {
+                    const res = await fetch(`${apiBase}/api/price-history/${encodeURIComponent(ticker)}?days=30`);
+                    if (!res.ok) { chartEl.textContent = 'No data'; continue; }
+                    let json = await res.json();
+                    let data = [];
+                    if (Array.isArray(json)) data = json;
+                    else if (json.data && Array.isArray(json.data)) data = json.data;
+                    else if (json.prices && Array.isArray(json.prices)) data = json.prices;
+
+                    const recent = data.slice(-30);
+                    if (!recent || recent.length === 0) {
+                        chartEl.textContent = 'No data';
+                        if (priceEl) priceEl.textContent = '—';
+                        continue;
+                    }
+                    drawCandles(chartEl, recent);
+
+                    try {
+                        const closes = recent.map(p => Number(p.Close ?? p.close ?? p.c ?? NaN)).filter(v => !isNaN(v));
+                        card.classList.remove('trend-up', 'trend-down', 'trend-neutral');
+                        if (closes.length >= 5) {
+                            const last  = closes[closes.length - 1];
+                            const prior = closes[closes.length - 5];
+                            const pct = prior === 0 ? 0 : (last - prior) / Math.abs(prior);
+                            const dir = pct > 0 ? 'up' : (pct < 0 ? 'down' : 'flat');
+                            card.classList.add(dir === 'flat' ? 'trend-neutral' : 'trend-' + dir);
+                            setTrendBadge(card, dir, pct);
+                        } else if (closes.length >= 2) {
+                            const last = closes[closes.length - 1];
+                            const prev = closes[closes.length - 2];
+                            const pct  = prev === 0 ? 0 : (last - prev) / Math.abs(prev);
+                            const dir  = last > prev ? 'up' : (last < prev ? 'down' : 'flat');
+                            card.classList.add(dir === 'flat' ? 'trend-neutral' : 'trend-' + dir);
+                            setTrendBadge(card, dir, pct);
+                        } else {
+                            card.classList.add('trend-neutral');
+                            setTrendBadge(card, 'flat', 0);
+                        }
+                    } catch (e) {
+                        card.classList.add('trend-neutral');
+                        setTrendBadge(card, 'flat', 0);
+                    }
+                } catch (err) {
+                    chartEl.textContent = 'Error';
+                    if (priceEl) priceEl.textContent = '—';
+                    console.error('crypto chart error', ticker, err);
+                }
+            }
+        }
+
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadCryptoCharts);
+        else loadCryptoCharts();
+        </script>
+    </body>
+</html>

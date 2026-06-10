@@ -613,7 +613,9 @@ def _compute_rsi(closes: list[float], period: int = 14) -> float | None:
 
 def _parse_portfolio_tickers(portfolio: str, symbol: str) -> list[str]:
     """Parse comma-separated portfolio tickers and exclude current symbol."""
-    values = [item.strip().upper() for item in (portfolio or "").split(",") if item.strip()]
+    values = [
+        item.strip().upper() for item in (portfolio or "").split(",") if item.strip()
+    ]
     unique = []
     for value in values:
         if value == symbol:
@@ -642,18 +644,24 @@ def _extract_close_series(payload) -> list[float]:
     return closes
 
 
-def get_decision_engine_payload(symbol: str, portfolio_tickers: list[str] | None = None):
+def get_decision_engine_payload(
+    symbol: str, portfolio_tickers: list[str] | None = None
+):
     """Build deterministic investment decision payload with risk gating."""
     fundamentals = get_fundamentals_payload(symbol)
     price_payload = get_price_history_payload(symbol)
 
     closes = _extract_close_series(price_payload)
 
-    latest_price = closes[-1] if closes else _to_float(
-        (fundamentals or {}).get("currentPrice")
-        or (fundamentals or {}).get("current_price")
-        or (fundamentals or {}).get("regularMarketPrice"),
-        default=0.0,
+    latest_price = (
+        closes[-1]
+        if closes
+        else _to_float(
+            (fundamentals or {}).get("currentPrice")
+            or (fundamentals or {}).get("current_price")
+            or (fundamentals or {}).get("regularMarketPrice"),
+            default=0.0,
+        )
     )
 
     momentum_5 = 0.0
@@ -744,8 +752,14 @@ def get_decision_engine_payload(symbol: str, portfolio_tickers: list[str] | None
         for holding in portfolio_tickers:
             try:
                 h_fund = get_fundamentals_payload(holding)
-                h_sector = str((h_fund or {}).get("sector") or (h_fund or {}).get("Sector") or "")
-                if target_sector and h_sector and h_sector.lower() == target_sector.lower():
+                h_sector = str(
+                    (h_fund or {}).get("sector") or (h_fund or {}).get("Sector") or ""
+                )
+                if (
+                    target_sector
+                    and h_sector
+                    and h_sector.lower() == target_sector.lower()
+                ):
                     same_sector += 1
 
                 h_prices = _extract_close_series(get_price_history_payload(holding))
@@ -869,7 +883,9 @@ def get_decision_engine_payload(symbol: str, portfolio_tickers: list[str] | None
             "rsi_14": round(rsi, 2) if rsi is not None else None,
             "pe_ratio": round(pe_ratio, 2) if pe_ratio else None,
             "dividend_yield": round(dividend_yield, 4) if dividend_yield else 0.0,
-            "return_on_equity": round(return_on_equity, 4) if return_on_equity else None,
+            "return_on_equity": (
+                round(return_on_equity, 4) if return_on_equity else None
+            ),
             "data_points": len(closes),
         },
         "component_scores": {
@@ -1054,7 +1070,9 @@ def get_stock_snapshot(
             related_limit,
             exclude,
         ),
-        "decision_engine": lambda: get_decision_engine_payload(symbol, portfolio_tickers),
+        "decision_engine": lambda: get_decision_engine_payload(
+            symbol, portfolio_tickers
+        ),
     }
 
     for section, getter in section_getters.items():
@@ -1462,15 +1480,13 @@ def list_fundamentals_db(
                 query += psql.SQL(" AND ") + psql.SQL(" AND ").join(
                     psql.SQL(condition) for condition in conditions
                 )
-            query += psql.SQL(
-                """
+            query += psql.SQL("""
                     ORDER BY ticker, fetched_at DESC
                 )
                 SELECT * FROM latest
                 ORDER BY {sort_col} {sort_dir} NULLS LAST
                 LIMIT %s
-                """
-            ).format(
+                """).format(
                 sort_col=psql.Identifier(sort_by),
                 sort_dir=psql.SQL(sort_dir.upper()),
             )

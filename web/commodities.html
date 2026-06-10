@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Commodities - OOBIR</title>
+        <link rel="stylesheet" href="styles.css">
+        <style>
+        body {
+            background: radial-gradient(circle at 20% 20%, #f0fdf4, #f8fafc 45%),
+                        radial-gradient(circle at 80% 0%, #fefce8, #f8fafc 40%),
+                        #f8fafc;
+            min-height: 100vh;
+        }
+
+        .commodities-page {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .commodities-header-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 16px 0 10px 0;
+        }
+
+        .commodities-header-section h1 {
+            margin: 0;
+            font-size: 2em;
+            color: #1f2937;
+        }
+
+        .hero-subtitle { margin: 0; color: #475569; font-size: 1rem; }
+        .hero-tags { display: flex; gap: 10px; flex-wrap: wrap; }
+
+        .commodities-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 18px;
+            margin-top: 20px;
+        }
+
+        .section-label {
+            grid-column: 1 / -1;
+            font-size: 0.8rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #94a3b8;
+            padding: 8px 0 4px;
+            border-bottom: 1px solid #e5e7eb;
+            margin-top: 8px;
+        }
+
+        .stock-card {
+            position: relative;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 18px 18px 16px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(15,23,42,0.06);
+            min-height: 220px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow: hidden;
+        }
+
+        .stock-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(22,163,74,0.06), rgba(22,163,74,0));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .stock-card::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 6px;
+            background: linear-gradient(90deg, #16a34a, #4ade80);
+            opacity: 0.7;
+        }
+
+        .stock-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 38px rgba(15,23,42,0.12);
+            border-color: #16a34a;
+        }
+        .stock-card:hover::before { opacity: 1; }
+
+        /* Category accent bars */
+        .stock-card[data-category="energy"]::after    { background: linear-gradient(90deg, #dc2626, #f97316); }
+        .stock-card[data-category="grains"]::after    { background: linear-gradient(90deg, #ca8a04, #eab308); }
+        .stock-card[data-category="softs"]::after     { background: linear-gradient(90deg, #7c3aed, #a855f7); }
+        .stock-card[data-category="livestock"]::after { background: linear-gradient(90deg, #b45309, #d97706); }
+        .stock-card[data-category="etf"]::after       { background: linear-gradient(90deg, #0891b2, #06b6d4); }
+
+        .stock-card[data-category="energy"]    { background: linear-gradient(180deg, rgba(220,38,38,0.05),   rgba(249,115,22,0.02)); }
+        .stock-card[data-category="grains"]    { background: linear-gradient(180deg, rgba(202,138,4,0.05),   rgba(234,179,8,0.02)); }
+        .stock-card[data-category="softs"]     { background: linear-gradient(180deg, rgba(124,58,237,0.05),  rgba(168,85,247,0.02)); }
+        .stock-card[data-category="livestock"] { background: linear-gradient(180deg, rgba(180,83,9,0.05),    rgba(217,119,6,0.02)); }
+        .stock-card[data-category="etf"]       { background: linear-gradient(180deg, rgba(8,145,178,0.05),   rgba(6,182,212,0.02)); }
+
+        .stock-card.trend-up   { background: linear-gradient(180deg, rgba(16,185,129,0.06), rgba(16,185,129,0.02)); border-color: rgba(16,185,129,0.2); box-shadow: 0 8px 24px rgba(16,185,129,0.06); }
+        .stock-card.trend-down { background: linear-gradient(180deg, rgba(239,68,68,0.06), rgba(239,68,68,0.02)); border-color: rgba(239,68,68,0.2); box-shadow: 0 8px 24px rgba(239,68,68,0.06); }
+        .stock-card.trend-neutral { background: white; border-color: #e5e7eb; }
+        .stock-card.trend-up .stock-price   { color: #065f46; }
+        .stock-card.trend-down .stock-price { color: #7f1d1d; }
+        .stock-card.trend-up:hover, .stock-card.trend-down:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(2,6,23,0.12); }
+
+        .stock-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .stock-name   { color: #1f2937; font-size: 1.25em; font-weight: 700; }
+        .stock-ticker { font-size: 0.95em; font-weight: 400; color: #6b7280; margin-top: 2px; }
+        .stock-price  { font-size: 1.1em; font-weight: 700; color: #14532d; text-align: right; }
+
+        .commodity-icon { font-size: 26px; line-height: 1; display: block; margin-bottom: 4px; text-align: right; }
+
+        .stock-meta-row { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+        .pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.01em; background: #f0fdf4; color: #14532d; border: 1px solid rgba(22,163,74,0.2); }
+        .pill.soft    { background: #ecfeff; color: #0e7490; border-color: rgba(14,116,144,0.2); }
+        .pill.neutral { background: #f8fafc; color: #475569; border-color: rgba(148,163,184,0.3); }
+
+        .trend-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 10px; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.01em; }
+        .trend-badge.up   { background: #ecfdf3; color: #166534; border: 1px solid rgba(22,101,52,0.2); }
+        .trend-badge.down { background: #fef2f2; color: #991b1b; border: 1px solid rgba(153,27,27,0.2); }
+        .trend-badge.flat { background: #f8fafc; color: #475569; border: 1px solid rgba(148,163,184,0.3); }
+
+        .mini-chart { height: 92px; border-radius: 10px; background: radial-gradient(circle at 20% 20%, #111827, #0b1220); display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-size: 0.9em; border: 1px solid #1f2937; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }
+
+        @media (max-width: 768px) {
+            .commodities-grid { grid-template-columns: 1fr; }
+            .section-label { grid-column: 1; }
+        }
+        </style>
+    </head>
+    <body>
+        <div class="commodities-page">
+            <header class="app-header">
+                <div class="app-header-content">
+                    <div class="app-header-left">
+                        <a class="app-brand" href="search.html">OOBIR</a>
+                        <span class="app-page-label">Commodities</span>
+                    </div>
+                    <nav class="app-nav" aria-label="Primary navigation">
+                        <a href="search.html">Search</a>
+                        <a href="index.html">Stock Screen</a>
+                        <a href="screener.html">Fundamentals</a>
+                        <a href="markets.html">Markets</a>
+                        <a href="stocks.html">AI Picks</a>
+                        <a href="crypto.html">Crypto</a>
+                        <a href="metals.html">Metals</a>
+                        <a href="commodities.html" class="active">Commodities</a>
+                    </nav>
+                </div>
+            </header>
+
+            <div class="commodities-header-section">
+                <h1>🌾 Commodities</h1>
+                <p class="hero-subtitle">30-day mini candlesticks across energy, grains, softs &amp; livestock</p>
+                <div class="hero-tags">
+                    <span class="pill">Futures &amp; ETFs</span>
+                    <span class="pill soft">30d mini charts</span>
+                    <span class="pill neutral">Tap a card to drill in</span>
+                </div>
+            </div>
+
+            <div class="commodities-grid" id="commodities-grid">
+                <!-- Energy -->
+                <div class="section-label">⚡ Energy</div>
+                <div class="stock-card" data-ticker="CL=F" data-category="energy">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Crude Oil (WTI)</div>
+                                <div class="stock-ticker">CL=F · Futures ($/bbl)</div>
+                            </div>
+                            <div>
+                                <span class="commodity-icon">🛢️</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-CL=F">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="BZ=F" data-category="energy">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Brent Crude</div>
+                                <div class="stock-ticker">BZ=F · Futures ($/bbl)</div>
+                            </div>
+                            <div>
+                                <span class="commodity-icon">🛢️</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-BZ=F">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="NG=F" data-category="energy">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Natural Gas</div>
+                                <div class="stock-ticker">NG=F · Futures ($/MMBtu)</div>
+                            </div>
+                            <div>
+                                <span class="commodity-icon">🔥</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-NG=F">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="RB=F" data-category="energy">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">RBOB Gasoline</div>
+                                <div class="stock-ticker">RB=F · Futures ($/gal)</div>
+                            </div>
+                            <div>
+                                <span class="commodity-icon">⛽</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-RB=F">Loading...</div>
+                    </div>
+                </div>
+                <!-- Grains -->
+                <div class="section-label">🌽 Grains</div>
+                <div class="stock-card" data-ticker="ZC=F" data-category="grains">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Corn</div>
+                                <div class="stock-ticker">ZC=F · Futures (¢/bu)</div>
+                            </div>
+                            <div>
+                                <span class="commodity-icon">🌽</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-ZC=F">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="ZW=F" data-category="grains">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Wheat</div>
+                                <div class="stock-ticker">ZW=F · Futures (¢/bu)</div>
+                            </div>
+                            <div>
+                                <span class="commodity-icon">🌾</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-ZW=F">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="ZS=F" data-category="grains">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Soybeans</div>
+                                <div class="stock-ticker">ZS=F · Futures (¢/bu)</div>
+                            </div>
+                            <div>
+                                <span class="commodity-icon">🫘</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-ZS=F">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="ZR=F" data-category="grains">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Rice</div>
+                                <div class="stock-ticker">ZR=F · Futures ($/cwt)</div>
+                            </div>
+                            <div>
+                                <span class="commodity-icon">🍚</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-ZR=F">Loading...</div>
+                    </div>
+                </div>
+                <!-- Softs -->
+                <div class="section-label">☕ Softs</div>
+                <div class="stock-card" data-ticker="KC=F" data-category="softs">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Coffee</div>
+                                <div class="stock-ticker">KC=F · Futures (¢/lb)</div>
+                            </div>
+                            <div>
+                                <span class="commodity-icon">☕</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-KC=F">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="CC=F" data-category="softs">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Cocoa</div>
+                                <div class="stock-ticker">CC=F · Futures ($/MT)</div>
+                            </div>
+                            <div>
+                                <span class="commodity-icon">🍫</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-CC=F">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="SB=F" data-category="softs">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Sugar #11</div>
+                                <div class="stock-ticker">SB=F · Futures (¢/lb)</div>
+                            </div>
+                            <div>
+                                <span class="commodity-icon">🍬</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-SB=F">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="CT=F" data-category="softs">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Cotton</div>
+                                <div class="stock-ticker">CT=F · Futures (¢/lb)</div>
+                            </div>
+                            <div>
+                                <span class="commodity-icon">🧶</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-CT=F">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="OJ=F" data-category="softs">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Orange Juice</div>
+                                <div class="stock-ticker">OJ=F · Futures (¢/lb)</div>
+                            </div>
+                            <div>
+                                <span class="commodity-icon">🍊</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-OJ=F">Loading...</div>
+                    </div>
+                </div>
+                <!-- Livestock -->
+                <div class="section-label">🐄 Livestock</div>
+                <div class="stock-card" data-ticker="LE=F" data-category="livestock">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Live Cattle</div>
+                                <div class="stock-ticker">LE=F · Futures (¢/lb)</div>
+                            </div>
+                            <div>
+                                <span class="commodity-icon">🐄</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-LE=F">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="HE=F" data-category="livestock">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Lean Hogs</div>
+                                <div class="stock-ticker">HE=F · Futures (¢/lb)</div>
+                            </div>
+                            <div>
+                                <span class="commodity-icon">🐖</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-HE=F">Loading...</div>
+                    </div>
+                </div>
+                <!-- ETFs -->
+                <div class="section-label">📊 Commodity ETFs</div>
+                <div class="stock-card" data-ticker="USO" data-category="etf">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">United States Oil Fund</div>
+                                <div class="stock-ticker">USO · ETF</div>
+                            </div>
+                            <div>
+                                <span class="commodity-icon">📊</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-USO">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="UNG" data-category="etf">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">US Natural Gas Fund</div>
+                                <div class="stock-ticker">UNG · ETF</div>
+                            </div>
+                            <div>
+                                <span class="commodity-icon">📊</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-UNG">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="DBA" data-category="etf">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Invesco Agriculture Fund</div>
+                                <div class="stock-ticker">DBA · ETF</div>
+                            </div>
+                            <div>
+                                <span class="commodity-icon">📊</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-DBA">Loading...</div>
+                    </div>
+                </div>
+                <div class="stock-card" data-ticker="PDBC" data-category="etf">
+                    <div>
+                        <div class="stock-card-header">
+                            <div>
+                                <div class="stock-name">Invesco Optimum Yield Diversified</div>
+                                <div class="stock-ticker">PDBC · ETF</div>
+                            </div>
+                            <div>
+                                <span class="commodity-icon">📊</span>
+                                <div class="stock-price">—</div>
+                            </div>
+                        </div>
+                        <div class="mini-chart" data-container-id="chart-PDBC">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="config.js"></script>
+        <script>
+        const COMMODITIES_META = {
+            'CL=F': { category: 'energy',    label: 'Energy' },
+            'BZ=F': { category: 'energy',    label: 'Energy' },
+            'NG=F': { category: 'energy',    label: 'Energy' },
+            'RB=F': { category: 'energy',    label: 'Energy' },
+            'ZC=F': { category: 'grains',    label: 'Grains' },
+            'ZW=F': { category: 'grains',    label: 'Grains' },
+            'ZS=F': { category: 'grains',    label: 'Grains' },
+            'ZR=F': { category: 'grains',    label: 'Grains' },
+            'KC=F': { category: 'softs',     label: 'Softs' },
+            'CC=F': { category: 'softs',     label: 'Softs' },
+            'SB=F': { category: 'softs',     label: 'Softs' },
+            'CT=F': { category: 'softs',     label: 'Softs' },
+            'OJ=F': { category: 'softs',     label: 'Softs' },
+            'LE=F': { category: 'livestock', label: 'Livestock' },
+            'HE=F': { category: 'livestock', label: 'Livestock' },
+            'USO':  { category: 'etf',       label: 'Energy ETF' },
+            'UNG':  { category: 'etf',       label: 'Energy ETF' },
+            'DBA':  { category: 'etf',       label: 'Agriculture ETF' },
+            'PDBC': { category: 'etf',       label: 'Diversified ETF' },
+        };
+
+        document.getElementById('commodities-grid').addEventListener('click', function (e) {
+            let el = e.target;
+            while (el && !el.classList.contains('stock-card')) el = el.parentElement;
+            if (!el) return;
+            const ticker = el.getAttribute('data-ticker');
+            if (ticker) window.location.href = 'index.html?ticker=' + encodeURIComponent(ticker);
+        });
+
+        function drawCandles(container, data) {
+            container.innerHTML = '';
+            if (!data || data.length === 0) { container.textContent = 'No data'; return; }
+
+            const series = data.map(pt => ({
+                open:  Number(pt.Open  ?? pt.open  ?? pt.o ?? NaN),
+                high:  Number(pt.High  ?? pt.high  ?? pt.h ?? NaN),
+                low:   Number(pt.Low   ?? pt.low   ?? pt.l ?? NaN),
+                close: Number(pt.Close ?? pt.close ?? pt.c ?? NaN),
+            })).filter(p => !isNaN(p.open) && !isNaN(p.high) && !isNaN(p.low) && !isNaN(p.close));
+            if (series.length === 0) { container.textContent = 'No data'; return; }
+
+            const w = container.clientWidth || 300;
+            const h = container.clientHeight || 80;
+            const padding = 6;
+            const allPrices = series.flatMap(p => [p.high, p.low]);
+            const minPrice = Math.min(...allPrices);
+            const maxPrice = Math.max(...allPrices);
+            const range = maxPrice - minPrice || 1;
+
+            const svgNS = 'http://www.w3.org/2000/svg';
+            const svg = document.createElementNS(svgNS, 'svg');
+            svg.setAttribute('width', '100%');
+            svg.setAttribute('height', h);
+            svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+
+            const barWidth = Math.max(2, (w / series.length) * 0.6);
+            const step = w / Math.max(1, series.length - 1);
+
+            series.forEach((p, i) => {
+                const x = i * step;
+                const yHigh  = padding + ((maxPrice - p.high)  / range) * (h - padding * 2);
+                const yLow   = padding + ((maxPrice - p.low)   / range) * (h - padding * 2);
+                const yOpen  = padding + ((maxPrice - p.open)  / range) * (h - padding * 2);
+                const yClose = padding + ((maxPrice - p.close) / range) * (h - padding * 2);
+
+                const wick = document.createElementNS(svgNS, 'line');
+                wick.setAttribute('x1', x); wick.setAttribute('x2', x);
+                wick.setAttribute('y1', yHigh); wick.setAttribute('y2', yLow);
+                wick.setAttribute('stroke', '#e5e7eb');
+                wick.setAttribute('stroke-width', Math.max(1, barWidth / 6));
+                wick.setAttribute('stroke-linecap', 'round');
+                svg.appendChild(wick);
+
+                const isUp = p.close >= p.open;
+                const body = document.createElementNS(svgNS, 'rect');
+                body.setAttribute('x', x - barWidth / 2);
+                body.setAttribute('y', Math.min(yOpen, yClose));
+                body.setAttribute('width', barWidth);
+                body.setAttribute('height', Math.max(1, Math.abs(yClose - yOpen)));
+                body.setAttribute('fill',   isUp ? '#4ade80' : '#f87171');
+                body.setAttribute('stroke', isUp ? '#22c55e' : '#ef4444');
+                body.setAttribute('stroke-width', '0.5');
+                svg.appendChild(body);
+            });
+
+            container.appendChild(svg);
+
+            const card = container.closest('.stock-card');
+            if (card) {
+                const priceEl = card.querySelector('.stock-price');
+                if (priceEl) {
+                    const val = series[series.length - 1].close;
+                    priceEl.textContent = '$' + val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                }
+            }
+        }
+
+        function decorateCard(card, ticker) {
+            const meta = COMMODITIES_META[ticker] || { category: 'grains', label: 'Commodity' };
+            card.setAttribute('data-category', meta.category);
+
+            if (!card.querySelector('.stock-meta-row')) {
+                const header = card.querySelector('.stock-card-header');
+                const row = document.createElement('div');
+                row.className = 'stock-meta-row';
+                row.innerHTML = `<span class="pill category-label">${meta.label}</span><span class="pill soft">30d mini chart</span>`;
+                if (header && header.parentNode) header.parentNode.insertBefore(row, header.nextSibling);
+            }
+        }
+
+        function setTrendBadge(card, direction, pct) {
+            let badge = card.querySelector('.trend-badge');
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'trend-badge flat';
+                const row = card.querySelector('.stock-meta-row') || card.querySelector('.stock-card-header');
+                if (row && row.parentNode) row.parentNode.insertBefore(badge, row.nextSibling);
+                else card.insertBefore(badge, card.firstChild);
+            }
+            badge.classList.remove('up', 'down', 'flat');
+            const pctText = isFinite(pct) ? (pct * 100).toFixed(1) + '% over 5d' : 'Flat';
+            if (direction === 'up') {
+                badge.classList.add('trend-badge', 'up');
+                badge.textContent = '▲ ' + pctText;
+            } else if (direction === 'down') {
+                badge.classList.add('trend-badge', 'down');
+                badge.textContent = '▼ ' + pctText;
+            } else {
+                badge.classList.add('trend-badge', 'flat');
+                badge.textContent = '— Flat 5d';
+            }
+        }
+
+        async function loadCommoditiesCharts() {
+            const apiBase = (typeof window !== 'undefined' && window.OOBIR_API_BASE)
+                ? window.OOBIR_API_BASE
+                : (window.location.hostname === 'localhost'
+                    ? 'http://localhost:8000'
+                    : `${window.location.protocol}//${window.location.hostname}:8000`);
+
+            const cards = document.querySelectorAll('.stock-card');
+            for (const card of cards) {
+                const ticker  = card.getAttribute('data-ticker');
+                const chartEl = card.querySelector('.mini-chart');
+                const priceEl = card.querySelector('.stock-price');
+                if (!ticker || !chartEl) continue;
+                decorateCard(card, ticker);
+                try {
+                    const res = await fetch(`${apiBase}/api/price-history/${encodeURIComponent(ticker)}?days=30`);
+                    if (!res.ok) { chartEl.textContent = 'No data'; continue; }
+                    let json = await res.json();
+                    let data = [];
+                    if (Array.isArray(json)) data = json;
+                    else if (json.data && Array.isArray(json.data)) data = json.data;
+                    else if (json.prices && Array.isArray(json.prices)) data = json.prices;
+
+                    const recent = data.slice(-30);
+                    if (!recent || recent.length === 0) {
+                        chartEl.textContent = 'No data';
+                        if (priceEl) priceEl.textContent = '—';
+                        continue;
+                    }
+                    drawCandles(chartEl, recent);
+
+                    try {
+                        const closes = recent.map(p => Number(p.Close ?? p.close ?? p.c ?? NaN)).filter(v => !isNaN(v));
+                        card.classList.remove('trend-up', 'trend-down', 'trend-neutral');
+                        if (closes.length >= 5) {
+                            const last  = closes[closes.length - 1];
+                            const prior = closes[closes.length - 5];
+                            const pct = prior === 0 ? 0 : (last - prior) / Math.abs(prior);
+                            const dir = pct > 0 ? 'up' : (pct < 0 ? 'down' : 'flat');
+                            card.classList.add(dir === 'flat' ? 'trend-neutral' : 'trend-' + dir);
+                            setTrendBadge(card, dir, pct);
+                        } else if (closes.length >= 2) {
+                            const last = closes[closes.length - 1];
+                            const prev = closes[closes.length - 2];
+                            const pct  = prev === 0 ? 0 : (last - prev) / Math.abs(prev);
+                            const dir  = last > prev ? 'up' : (last < prev ? 'down' : 'flat');
+                            card.classList.add(dir === 'flat' ? 'trend-neutral' : 'trend-' + dir);
+                            setTrendBadge(card, dir, pct);
+                        } else {
+                            card.classList.add('trend-neutral');
+                            setTrendBadge(card, 'flat', 0);
+                        }
+                    } catch (e) {
+                        card.classList.add('trend-neutral');
+                        setTrendBadge(card, 'flat', 0);
+                    }
+                } catch (err) {
+                    chartEl.textContent = 'Error';
+                    if (priceEl) priceEl.textContent = '—';
+                    console.error('commodities chart error', ticker, err);
+                }
+            }
+        }
+
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadCommoditiesCharts);
+        else loadCommoditiesCharts();
+        </script>
+    </body>
+</html>
