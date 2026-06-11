@@ -1710,21 +1710,21 @@ async function loadStockData(ticker, replaceHistory = false) {
                 renderNews(snapshot.news, document.getElementById('news-data'));
                 return;
             }
-            return fetchData(`/api/news/${ticker}`, 'news-data', renderNews, requestSignal);
+            return fetchData(`/api/news/${encodeURIComponent(ticker)}`, 'news-data', renderNews, requestSignal);
         });
         registerDeferredSectionLoader('section-analyst-targets', () => {
             if (snapshot.analyst_targets) {
                 renderAnalystTargets(snapshot.analyst_targets, document.getElementById('analyst-targets-data'));
                 return;
             }
-            return fetchData(`/api/analyst-targets/${ticker}`, 'analyst-targets-data', renderAnalystTargets, requestSignal);
+            return fetchData(`/api/analyst-targets/${encodeURIComponent(ticker)}`, 'analyst-targets-data', renderAnalystTargets, requestSignal);
         });
         registerDeferredSectionLoader('section-options', () => {
             if (snapshot.option_chain) {
                 renderOptionChain(snapshot.option_chain, document.getElementById('option-chain-data'));
                 return;
             }
-            return fetchData(`/api/option-chain/${ticker}`, 'option-chain-data', renderOptionChain, requestSignal);
+            return fetchData(`/api/option-chain/${encodeURIComponent(ticker)}`, 'option-chain-data', renderOptionChain, requestSignal);
         });
         if (snapshot.related_stocks) {
             renderRelatedStocks(
@@ -1734,7 +1734,7 @@ async function loadStockData(ticker, replaceHistory = false) {
         } else {
             registerDeferredSectionLoader('section-related-stocks', () => {
             return fetchData(
-                `/api/related-stocks/${ticker}?limit=3&exclude=${excludeQuery}`,
+                `/api/related-stocks/${encodeURIComponent(ticker)}?limit=3&exclude=${excludeQuery}`,
                 'related-stocks-data',
                 renderRelatedStocks,
                 requestSignal
@@ -1747,7 +1747,7 @@ async function loadStockData(ticker, replaceHistory = false) {
                 renderCalendar(snapshot.calendar, document.getElementById('calendar-data'));
                 return;
             }
-            return fetchData(`/api/calendar/${ticker}`, 'calendar-data', renderCalendar, requestSignal);
+            return fetchData(`/api/calendar/${encodeURIComponent(ticker)}`, 'calendar-data', renderCalendar, requestSignal);
         });
 
         usedSnapshot = Boolean(snapshot.price_history && snapshot.fundamentals);
@@ -1760,25 +1760,25 @@ async function loadStockData(ticker, replaceHistory = false) {
     // Fallback: preserve existing per-section loading behavior if snapshot fails.
     if (!usedSnapshot) {
         const corePromises = [
-            fetchData(`/api/price-history/${ticker}`, 'price-history-data', renderPriceHistory, requestSignal),
-            fetchData(`/api/fundamentals/${ticker}`, 'fundamentals-data', renderFundamentals, requestSignal)
+            fetchData(`/api/price-history/${encodeURIComponent(ticker)}`, 'price-history-data', renderPriceHistory, requestSignal),
+            fetchData(`/api/fundamentals/${encodeURIComponent(ticker)}`, 'fundamentals-data', renderFundamentals, requestSignal)
         ];
 
         registerDeferredSectionLoader('section-news', () =>
-            fetchData(`/api/news/${ticker}`, 'news-data', renderNews, requestSignal)
+            fetchData(`/api/news/${encodeURIComponent(ticker)}`, 'news-data', renderNews, requestSignal)
         );
         registerDeferredSectionLoader('section-analyst-targets', () =>
-            fetchData(`/api/analyst-targets/${ticker}`, 'analyst-targets-data', renderAnalystTargets, requestSignal)
+            fetchData(`/api/analyst-targets/${encodeURIComponent(ticker)}`, 'analyst-targets-data', renderAnalystTargets, requestSignal)
         );
         registerDeferredSectionLoader('section-fundamentals', () =>
-            fetchData(`/api/calendar/${ticker}`, 'calendar-data', renderCalendar, requestSignal)
+            fetchData(`/api/calendar/${encodeURIComponent(ticker)}`, 'calendar-data', renderCalendar, requestSignal)
         );
         registerDeferredSectionLoader('section-options', () =>
-            fetchData(`/api/option-chain/${ticker}`, 'option-chain-data', renderOptionChain, requestSignal)
+            fetchData(`/api/option-chain/${encodeURIComponent(ticker)}`, 'option-chain-data', renderOptionChain, requestSignal)
         );
         registerDeferredSectionLoader('section-related-stocks', () =>
             fetchData(
-                `/api/related-stocks/${ticker}?limit=3&exclude=${excludeQuery}`,
+                `/api/related-stocks/${encodeURIComponent(ticker)}?limit=3&exclude=${excludeQuery}`,
                 'related-stocks-data',
                 renderRelatedStocks,
                 requestSignal
@@ -1827,7 +1827,7 @@ async function loadNewsSentiment(ticker) {
     container.innerHTML = '<p class="text-muted">🔄 Loading news sentiment...</p>';
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/ai/news-sentiment/${ticker}`);
+        const response = await fetch(`${API_BASE_URL}/api/ai/news-sentiment/${encodeURIComponent(ticker)}`);
 
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
@@ -1855,7 +1855,7 @@ async function loadNewsSentiment(ticker) {
 // Load news sentiment in background without blocking (updates chart markers on completion)
 async function loadNewsSentimentBackground(ticker, signal) {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/ai/news-sentiment/${ticker}`, { signal });
+        const response = await fetch(`${API_BASE_URL}/api/ai/news-sentiment/${encodeURIComponent(ticker)}`, { signal });
 
         if (!response.ok) {
             return; // Silently fail - grey dots will remain
@@ -3345,7 +3345,7 @@ async function renderTradingStrategy() {
     }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/trading-strategy/${ticker}`);
+        const response = await fetch(`${API_BASE_URL}/api/trading-strategy/${encodeURIComponent(ticker)}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
