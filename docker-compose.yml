@@ -34,7 +34,7 @@ services:
       dockerfile: Dockerfile
     container_name: oobir_app
     ports:
-      - "2009:2009"
+      - "8000:2009"
     dns:
       - 8.8.8.8
       - 8.8.4.4
@@ -97,7 +97,7 @@ services:
     volumes:
       - ./web:/usr/share/nginx/html
     ports:
-      - "8081:80"
+      - "2009:80"
     restart: unless-stopped
 
 volumes:

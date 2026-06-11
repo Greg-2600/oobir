@@ -82,11 +82,11 @@ docker compose up -d --build
 docker compose exec ollama ollama pull huihui_ai/llama3.2-abliterate:3b
 
 # 3. Access the platform
-# 🌐 Web UI: http://localhost:8081
-# 📚 API Docs: http://localhost:2009/docs
-# ✅ Health Check: curl http://localhost:2009/health
+# 🌐 Web UI: http://localhost:2009
+# 📚 API Docs: http://localhost:8000/docs
+# ✅ Health Check: curl http://localhost:8000/health
 
-# Note: API port 2009 is intentional, chosen to reflect Bitcoin's first year (2009).
+# Note: UI port 2009 is intentional, chosen to reflect Bitcoin's first year (2009).
 ```
 
 ### Local Development
@@ -97,11 +97,11 @@ pip install -r requirements.txt
 
 # 2. Start API server
 python flow_api.py
-# API runs on http://localhost:2009
+# API runs on http://localhost:8000
 
 # 3. Serve Web UI (separate terminal)
-cd web && python -m http.server 8081
-# Web UI on http://localhost:8081
+cd web && python -m http.server 2009
+# Web UI on http://localhost:2009
 ```
 
 **That's it!** Search for any stock ticker (e.g., AAPL, MSFT, TSLA) in the Web UI to see real-time analysis.
@@ -285,7 +285,7 @@ All strategies are displayed in the Web UI with color-coded cards (green for LON
 │  │   Nginx      │  │  FastAPI     │  │  Ollama    │ │
 │  │   (Web)      │  │  (API)       │  │  (AI)      │ │
 │  │              │  │              │  │            │ │
-│  │ Port: 8081   │  │ Port: 2009   │  │Port: 11434 │ │
+│  │ Port: 2009   │  │ Port: 8000   │  │Port: 11434 │ │
 │  │              │  │              │  │            │ │
 │  │ Serves:      │  │ Provides:    │  │ Runs:      │ │
 │  │ • HTML/CSS/JS│  │ • REST API   │  │ • LLM      │ │
@@ -367,16 +367,16 @@ Tuesday 9:31 AM → Market opens: cache expires (old data from before open)
 
 ```bash
 # View cache statistics and performance metrics
-curl http://localhost:2009/api/cache/stats
+curl http://localhost:8000/api/cache/stats
 
 # Clear cache for specific symbol
-curl -X DELETE http://localhost:2009/api/cache/AAPL
+curl -X DELETE http://localhost:8000/api/cache/AAPL
 
 # Remove all expired entries
-curl -X DELETE http://localhost:2009/api/cache/expired
+curl -X DELETE http://localhost:8000/api/cache/expired
 
 # Flush entire cache
-curl -X POST http://localhost:2009/api/cache-flush
+curl -X POST http://localhost:8000/api/cache-flush
 ```
 
 **Sample Statistics Response:**
@@ -537,25 +537,25 @@ See `requirements.txt` and `dev-requirements.txt` for full list.
 **With Docker (Recommended):**
 ```bash
 docker compose up -d
-# Open browser to http://localhost:8081
+# Open browser to http://localhost:2009
 ```
 
 **Locally:**
 ```bash
 # Terminal 1: Start API server
 python flow_api.py
-# Runs on http://localhost:2009
+# Runs on http://localhost:8000
 
 # Terminal 2: Serve web UI
-cd web && python -m http.server 8081
-# Open http://localhost:8081 in browser
+cd web && python -m http.server 2009
+# Open http://localhost:2009 in browser
 ```
 
 **Remote Deployment:**
 ```bash
 # After SSH to remote server
-# Web UI: http://192.168.1.248:8081
-# API Docs: http://192.168.1.248:2009/docs
+# Web UI: http://192.168.1.248:2009
+# API Docs: http://192.168.1.248:8000/docs
 ```
 
 ### Using the Web Dashboard
@@ -601,7 +601,7 @@ web/
 **Change API Base URL:**
 Edit `web/config.js`:
 ```javascript
-const API_BASE_URL = 'http://192.168.1.248:2009'; // Change to your API server
+const API_BASE_URL = 'http://192.168.1.248:8000'; // Change to your API server
 ```
 
 **Styling:**
@@ -659,15 +659,15 @@ docker compose exec app python flow.py --host http://ollama:11434 AAPL get_ai_fu
 **Locally:**
 ```bash
 python flow_api.py
-# API: http://localhost:2009
-# Docs: http://localhost:2009/docs
+# API: http://localhost:8000
+# Docs: http://localhost:8000/docs
 ```
 
 **With Docker:**
 ```bash
 docker compose up -d
-# API: http://localhost:2009
-# Docs: http://localhost:2009/docs
+# API: http://localhost:8000
+# Docs: http://localhost:8000/docs
 ```
 
 ### API Endpoints
@@ -713,16 +713,16 @@ Caching applies to both data endpoints and AI endpoints. AI caching includes an 
 
 ```bash
 # Get fundamentals
-curl http://localhost:2009/api/fundamentals/AAPL
+curl http://localhost:8000/api/fundamentals/AAPL
 
 # Get AI fundamental analysis
-curl http://localhost:2009/api/ai/fundamental-analysis/AAPL
+curl http://localhost:8000/api/ai/fundamental-analysis/AAPL
 
 # Get news sentiment
-curl http://localhost:2009/api/ai/news-sentiment/CHTR
+curl http://localhost:8000/api/ai/news-sentiment/CHTR
 
 # Interactive API documentation
-open http://localhost:2009/docs
+open http://localhost:8000/docs
 ```
 
 ## Docker Deployment
@@ -756,7 +756,7 @@ Automated deployment script for remote servers:
 2. Clone repository
 3. Run `docker compose up -d --build`
 4. Pull model: `docker compose exec ollama ollama pull huihui_ai/llama3.2-abliterate:3b`
-5. Verify: `curl http://localhost:2009/health`
+5. Verify: `curl http://localhost:8000/health`
 
 Notes:
 - The deploy script forces rebuild (`up -d --build`) to ensure new code is included in the app image.
