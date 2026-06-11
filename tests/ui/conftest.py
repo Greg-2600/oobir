@@ -163,6 +163,10 @@ def browser(request):
                 )
                 pytest.skip(_startup_failure_reason["firefox"])
         else:
+            firefox_binary = os.getenv("FIREFOX_BINARY", "").strip()
+            if firefox_binary:
+                options.binary_location = firefox_binary
+
             try:
                 driver = webdriver.Firefox(
                     service=FirefoxService(GeckoDriverManager().install()),

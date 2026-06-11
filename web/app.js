@@ -1175,7 +1175,9 @@ function initializeResultsSectionNav() {
             triggerDeferredSectionLoader(targetId);
             const target = document.getElementById(targetId);
             if (!target) return;
-            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            const scroller = document.scrollingElement || document.documentElement || document.body;
+            const top = target.getBoundingClientRect().top + window.scrollY - 120;
+            scroller.scrollTo({ top, behavior: 'auto' });
             setActiveChip(targetId);
         });
     });

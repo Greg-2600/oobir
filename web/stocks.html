@@ -187,6 +187,7 @@
                         <a href="index.html">Stock Screen</a>
                         <a href="screener.html">Fundamentals</a>
                         <a href="markets.html">Markets</a>
+                        <a href="stocks.html" class="active">AI Picks</a>
                         <a href="crypto.html">Crypto</a>
                         <a href="metals.html">Metals</a>
                         <a href="commodities.html">Commodities</a>
@@ -205,7 +206,9 @@
         </div>
         <script src="config.js"></script>
         <script>
-        const API_BASE_URL = typeof CONFIG !== 'undefined' ? CONFIG.API_BASE_URL : 'http://localhost:8000';
+        const API_BASE_URL = (typeof window !== 'undefined' && window.OOBIR_API_BASE)
+            ? window.OOBIR_API_BASE
+            : window.location.origin;
 
         // Escape HTML to prevent XSS
         function escapeHtml(text) {

@@ -6,3 +6,5 @@
 if (!window.OOBIR_API_BASE) {
     window.OOBIR_API_BASE = window.location.origin;
 }
+window.CONFIG = window.CONFIG || {};
+window.CONFIG.API_BASE_URL = window.OOBIR_API_BASE;
