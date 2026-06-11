@@ -136,7 +136,31 @@
         .trend-badge.down { background: #fef2f2; color: #991b1b; border: 1px solid rgba(153,27,27,0.2); }
         .trend-badge.flat { background: #f8fafc; color: #475569; border: 1px solid rgba(148,163,184,0.3); }
 
-        .mini-chart { height: 92px; border-radius: 10px; background: radial-gradient(circle at 20% 20%, #111827, #0b1220); display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-size: 0.9em; border: 1px solid #1f2937; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }
+        .mini-chart {
+            height: 140px;
+            border-radius: 16px;
+            background: radial-gradient(circle at 25% 25%, rgba(255,255,255,0.08), rgba(15,23,42,0.06) 55%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #cbd5e1;
+            font-size: 0.9em;
+            border: 1px solid rgba(148,163,184,0.18);
+            box-shadow: inset 0 2px 10px rgba(15,23,42,0.18);
+            position: relative;
+            overflow: hidden;
+            padding: 12px;
+        }
+
+        .chart-container-inner {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 2px;
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
 
         @media (max-width: 768px) {
             .crypto-grid { grid-template-columns: 1fr; }
@@ -436,75 +460,124 @@
             if (ticker) window.location.href = 'index.html?ticker=' + encodeURIComponent(ticker);
         });
 
+        function calculateSMA(prices, period) {
+            const result = new Array(prices.length).fill(null);
+            for (let i = period - 1; i < prices.length; i++) {
+                let sum = 0;
+                for (let j = 0; j < period; j++) {
+                    sum += prices[i - j].Close;
+                }
+                result[i] = sum / period;
+            }
+            return result;
+        }
+
+        function calculateEMA(values, period) {
+            const ema = new Array(values.length).fill(null);
+            const multiplier = 2 / (period + 1);
+            for (let i = 0; i < values.length; i++) {
+                if (values[i] === null || values[i] === undefined) {
+                    ema[i] = null;
+                    continue;
+                }
+                if (i === 0 || ema[i - 1] === null) {
+                    ema[i] = values[i];
+                } else {
+                    ema[i] = (values[i] - ema[i - 1]) * multiplier + ema[i - 1];
+                }
+            }
+            return ema;
+        }
+
+        function calculateBollingerBands(prices, period, stdDevMultiplier) {
+            const sma = calculateSMA(prices, period);
+            const upper = new Array(prices.length).fill(null);
+            const lower = new Array(prices.length).fill(null);
+            for (let i = period - 1; i < prices.length; i++) {
+                if (sma[i] === null) continue;
+                let sum = 0;
+                for (let j = 0; j < period; j++) {
+                    sum += Math.pow(prices[i - j].Close - sma[i], 2);
+                }
+                const stdDev = Math.sqrt(sum / period);
+                upper[i] = sma[i] + stdDevMultiplier * stdDev;
+                lower[i] = sma[i] - stdDevMultiplier * stdDev;
+            }
+            return { upper, lower, middle: sma };
+        }
+
         function drawCandles(container, data) {
             container.innerHTML = '';
             if (!data || data.length === 0) { container.textContent = 'No data'; return; }
 
             const series = data.map(pt => ({
-                open:  Number(pt.Open  ?? pt.open  ?? pt.o ?? NaN),
-                high:  Number(pt.High  ?? pt.high  ?? pt.h ?? NaN),
-                low:   Number(pt.Low   ?? pt.low   ?? pt.l ?? NaN),
-                close: Number(pt.Close ?? pt.close ?? pt.c ?? NaN),
-            })).filter(p => !isNaN(p.open) && !isNaN(p.high) && !isNaN(p.low) && !isNaN(p.close));
+                Open:  Number(pt.Open  ?? pt.open  ?? pt.o ?? NaN),
+                High:  Number(pt.High  ?? pt.high  ?? pt.h ?? NaN),
+                Low:   Number(pt.Low   ?? pt.low   ?? pt.l ?? NaN),
+                Close: Number(pt.Close ?? pt.close ?? pt.c ?? NaN),
+            })).filter(p => !isNaN(p.Open) && !isNaN(p.High) && !isNaN(p.Low) && !isNaN(p.Close));
             if (series.length === 0) { container.textContent = 'No data'; return; }
 
-            const w = container.clientWidth || 300;
-            const h = container.clientHeight || 80;
-            const padding = 6;
+            const sma20 = calculateSMA(series, 20);
+            const ema12 = calculateEMA(series.map(p => p.Close), 12);
+            const { upper: bbUpper, lower: bbLower } = calculateBollingerBands(series, 20, 2);
 
-            const allPrices = series.flatMap(p => [p.high, p.low]);
-            const minPrice = Math.min(...allPrices);
-            const maxPrice = Math.max(...allPrices);
+            const allLow = series.map(p => p.Low);
+            const allHigh = series.map(p => p.High);
+            const minPrice = Math.min(...allLow, ...bbLower.filter(v => v !== null));
+            const maxPrice = Math.max(...allHigh, ...bbUpper.filter(v => v !== null));
             const range = maxPrice - minPrice || 1;
 
-            const svgNS = 'http://www.w3.org/2000/svg';
-            const svg = document.createElementNS(svgNS, 'svg');
-            svg.setAttribute('width', '100%');
-            svg.setAttribute('height', h);
-            svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+            let chartHtml = '<div class="chart-container-inner">';
+            series.forEach((day, idx) => {
+                const open = day.Open;
+                const close = day.Close;
+                const high = day.High;
+                const low = day.Low;
 
-            const barWidth = Math.max(2, (w / series.length) * 0.6);
-            const step = w / Math.max(1, series.length - 1);
+                const highPercent = ((high - minPrice) / range) * 100;
+                const lowPercent = ((low - minPrice) / range) * 100;
+                const openPercent = ((open - minPrice) / range) * 100;
+                const closePercent = ((close - minPrice) / range) * 100;
 
-            series.forEach((p, i) => {
-                const x = i * step;
-                const yHigh  = padding + ((maxPrice - p.high)  / range) * (h - padding * 2);
-                const yLow   = padding + ((maxPrice - p.low)   / range) * (h - padding * 2);
-                const yOpen  = padding + ((maxPrice - p.open)  / range) * (h - padding * 2);
-                const yClose = padding + ((maxPrice - p.close) / range) * (h - padding * 2);
+                const sma20Percent = sma20[idx] != null ? ((sma20[idx] - minPrice) / range) * 100 : null;
+                const ema12Percent = ema12[idx] != null ? ((ema12[idx] - minPrice) / range) * 100 : null;
+                const bbUpperPercent = bbUpper[idx] != null ? ((bbUpper[idx] - minPrice) / range) * 100 : null;
+                const bbLowerPercent = bbLower[idx] != null ? ((bbLower[idx] - minPrice) / range) * 100 : null;
 
-                const wick = document.createElementNS(svgNS, 'line');
-                wick.setAttribute('x1', x);
-                wick.setAttribute('x2', x);
-                wick.setAttribute('y1', yHigh);
-                wick.setAttribute('y2', yLow);
-                wick.setAttribute('stroke', '#e5e7eb');
-                wick.setAttribute('stroke-width', Math.max(1, barWidth / 6));
-                wick.setAttribute('stroke-linecap', 'round');
-                svg.appendChild(wick);
+                const isUp = close >= open;
+                const color = isUp ? '#4ade80' : '#f87171';
+                const bodyTop = Math.min(openPercent, closePercent);
+                const bodyHeight = Math.max(0.8, Math.abs(closePercent - openPercent));
+                const wickTop = lowPercent;
+                const wickHeight = Math.max(1, highPercent - lowPercent);
 
-                const isUp = p.close >= p.open;
-                const body = document.createElementNS(svgNS, 'rect');
-                const bodyTop    = Math.min(yOpen, yClose);
-                const bodyHeight = Math.max(1, Math.abs(yClose - yOpen));
-                body.setAttribute('x', x - barWidth / 2);
-                body.setAttribute('y', bodyTop);
-                body.setAttribute('width', barWidth);
-                body.setAttribute('height', bodyHeight);
-                body.setAttribute('fill',   isUp ? '#4ade80' : '#f87171');
-                body.setAttribute('stroke', isUp ? '#22c55e' : '#ef4444');
-                body.setAttribute('stroke-width', '0.5');
-                svg.appendChild(body);
+                let indicatorHtml = '';
+                if (bbUpperPercent != null && bbLowerPercent != null) {
+                    const bandHeight = Math.max(2, bbUpperPercent - bbLowerPercent);
+                    indicatorHtml += `<div style="position:absolute; left:0; right:0; bottom:${bbLowerPercent}%; height:${bandHeight}%; background:rgba(59,130,246,0.08); border-top:0.5px solid rgba(59,130,246,0.2); border-bottom:0.5px solid rgba(59,130,246,0.2);"></div>`;
+                }
+                if (sma20Percent != null) {
+                    indicatorHtml += `<div style="position:absolute; left:0; right:0; bottom:${sma20Percent}%; height:1.5px; background:#3b82f6;"></div>`;
+                }
+                if (ema12Percent != null) {
+                    indicatorHtml += `<div style="position:absolute; left:0; right:0; bottom:${ema12Percent}%; height:1px; background:#f59e0b;"></div>`;
+                }
+
+                chartHtml += `<div style="flex:1; position:relative; height:100%;">
+                    ${indicatorHtml}
+                    <div style="position:absolute; left:50%; bottom:${wickTop}%; width:1px; height:${wickHeight}%; background:${color}; transform:translateX(-50%);"></div>
+                    <div style="position:absolute; left:12%; bottom:${bodyTop}%; width:76%; height:${bodyHeight}%; background:${color}; border:0.5px solid ${color}; border-radius:2px; opacity:0.9;"></div>
+                </div>`;
             });
-
-            const last = series[series.length - 1];
-            container.appendChild(svg);
+            chartHtml += '</div>';
+            container.innerHTML = chartHtml;
 
             const card = container.closest('.stock-card');
             if (card) {
                 const priceEl = card.querySelector('.stock-price');
                 if (priceEl) {
-                    const val = last.close;
+                    const val = series[series.length - 1].Close;
                     priceEl.textContent = val >= 1
                         ? '$' + val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                         : '$' + val.toPrecision(4);
