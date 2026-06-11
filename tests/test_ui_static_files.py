@@ -132,7 +132,6 @@ class TestSearchPageContracts(unittest.TestCase):
             "index.html",
             "screener.html",
             "markets.html",
-            "stocks.html",
             "crypto.html",
             "metals.html",
             "commodities.html",
@@ -149,7 +148,6 @@ ALL_NAV_PAGES = [
     "index.html",
     "screener.html",
     "markets.html",
-    "stocks.html",
     "crypto.html",
     "metals.html",
     "commodities.html",
@@ -191,10 +189,6 @@ class TestNavConsistency(unittest.TestCase):
     def test_markets_nav(self):
         """markets.html nav is consistent."""
         self._check_page("markets.html")
-
-    def test_stocks_nav(self):
-        """stocks.html nav is consistent."""
-        self._check_page("stocks.html")
 
     def test_crypto_nav(self):
         """crypto.html nav is consistent."""
