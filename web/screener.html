@@ -295,7 +295,7 @@
     <script src="config.js"></script>
     <script>
     (function () {
-        const API = window.OOBIR_API_BASE || 'http://localhost:8000';
+        const API = (window.CONFIG && window.CONFIG.API_BASE_URL) || window.OOBIR_API_BASE || window.location.origin || 'http://localhost:2009';
         let currentSort = 'market_cap';
         let currentDir = 'desc';
         let allData = [];
