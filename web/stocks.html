@@ -487,8 +487,7 @@
 
         // Load featured tickers from configuration/API with a safe fallback
         async function getFeaturedTickers() {
-            // Fallback list used if the configuration endpoint is unavailable or returns no data
-            const fallbackTickers = ['SI=F', 'CHTR', 'MSTY', 'IBIT', 'MSTR', 'FBTC', 'TSLA', 'PLTR'];
+            const fallbackTickers = [];
 
             try {
                 const response = await fetch(`${API_BASE_URL}/api/featured-tickers`);
@@ -518,9 +517,9 @@
                     }).filter(Boolean)
                 ));
 
-                return normalizedTickers.length > 0 ? normalizedTickers : fallbackTickers;
+                return normalizedTickers;
             } catch (error) {
-                console.error('Failed to load featured tickers from API, using fallback list.', error);
+                console.error('Failed to load featured tickers from API.', error);
                 return fallbackTickers;
             }
         }
@@ -530,19 +529,20 @@
             const container = document.getElementById('stocks-container');
             
             try {
-                // Priority/Featured tickers (always at top)
                 const featuredTickers = await getFeaturedTickers();
                 
                 // Create grid
                 container.innerHTML = '<div class="stocks-grid" id="stocks-grid"></div>';
                 const grid = document.getElementById('stocks-grid');
 
-                // Load featured stocks first
-                console.log('Loading featured stocks...');
-                for (const ticker of featuredTickers) {
-                    const data = await loadStockData(ticker);
-                    const card = createStockCard(ticker, data);
-                    grid.appendChild(card);
+                // Load priority tickers first, if the API provides any
+                if (featuredTickers && featuredTickers.length > 0) {
+                    console.log('Loading priority stocks...');
+                    for (const ticker of featuredTickers) {
+                        const data = await loadStockData(ticker);
+                        const card = createStockCard(ticker, data);
+                        grid.appendChild(card);
+                    }
                 }
 
                 // Fetch screener results for additional stocks

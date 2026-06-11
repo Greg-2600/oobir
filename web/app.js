@@ -1323,32 +1323,9 @@ async function exportResultsToPdf() {
 
 // Load all stocks for the unified page grid
 async function loadAllStocks() {
-    const FEATURED_TICKERS = ['BTC-USD', 'SI=F', 'CHTR', 'MSTY', 'IBIT', 'MSTR', 'FBTC', 'TSLA', 'PLTR', 'NVDA'];
-
     if (!stocksGrid) return;
 
     try {
-        // Load featured stocks
-        const featuredStocks = [];
-        for (const ticker of FEATURED_TICKERS) {
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/fundamentals/${encodeURIComponent(ticker)}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    // Add if it has currentPrice or regularMarketPrice (includes commodities)
-                    if (data.currentPrice || data.regularMarketPrice) {
-                        featuredStocks.push({
-                            ticker: ticker,
-                            ...data
-                        });
-                    }
-                }
-            } catch (err) {
-                console.error(`Error loading ${ticker}:`, err);
-            }
-        }
-
-        // Load AI-recommended stocks
         let aiStocks = [];
         try {
             const [undervaluedRes, growthRes] = await Promise.all([
@@ -1372,23 +1349,20 @@ async function loadAllStocks() {
                 allRecommendations.push(...tickers);
             }
 
-            // Remove featured tickers and get unique recommendations
             const uniqueRecommendations = Array.from(new Set(
                 allRecommendations.map(item => {
                     if (typeof item === 'string') return item.toUpperCase();
                     if (item.ticker) return item.ticker.toUpperCase();
                     if (item.symbol) return item.symbol.toUpperCase();
                     return null;
-                }).filter(t => t && !FEATURED_TICKERS.includes(t))
+                }).filter(Boolean)
             )).slice(0, 12);
 
-            // Load AI stock fundamentals
             for (const ticker of uniqueRecommendations) {
                 try {
                     const response = await fetch(`${API_BASE_URL}/api/fundamentals/${encodeURIComponent(ticker)}`);
                     if (response.ok) {
                         const data = await response.json();
-                        // Only add if it has current price (stock, not commodity)
                         if (data.currentPrice) {
                             aiStocks.push({
                                 ticker: ticker,
@@ -1404,10 +1378,8 @@ async function loadAllStocks() {
             console.error('Error loading AI recommendations:', err);
         }
 
-        renderMarketRadar([...featuredStocks, ...aiStocks]);
-
-        // Render stocks grid
-        renderStocksGrid([...featuredStocks, ...aiStocks]);
+        renderMarketRadar(aiStocks);
+        renderStocksGrid(aiStocks);
         hideError();
 
     } catch (err) {

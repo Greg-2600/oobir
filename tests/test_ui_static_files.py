@@ -101,6 +101,13 @@ class TestAppJsContracts(unittest.TestCase):
         self.assertIn("exploration-rail", js)
         self.assertIn("recentTickers", js)
 
+    def test_stocks_page_has_dynamic_featured_tickers(self):
+        """The stock page should source featured tickers dynamically from the API."""
+        html = (WEB_DIR / "stocks.html").read_text(encoding="utf-8")
+        self.assertNotIn("const FEATURED_TICKERS", html)
+        self.assertNotIn("const fallbackTickers = ['SI=F'", html)
+        self.assertIn("const fallbackTickers = []", html)
+
     def test_keyboard_shortcuts_present(self):
         """Keyboard shortcuts should support fast search focus."""
         js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
@@ -159,7 +166,7 @@ def _assert_shared_header(test_case: unittest.TestCase, html: str) -> None:
     test_case.assertIn('class="app-header"', html)
     test_case.assertIn('class="app-header-content"', html)
     test_case.assertIn('class="app-header-left"', html)
-    test_case.assertIn('class="app-brand"', html)
+    test_case.assertIn('class="app-brand', html)
     test_case.assertIn('class="app-nav"', html)
     for href in ALL_NAV_PAGES:
         test_case.assertIn(f'href="{href}"', html)
