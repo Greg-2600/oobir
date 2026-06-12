@@ -373,8 +373,8 @@
         async function loadStockData(ticker) {
             try {
                 const [fundamentalsRes, priceHistoryRes] = await Promise.all([
-                    fetch(`${API_BASE_URL}/api/fundamentals/${ticker}`),
-                    fetch(`${API_BASE_URL}/api/price-history/${ticker}?days=30`)
+                    fetch(`${API_BASE_URL}/api/fundamentals/${encodeURIComponent(ticker)}`),
+                    fetch(`${API_BASE_URL}/api/price-history/${encodeURIComponent(ticker)}?days=30`)
                 ]);
 
                 const fundamentals = fundamentalsRes.ok ? await fundamentalsRes.json() : {};

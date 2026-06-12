@@ -3725,7 +3725,7 @@ async function loadAIBuys() {
         // Fetch prices and dividend info for each ticker
         tickers.forEach(async (ticker) => {
             try {
-                const priceResponse = await fetch(`${API_BASE_URL}/api/fundamentals/${ticker}`);
+                const priceResponse = await fetch(`${API_BASE_URL}/api/fundamentals/${encodeURIComponent(ticker)}`);
                 if (priceResponse.ok) {
                     const priceData = await priceResponse.json();
                     const price = priceData.currentPrice || priceData.current_price || priceData.regularMarketPrice;
