@@ -8,3 +8,7 @@ env/
 cache.db
 historical_data/
 node_modules/
+
+# ML model artifacts
+models/
+*.joblib

@@ -3,22 +3,25 @@
 No authentication; suitable for internal networks only.
 """
 
+import collections
 import json
 import logging
-import os
 import math
-from datetime import date, datetime
+import os
 from contextlib import asynccontextmanager
+from datetime import date, datetime
 
+import numpy as np
+import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
-import pandas as pd
-import numpy as np
-import flow
+
 import db  # Database caching layer
 import db_timescale
+import flow
+import ml
 
 
 # Helper to convert non-JSON-serializable objects to strings
@@ -919,6 +922,275 @@ def get_fundamentals(symbol: str):
         return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error fetching fundamentals for %s: %s", symbol, str(exc))
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# ── ML Prediction Endpoints ─────────────────────────────────────────────────
+# Pure scikit-learn inference -- no LLM/Ollama calls at request time.
+
+ML_HISTORY_LIMIT = 2000
+ML_HISTORY_DAYS = 8 * 365
+
+# Explore retrains a model per request; cache identical configurations in
+# memory so repeated runs and preset toggles are instant. Bounded FIFO.
+_ML_EXPLORE_CACHE: "collections.OrderedDict[str, dict]" = collections.OrderedDict()
+_ML_EXPLORE_CACHE_MAX = 128
+
+
+def _explore_cache_get(key: str):
+    payload = _ML_EXPLORE_CACHE.get(key)
+    if payload is None:
+        return None
+    _ML_EXPLORE_CACHE.move_to_end(key)
+    return payload
+
+
+def _explore_cache_put(key: str, payload: dict):
+    _ML_EXPLORE_CACHE[key] = payload
+    _ML_EXPLORE_CACHE.move_to_end(key)
+    while len(_ML_EXPLORE_CACHE) > _ML_EXPLORE_CACHE_MAX:
+        _ML_EXPLORE_CACHE.popitem(last=False)
+
+
+def get_ml_price_history_payload(symbol: str):
+    """Fetch a long price-history window for ML (unlike the 121-day UI trim).
+
+    Prefers stored TimescaleDB rows, then falls back to yfinance with a long
+    period so backtests and feature vectors have enough context. Cached under
+    the ``ml-price-history`` endpoint key.
+    """
+    cached = db.get_cached_data("ml-price-history", symbol)
+    if cached is not None:
+        return cached
+
+    payload = None
+    try:
+        conn = db_timescale.get_conn()
+        try:
+            db_rows = db_timescale.fetch_price_history(
+                conn, symbol, limit=ML_HISTORY_LIMIT, since_days=ML_HISTORY_DAYS
+            )
+        finally:
+            conn.close()
+        if db_rows:
+            payload = serialize_value({"data": db_rows})
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.warning("ML DB price-history lookup failed for %s: %s", symbol, str(exc))
+
+    if payload is None:
+        try:
+            import yfinance as yf
+
+            ticker = yf.Ticker(symbol)
+            history = ticker.history(period="5y")
+            payload = serialize_value(json.loads(history.to_json(orient="table")))
+        except Exception as exc:  # pylint: disable=broad-except
+            logger.warning("ML yfinance history failed for %s: %s", symbol, str(exc))
+            return None
+
+    if payload is not None:
+        db.set_cached_data("ml-price-history", payload, symbol)
+    return payload
+
+
+def _ml_price_frame(symbol: str):
+    """Return an ML-ready OHLCV DataFrame for a symbol or raise HTTPException."""
+    payload = get_ml_price_history_payload(symbol)
+    frame = ml.dataset.payload_to_frame(payload)
+    if frame is None or len(frame) < ml.config.MIN_HISTORY:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Insufficient history for {symbol}; need at least "
+            f"{ml.config.MIN_HISTORY} rows",
+        )
+    return frame
+
+
+def _require_predictor():
+    try:
+        return ml.model.Predictor.load()
+    except FileNotFoundError as exc:  # pylint: disable=broad-except
+        raise HTTPException(
+            status_code=503,
+            detail="ML model not trained yet. Run `python -m ml train`.",
+        ) from exc
+
+
+@app.get("/api/ml/options")
+def ml_options():
+    """Return selectable model families, feature groups, and default knobs."""
+    return JSONResponse(
+        content={
+            "models": ml.explore.available_models(),
+            "feature_groups": ml.explore.available_feature_groups(),
+            "defaults": ml.explore.default_knobs(),
+            "bounds": {
+                "horizon": [ml.explore.HORIZON_MIN, ml.explore.HORIZON_MAX],
+                "margin": [ml.explore.MARGIN_MIN, ml.explore.MARGIN_MAX],
+                "folds": [ml.explore.FOLDS_MIN, ml.explore.FOLDS_MAX],
+                "max_train": [ml.explore.MAX_TRAIN_MIN, ml.explore.MAX_TRAIN_MAX],
+            },
+        }
+    )
+
+
+@app.get("/api/predict/{symbol}")
+def predict_symbol(symbol: str, horizon: int | None = None):
+    """Return a trained ML directional prediction for a symbol."""
+    symbol = symbol.upper()
+    logger.info("ML predict requested for %s", symbol)
+    try:
+        frame = _ml_price_frame(symbol)
+        predictor = _require_predictor()
+        vector, _ = ml.features.make_feature_vector(frame)
+        probs = predictor.predict_proba(vector)
+        direction = predictor.predict_direction(vector)
+        low = {k.lower(): v for k, v in probs.items()}
+        resolved_horizon = horizon if horizon is not None else ml.config.HORIZON_DAYS
+        return JSONResponse(
+            content={
+                "symbol": symbol,
+                "direction": direction,
+                "probability": round(max(probs.values()), 4),
+                "prob_up": round(low.get("up", 0.0), 4),
+                "prob_flat": round(low.get("flat", 0.0), 4),
+                "prob_down": round(low.get("down", 0.0), 4),
+                "horizon_days": resolved_horizon,
+                "confidence": predictor.confidence(
+                    low.get("up", 0.0), low.get("down", 0.0), low.get("flat", 0.0)
+                ),
+                "model_version": predictor.version,
+                "trained_on": predictor.trained_on,
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.error("ML predict error for %s: %s", symbol, str(exc))
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/predict/{symbol}/backtest")
+def predict_backtest(symbol: str, horizon: int | None = None):
+    """Run a walk-forward backtest for a single symbol and report metrics.
+
+    Backtests refit several models and are comparatively expensive, so results
+    are cached per (symbol, horizon) under the ``ml-backtest`` endpoint key.
+    """
+    symbol = symbol.upper()
+    resolved = horizon if horizon is not None else ml.config.HORIZON_DAYS
+    cache_key = f"{symbol}:{resolved}"
+    cached = db.get_cached_data("ml-backtest", cache_key)
+    if cached is not None:
+        return JSONResponse(content=cached)
+
+    logger.info("ML backtest requested for %s (horizon=%s)", symbol, resolved)
+    try:
+        frame = _ml_price_frame(symbol)
+        df = ml.labels.build_labelled_frame(frame, horizon)
+        metrics = ml.backtest.run_backtest(df, horizon=horizon)
+        metrics["symbol"] = symbol
+        try:
+            db.set_cached_data("ml-backtest", metrics, cache_key)
+        except Exception as exc:  # pylint: disable=broad-except
+            logger.warning("Failed to cache ML backtest for %s: %s", symbol, exc)
+        return JSONResponse(content=metrics)
+    except HTTPException:
+        raise
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.error("ML backtest error for %s: %s", symbol, str(exc))
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/predict/{symbol}/explore")
+def predict_explore(
+    symbol: str,
+    model_name: str = "hist_gbm",
+    horizon: int = 5,
+    margin: float = 0.0,
+    feature_groups: str = "",
+    folds: int = 3,
+    max_train: int = 200,
+):
+    """Run an interactive model-lab experiment for a symbol from UI knobs.
+
+    Trains a fresh model for the requested configuration and returns the live
+    prediction, per-model feature drivers, class balance, and a walk-forward
+    backtest -- all pure scikit-learn.
+    """
+    symbol = symbol.upper()
+    logger.info(
+        "ML explore for %s (model=%s horizon=%s margin=%s groups=%s)",
+        symbol,
+        model_name,
+        horizon,
+        margin,
+        feature_groups or "all",
+    )
+    cache_key = "|".join(
+        [
+            symbol,
+            str(model_name),
+            str(horizon),
+            str(margin),
+            str(feature_groups),
+            str(folds),
+            str(max_train),
+        ]
+    )
+    cached = _explore_cache_get(cache_key)
+    if cached is not None:
+        return JSONResponse(content=cached)
+    try:
+        payload = get_ml_price_history_payload(symbol)
+        frame = ml.dataset.payload_to_frame(payload)
+        if frame is None or len(frame) < ml.config.MIN_HISTORY:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Insufficient history for {symbol}; need at least "
+                f"{ml.config.MIN_HISTORY} rows",
+            )
+        knobs = {
+            "model_name": model_name,
+            "horizon": horizon,
+            "margin": margin,
+            "feature_groups": [g for g in feature_groups.split(",") if g],
+            "folds": folds,
+            "max_train": max_train,
+        }
+        result = ml.explore.explore(frame, knobs)
+        result["symbol"] = symbol
+        result["cached"] = False
+        _explore_cache_put(cache_key, result)
+        return JSONResponse(content=result)
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.error("ML explore error for %s: %s", symbol, str(exc))
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/predict/{symbol}/features")
+def predict_features(symbol: str, top_n: int = 5):
+    """Return the top model feature contributions for a symbol."""
+    symbol = symbol.upper()
+    logger.info("ML features requested for %s", symbol)
+    try:
+        _ml_price_frame(symbol)
+        predictor = _require_predictor()
+        return JSONResponse(
+            content={
+                "symbol": symbol,
+                "features": ml.model.Predictor.feature_importance(predictor, top_n),
+                "model_version": predictor.version,
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.error("ML features error for %s: %s", symbol, str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Iterable, Tuple
 
 import psycopg2
@@ -49,14 +49,27 @@ def fetch_price_history(
     conn,
     ticker: str,
     limit: int | None = None,
+    since_days: int | None = None,
 ) -> list[dict]:
+    """Fetch price history for a ticker, newest rows first.
+
+    ``since_days`` bounds the query by date, which lets TimescaleDB exclude
+    chunks and avoids a very expensive planner pass on hypertables with many
+    chunks.
+    """
     sql = """
         SELECT date, open, high, low, close, volume, dividends, stock_splits
         FROM price_history
         WHERE ticker = %s
-        ORDER BY date DESC
     """
     params = [ticker]
+    if since_days is not None:
+        # Pass a concrete timestamp (not make_interval) so TimescaleDB can
+        # prune chunks and avoid a multi-second planner pass.
+        cutoff = datetime.now(timezone.utc) - timedelta(days=int(since_days))
+        sql += " AND date >= %s"
+        params.append(cutoff)
+    sql += " ORDER BY date DESC"
     if limit is not None:
         sql += " LIMIT %s"
         params.append(limit)

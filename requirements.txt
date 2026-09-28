@@ -5,6 +5,9 @@ yfinance>=1.1.0
 pandas>=3.0.0
 numpy>=2.4.0
 
+# Machine learning (prediction models and backtesting)
+scikit-learn>=1.4.0
+
 # HTTP requests and utilities
 requests>=2.32.0
 python-dateutil>=2.9.0
