@@ -4,9 +4,16 @@
   "version": "1.0.0",
   "description": "OOBIR frontend lint tooling",
   "scripts": {
-    "lint:js": "eslint web/*.js"
+    "lint:js": "eslint web/*.js",
+    "build:js": "esbuild web/app.js --bundle --minify --outfile=web/dist/app.min.js",
+    "build:js:dev": "esbuild web/app.js --bundle --outfile=web/dist/app.min.js",
+    "build:predictions": "esbuild web/predictions.js --bundle --minify --outfile=web/dist/predictions.min.js",
+    "build:predictions:dev": "esbuild web/predictions.js --bundle --outfile=web/dist/predictions.min.js",
+    "build": "npm run build:js && npm run build:predictions",
+    "build:dev": "npm run build:js:dev && npm run build:predictions:dev"
   },
   "devDependencies": {
+    "esbuild": "^0.24.0",
     "eslint": "^9.28.0",
     "globals": "^15.13.0"
   }

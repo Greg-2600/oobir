@@ -15,7 +15,7 @@
 **OOBIR** is a production-ready **REST API-first stock analysis platform** powered by artificial intelligence and built with modern cloud-native architecture. Developed in **Python** with **FastAPI**, containerized with **Docker**, and enhanced by **Ollama LLM**, OOBIR delivers comprehensive stock market intelligence through both **fundamental** and **technical analysis** approaches.
 
 **Key Differentiators:**
-- 🔌 **REST API First**: 25 production-ready endpoints (13 data + 10 AI + 1 strategy + 2 health) with auto-generated OpenAPI docs
+- 🔌 **REST API First**: 30 production-ready endpoints including data, AI analysis, trading strategy, and ML prediction routes with auto-generated OpenAPI docs
 - 🤖 **AI-Powered**: Local Ollama LLM (Llama 3.2) for privacy-preserving intelligent analysis
 - ☁️ **Cloud-Native**: Docker containerization for deployment anywhere (AWS, Azure, GCP, on-premises)
 - 🐍 **Python-Driven**: Modern Python 3.11+ with type hints, async support, and clean architecture
@@ -27,6 +27,7 @@
 - [Quick Start](#-quick-start-2-minutes)
 - [Bootstrapping Historical Data](#bootstrapping-historical-data)
 - [Key Features](#-key-features)
+- [Machine Learning Predictions](#machine-learning-predictions)
 - [REST API](#-rest-api)
 - [Testing](#testing)
 - [Troubleshooting](#troubleshooting)
@@ -38,6 +39,7 @@
 | **Backend** | Python 3.11+ | Core business logic and data processing |
 | **REST API** | FastAPI | High-performance async API endpoints |
 | **AI/LLM** | Ollama (Llama 3.2) | Local, privacy-preserving AI analysis |
+| **ML** | scikit-learn | Gradient-boosted price-direction model + backtesting |
 | **Frontend** | HTML5/CSS3/JavaScript | Interactive Web dashboard |
 | **Containers** | Docker & Docker Compose | Cloud-native deployment |
 | **Data Source** | yfinance | Real-time market data |
@@ -48,7 +50,8 @@
 - **📈 Technical Analysis**: Candlestick charts, SMA (20/50), RSI, MACD, Bollinger Bands, volume analysis
 - **💼 Trading Strategy**: AI-generated entry/exit targets, stop loss, risk/reward ratios, timeframe recommendations
 - **🤖 AI-Powered Insights**: LLM-generated recommendations, sentiment analysis, pattern recognition
-- **🌐 REST API**: 25 production-ready endpoints with OpenAPI documentation
+- **🧠 ML Forecasts**: scikit-learn price-direction model with interactive AI Predictions lab
+- **🌐 REST API**: 30 production-ready endpoints with OpenAPI documentation
 - **☁️ Cloud-Native**: Docker containerization for any cloud (AWS, Azure, GCP) or on-premises
 
 
@@ -168,16 +171,28 @@ docker compose exec daily-sync python scripts/daily_sync.py --fundamentals-only
   - ✓ **Smart Analyst Targets**: Visual arrows (↑↓→) showing upside/downside potential vs current price
   - ✓ **Option Chain Summary**: Simplified call/put analysis with In-The-Money, Volume, Open Interest metrics
   - ✓ **Technical Signal Cards**: Visual bars for RSI, Stochastic, ADX with color-coded signals (Overbought/Oversold/Neutral)
-  - ✓ **Hover Tooltips**: Non-technical explanations for every metric (P/E ratio, RSI, Bollinger Bands, etc.)
+  - ✓ **Hover Tooltips Everywhere**: Non-technical explanations for every metric — fundamentals, technical indicators, section nav chips, ML Model Lab controls, and result cards. Just hover over `?` circles or any labeled element for plain-English explanations.
+
+- **Dark Mode**: Toggle between light and dark themes with system preference detection and localStorage persistence. Dark theme features slate-blue tones (`bg: rgb(15,23,42)`, header `rgb(30,41,59)`).
+
+- **Custom Favicon**: SVG favicon (`favicon.svg`) with blue rounded rectangle and "oo" monogram, matching the brand across all 10 HTML pages.
 
 ### 2. Comprehensive REST API
-- **24 production endpoints**: 13 data + 10 AI + 1 strategy + 2 health checks
+- **30 production endpoints** spanning data, AI analysis, trading strategy, ML prediction, caching, and health checks
 - **Auto-generated documentation** with Swagger UI
 - **CORS enabled** for web applications
 - **Health monitoring** for app and AI services
 - **Error handling** with meaningful HTTP status codes
 
-### 3. AI-Powered Analysis & Trading Strategy
+### 3. Machine Learning Price-Direction Lab
+- **Pure scikit-learn** directional model — no LLM in the request path
+- **Interactive Model Lab** (`web/predictions.html`) with live-tunable model, horizon, margin, feature groups, folds, and train cap
+- **Four estimator families**: gradient boosting, random forest, extra trees, logistic regression
+- **Walk-forward backtesting** with honest metrics (accuracy, balanced accuracy, per-class F1, majority baseline)
+- **Feature drivers** via permutation importance, plus label/class balance
+- **Date-bounded TimescaleDB history fetch** and in-process result caching for responsiveness
+
+### 4. AI-Powered Analysis & Trading Strategy
 - **Fundamental analysis**: Company metrics, growth trends, financial health
 - **Technical analysis**: Chart patterns, indicator interpretation, trend identification
 - **Balance sheet analysis**: Asset quality, debt levels, liquidity
@@ -186,21 +201,21 @@ docker compose exec daily-sync python scripts/daily_sync.py --fundamentals-only
 - **Action recommendations**: Buy/sell/hold with detailed reasoning
 - **Trading strategy**: Entry/exit targets, stop loss, risk/reward ratios, timeframe—all intelligently calculated from technical indicators and analyst targets
 
-### 4. Intelligent Caching Layer
+### 5. Intelligent Caching Layer
 - **Market-aware SQLite caching** for all data and AI endpoints
 - **Smart expiration logic** respecting US stock market hours (9:30 AM - 4:00 PM ET)
 - **Cache management APIs** for stats, selective invalidation, and full flush
 - **Performance optimization** reducing external API calls and LLM inference by up to 10x
 - **Transparent operation** with automatic cache hit/miss handling—no configuration needed
 
-### 5. Cloud-Native Architecture
+### 6. Cloud-Native Architecture
 - **Docker containerization** for consistent deployment
 - **Multi-container orchestration** with Docker Compose
 - **Service mesh** (Ollama + FastAPI + Nginx) with automatic health checks
 - **Horizontal scalability** via stateless design
 - **Environment parity** across dev, staging, production
 
-### 6. Dual Analysis Approach
+### 7. Dual Analysis Approach
 
 **Fundamental Analysis:**
 - P/E ratio, market cap, EPS, dividend yield
@@ -217,7 +232,7 @@ docker compose exec daily-sync python scripts/daily_sync.py --fundamentals-only
 - Trend: MACD with signal line
 - Volume analysis and patterns
 
-### 7. Intelligent Trading Strategy Generation
+### 8. Intelligent Trading Strategy Generation
 
 **Automatically Generated Entry/Exit Strategy:**
 - **Entry Targets**: Calculated from technical support levels and analyst targets
@@ -245,22 +260,21 @@ All strategies are displayed in the Web UI with color-coded cards (green for LON
 │  ┌──────────────┬──────────────┬──────────────────────────┐ │
 │  │  CLI Tool    │   REST API   │   Interactive Web UI     │ │
 │  │  (flow.py)   │ (FastAPI)    │   (HTML5/CSS3/JS)        │ │
-│  │              │ • 24 Endpoints│   • Candlestick Charts  │ │
+│  │              │ • 30 Endpoints│   • Candlestick Charts  │ │
 │  │              │ • OpenAPI Docs│   • Real-time Search    │ │
-│  │              │ • Health Checks│  • AI Analysis Buttons │ │
+│  │              │ • Health Checks│  • ML Model Lab        │ │
 │  └──────────────┴──────────────┴──────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────┐
 │                 BUSINESS LOGIC LAYER (Python)                │
-│  ┌─────────────────────────────┬───────────────────────────┐│
-│  │   Data Processing           │   AI Analysis Engine      ││
-│  │   • Fundamental metrics     │   • Technical patterns    ││
-│  │   • Technical indicators    │   • Sentiment analysis    ││
-│  │   • Price history           │   • LLM recommendations   ││
-│  │   • News aggregation        │   • Context synthesis     ││
-│  │   • Stock screening         │   • Report generation     ││
-│  └─────────────────────────────┴───────────────────────────┘│
+│  ┌──────────────────────┬──────────────────┬───────────────┐ │
+│  │   Data Processing    │  AI Analysis     │  ML Engine    │ │
+│  │   • Fundamental      │  • LLM prompts   │  • Features   │ │
+│  │   • Technical        │  • Sentiment     │  • Models     │ │
+│  │   • Price history    │  • Recommendations│ • Backtest   │ │
+│  │   • News/screening   │  • Report gen    │  • Explain    │ │
+│  └──────────────────────┴──────────────────┴───────────────┘ │
 └─────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────┐
@@ -480,6 +494,17 @@ Run cache tests: `pytest tests/test_cache_layer.py -v`
 - **Context-Aware Reasoning**: LLM synthesizes multiple data sources to provide nuanced, multi-perspective analysis
 
 
+### 🧠 Machine Learning Prediction Lab
+- **Scikit-Learn Directional Model**: Predicts UP / FLAT / DOWN forward return with no LLM in the request path
+- **Integrated into Stock Results**: Full Model Lab is embedded directly in the stock results page (no page navigation needed) — scroll to "AI Predictions" section chip
+- **Interactive Model Lab**: Tune model family, horizon, flat band, feature groups, folds, and training cap live from the AI Predictions page
+- **Four Estimator Families**: Histogram gradient boosting, random forest, extra trees, and logistic regression
+- **Walk-Forward Backtesting**: Honest out-of-sample metrics (accuracy, balanced accuracy, per-class F1, majority baseline)
+- **Explainability**: Permutation-importance feature drivers and training-set class balance per run
+- **Fast & Cached**: Date-bounded TimescaleDB history fetch plus in-process caching of identical configurations
+- **CLI Tooling**: `python -m ml train|predict|backtest` for reproducible offline experiments
+
+
 ### 📊 Data Intelligence Layer
 - **Multi-Source Financial Data**: Real-time and historical data across fundamentals, technicals, options, and analyst consensus
 - **Earnings Intelligence**: Calendar events, quarterly financials, and historical trends
@@ -493,8 +518,25 @@ Run cache tests: `pytest tests/test_cache_layer.py -v`
 - **Environment Parity**: Guaranteed consistency across development, staging, and production
 - **Scalability**: Stateless design supports horizontal scaling, load balancing, and orchestration (Kubernetes-compatible)
 
+### Code Quality & Linting
+
+OOBIR maintains strict code quality standards with multi-language linting:
+
+- **Ruff** (`flow.py`, `flow_api.py`): Import sorting (I001–I005), f-string consistency (F541), undefined names (F821), useless expressions (B018), implicit Optional types (RUF013). Configured to allow broad-except patterns (BLE001, S112, S110, EXE001) with `# noqa` comments.
+- **Black** (`flow.py`, `flow_api.py`): PEP 8 compliant code formatting
+- **ESLint** (`web/*.js`): 0 errors, 0 warnings — consistent JS across all web pages
+- **Pytest** (`tests/test_ui_static_files.py`): 32 static file contract tests including new `TestModelLabContracts` (6 tests) validating ML UI elements
+
+```bash
+# Run all linters
+ruff check flow.py flow_api.py
+black --check flow.py flow_api.py
+npx eslint web/*.js
+pytest tests/test_ui_static_files.py -v
+```
+
 ### 🚀 REST API & Platform Features
-- **24 Comprehensive Endpoints**: 2 health checks, 13 data endpoints, 9 AI analysis endpoints
+- **30 Comprehensive Endpoints**: data, AI analysis, trading strategy, ML prediction, screener, cache management, and health checks
 - **REST API with AutoDocs**: Full OpenAPI 3.0/Swagger documentation auto-generated by FastAPI
 - **Triple Interface Architecture**: Identical functionality via CLI, REST API, and Web UI without code duplication
 - **Health Monitoring**: Real-time service health checks for app and Ollama LLM with graceful fallbacks
@@ -520,6 +562,8 @@ pip install -r requirements.txt
 - yfinance: Stock data fetching
 - ollama: LLM integration
 - requests: HTTP requests
+- scikit-learn: ML price-direction models and walk-forward backtesting
+- pandas / numpy: Data processing and numerical computing
 
 **Frontend:**
 - HTML5, CSS3, vanilla JavaScript (no external dependencies)
@@ -590,10 +634,20 @@ cd web && python -m http.server 2009
 
 ```
 web/
-├── index.html      # Main HTML structure
-├── styles.css      # Responsive styling
-├── app.js          # Frontend logic and data visualization
-└── config.js       # API base URL configuration
+├── index.html        # Main stock analysis page
+├── stocks.html       # AI Picks
+├── screener.html     # Fundamental screener
+├── markets.html      # International market indexes
+├── search.html       # Search landing page
+├── crypto.html       # Crypto dashboard
+├── metals.html       # Metals dashboard
+├── commodities.html  # Commodities dashboard
+├── predictions.html  # AI Predictions / ML Model Lab
+├── predictions.js    # Model Lab frontend logic
+├── app.js            # Frontend logic and data visualization
+├── styles.css        # Responsive styling
+├── tooltip.css       # Tooltip styling
+└── config.js         # API base URL configuration
 ```
 
 ### Customizing the Web UI
@@ -702,6 +756,13 @@ docker compose up -d
 **Trading Strategy Endpoint:**
 - `GET /api/trading-strategy/{symbol}` - AI-driven trading strategy with entry/exit targets, stop loss, risk/reward ratio, and timeframe
 
+**Machine Learning Prediction Endpoints** (scikit-learn, no LLM in the request path):
+- `GET /api/predict/{symbol}?horizon=5` - Trained ML directional forecast (direction + up/flat/down probabilities)
+- `GET /api/predict/{symbol}/backtest?horizon=5` - Walk-forward backtest metrics for a single symbol
+- `GET /api/predict/{symbol}/features?top_n=5` - Top model feature contributions
+- `GET /api/predict/{symbol}/explore` - Interactive model-lab experiment (see knobs below)
+- `GET /api/ml/options` - Selectable models, feature groups, defaults, and bounds for the lab
+
 **Cache Management Endpoints:**
 - `GET /api/cache/stats` — Aggregate cache statistics (total, valid, expired, by endpoint)
 - `DELETE /api/cache/{symbol}` — Clear all cache entries for a symbol
@@ -714,16 +775,124 @@ Caching applies to both data endpoints and AI endpoints. AI caching includes an 
 ```bash
 # Get fundamentals
 curl http://localhost:2010/api/fundamentals/AAPL
-
 # Get AI fundamental analysis
 curl http://localhost:2010/api/ai/fundamental-analysis/AAPL
 
 # Get news sentiment
 curl http://localhost:2010/api/ai/news-sentiment/CHTR
 
+# Get ML directional prediction
+curl "http://localhost:2010/api/predict/AAPL?horizon=5"
+
 # Interactive API documentation
 open http://localhost:2010/docs
 ```
+
+## Machine Learning Predictions
+
+OOBIR ships a scikit-learn **price-direction model** plus an interactive **AI Predictions lab** (`web/predictions.html`) for experimenting with it. The model predicts the direction (UP / FLAT / DOWN) of the forward return over a configurable horizon using technical-indicator features. Crucially, **the ML endpoints run pure scikit-learn — no LLM/Ollama calls at request time**, keeping inference fast and deterministic.
+
+> 📖 **Deep dive:** see [`docs/ML_PREDICTIONS.md`](docs/ML_PREDICTIONS.md) for the full architecture, feature list, model registry, backtesting methodology, API reference, and performance notes.
+
+### How it works
+
+| Stage | Module | What it does |
+|-------|--------|--------------|
+| Features | `ml/features.py` | Builds 17 trailing technical features (returns, volatility, volume, SMA gaps, RSI, Bollinger %B, MACD). All windows end at row `t`, so there is **no look-ahead leakage**. |
+| Labels | `ml/labels.py` | Labels each row by the sign of `Close[t+h] / Close[t] - 1`; returns inside a symmetric `margin` band become FLAT. |
+| Models | `ml/model.py` | Selectable estimator families with versioned `.joblib` persistence and permutation-importance feature drivers. |
+| Backtest | `ml/backtest.py` | Walk-forward (expanding-train) validation reporting accuracy, **balanced accuracy**, per-class precision/recall/F1, and a majority-class baseline. |
+| Lab | `ml/explore.py` | Orchestrates a full experiment from UI knobs; clamps every parameter server-side. |
+
+### Feature groups
+
+The 17 features are organised into toggleable families so you can isolate signal:
+
+| Group | Features | Count |
+|-------|----------|-------|
+| `returns` | `ret_1`, `ret_5`, `ret_10`, `log_ret_1` | 4 |
+| `volatility` | `volatility_10`, `volatility_20`, `return_std_10` | 3 |
+| `volume` | `volume_zscore_20` | 1 |
+| `trend` | `SMA_20`, `SMA_50`, `close_sma20_gap`, `close_sma50_gap` | 4 |
+| `rsi` | `RSI_14` | 1 |
+| `bollinger` | `BB_percent_b` | 1 |
+| `macd` | `MACD`, `MACD_Signal`, `MACD_hist` | 3 |
+
+### Model families
+
+| Key | Label | Notes |
+|-----|-------|-------|
+| `hist_gbm` | Hist Gradient Boosting | Default workhorse; fast, handles missing values natively. |
+| `random_forest` | Random Forest | Bagged trees; robust, slower to fit. |
+| `extra_trees` | Extra Trees | Randomized splits; fast and high-variance. |
+| `logistic` | Logistic Regression | Linear baseline with feature scaling. |
+
+### Train the model (CLI)
+
+```bash
+# Build a dataset from the S&P universe + stored history, train, backtest, save
+python -m ml train --universe sp500 --save
+
+# Fetch missing tickers from yfinance instead of requiring stored history
+python -m ml train --size 20 --live --save
+
+# Or restrict to a smaller sample
+python -m ml train --size 20
+
+# Inspect a single ticker without an API call
+python -m ml predict --ticker AAPL
+python -m ml backtest --ticker AAPL
+```
+
+Artifacts are written to `models/` (gitignored). If `/api/predict/{symbol}` reports a 503, the model has not been trained yet — run `python -m ml train` and restart the API. The interactive **explore** endpoint trains on demand and does not require a saved artifact.
+
+### Configurability
+
+Key knobs can be set via environment variables (defaults in `ml/config.py`):
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `OOOBIR_ML_HORIZON` | `5` | Forward-return horizon in trading days |
+| `OOOBIR_ML_MARGIN` | `0.0` | Symmetric band around zero treated as "FLAT" |
+| `OOOBIR_ML_WINDOW` | `250` | Trailing window used per feature vector |
+| `OOOBIR_ML_MIN_HISTORY` | `120` | Minimum history rows for a usable prediction |
+| `OOOBIR_ML_MODEL_DIR` | `models/` | Where model artifacts live |
+| `OOOBIR_ML_BT_FOLDS` | `3` | Default walk-forward folds |
+| `OOOBIR_ML_BT_MAX_TRAIN` | `200` | Cap on each fold's training window |
+| `OOOBIR_ML_ENABLE` | off | Master switch for surfacing ML output broadly |
+
+### Interactive Model Lab
+
+The **AI Predictions** page (`web/predictions.html`) exposes a *Model Lab* panel where you can tune the experiment live — no retraining script required. Every run calls `GET /api/predict/{symbol}/explore` with these knobs:
+
+| Knob | Endpoint param | Range | Effect |
+|------|----------------|-------|--------|
+| Model family | `model_name` | `hist_gbm`, `random_forest`, `extra_trees`, `logistic` | Estimator used for both the live call and the backtest |
+| Forecast horizon | `horizon` | 1–60 | Forward-return window for the label |
+| Flat band | `margin` | 0–0.10 | Returns within ±band labelled FLAT (0 = pure up/down) |
+| Feature groups | `feature_groups` | comma list (e.g. `returns,trend,rsi`) | Which indicator families feed the model |
+| Backtest folds | `folds` | 2–10 | Walk-forward splits |
+| Train window cap | `max_train` | 60–2000 | Caps each fold's training rows (speed vs. memory) |
+
+The lab renders:
+
+- **Direction forecast** with up/flat/down probability bars and a confidence badge
+- **Projection chart** — candlesticks with a direction-tinted forecast band into the future
+- **Label / class balance** for the exact training set of the run
+- **Top feature drivers** (permutation importance) for the chosen model
+- **Walk-forward backtest** metrics (accuracy, baseline, balanced accuracy, per-class F1)
+- **ML vs. technical signals** — the model's call beside a heuristic RSI/MACD read
+
+One-click presets (**Baseline**, **Trend**, **Long-horizon**) are included. Identical configurations are cached in-process, so re-running a preset is near-instant. All of it is pure scikit-learn — the server clamps every knob to a safe range.
+
+### Performance notes
+
+- ML price history is fetched with a **date-bounded** TimescaleDB query so chunk pruning keeps the planner fast (avoids multi-second planning on hypertables with thousands of chunks).
+- Backtest folds cap the training window (`max_train`) to stay responsive on long series.
+- Explore results are cached by `(symbol, model, horizon, margin, feature_groups, folds, max_train)`.
+
+> Predictions are advisory and not investment advice. Market regimes change — the ML signal is intended to complement (not replace) the LLM analysis and your own judgment. Short-horizon directional accuracy is typically close to the majority-class baseline; the backtest endpoint reports `balanced_accuracy` and `beats_baseline` so you can judge the model honestly rather than relying on headline accuracy.
+
 
 ## Docker Deployment
 
@@ -819,10 +988,10 @@ Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model installed.
 ├───────────────────────────────────────────────────────────┤
 │   CLI Interface  │  REST API       │  Web UI              │
 │   (flow.py)      │  (flow_api.py)  │  (HTML5/CSS3/JS)     │
-│                  │  • 24 Endpoints │                      │
+│                  │  • 30 Endpoints │                      │
 │                  │  • OpenAPI Docs │  • Real-time search  │
 │                  │  • Health check │  • Charts & data     │
-│                  │                 │  • AI analysis btn   │
+│                  │                 │  • ML model lab      │
 ├───────────────────────────────────────────────────────────┤
 │          Business Logic Layer (flow.py - unified)         │
 ├───────────────────────────────────────────────────────────┤
@@ -832,6 +1001,10 @@ Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model installed.
 │   • Balance sheets        │   • Sentiment analysis         │
 │   • Income statements     │   • Recommendations            │
 │   • Technical indicators  │   • Full report generation     │
+├───────────────────────────────────────────────────────────┤
+│   ML Prediction (ml/)                                      │
+│   • Feature engineering   • Walk-forward backtesting       │
+│   • Estimator families     • Explainability & model lab    │
 ├───────────────────────────────────────────────────────────┤
 │      Intelligent Caching Layer (SQLite)                   │
 ├───────────────────────────────────────────────────────────┤
@@ -869,7 +1042,7 @@ Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model installed.
 │  • Handle user interactions              │
 │  • On-demand AI button loading           │
 ├─────────────────────────────────────────┤
-│    REST API (FastAPI) - 24 Endpoints     │
+│    REST API (FastAPI) - 30 Endpoints     │
 └─────────────────────────────────────────┘
 ```
 
@@ -923,6 +1096,7 @@ OOBIR employs a rigorous testing strategy across API, cache, and UI layers, with
 | Data Endpoints | Data retrieval, formatting, and endpoint responses |
 | AI Analysis Endpoints | AI analysis paths, prompts, and error handling |
 | Technical Indicators | Indicator calculations and integration hooks |
+| ML Prediction | Features, labels, models, backtest, explore orchestration, and prediction/options/explore endpoints |
 | Web UI Integration | Frontend-backend contracts, payload shape, and behavior |
 | Selenium UI | End-to-end browser flows and key user journeys |
 
@@ -943,7 +1117,7 @@ docker compose exec app pytest tests/ -v
 ```
 
 #### Test Quality Metrics
-- ✅ **25 API endpoints tested**: 13 data + 10 AI + 1 strategy + 2 health checks
+- ✅ **30 API endpoints covered**: data, AI analysis, trading strategy, ML prediction, and health checks
 - ✅ **100% endpoint coverage**: All REST endpoints fully tested
 - ✅ **Web UI integration validated**: Frontend-backend communication verified
 - ✅ **Success and error paths verified**: Both happy paths and error cases tested
@@ -998,8 +1172,8 @@ docker compose exec app pytest tests/ -v
 
 ### Test Coverage
 
-- ✅ **Comprehensive multi-layer test suite** (API, cache, integration, and Selenium UI)
-- ✅ All 24 API endpoints tested
+- ✅ **Comprehensive multi-layer test suite** (API, cache, ML, integration, and Selenium UI)
+- ✅ All 30 API endpoints covered, including ML prediction and model-lab routes
 - ✅ Web UI integration validated
 - ✅ Success and error paths verified
 - ✅ Proper mocking of external dependencies (Ollama, yfinance, SQLite cache)
@@ -1183,7 +1357,7 @@ For issues, questions, or contributions:
 
 ---
 
-**Last Updated**: March 2026  
-**Version**: 1.2.0  
+**Last Updated**: October 2026  
+**Version**: 1.3.0  
 **Status**: ✅ Production Ready  
 **Features**: AI Analysis • Market-Aware Caching • Technical Indicators • REST API • Cloud-Native

@@ -1,8 +1,8 @@
 version: '3.8'
 services:
-  ollama:
+  oobir_ollama:
     image: ollama/ollama:latest
-    container_name: ollama
+    container_name: oobir_ollama
     ports:
       # map container's 11434 to a different host port to avoid conflicts
       - "11436:11434"
@@ -45,13 +45,15 @@ services:
       - "query2.finance.yahoo.com:209.73.190.11"
       - "fc.yahoo.com:209.73.190.12"
     depends_on:
-      ollama:
+      oobir_ollama:
         condition: service_started
       postgres:
         condition: service_started
     environment:
       - OLLAMA_HOST=http://ollama:11434
       - OLLAMA_MODEL=huihui_ai/llama3.2-abliterate:3b
+      - OOBIR_API_KEYS=${OOBIR_API_KEYS:-dev-api-key-change-in-production}
+      - OOBIR_AUTH_ENABLED=false
       - PGHOST=postgres
       - PGPORT=5432
       - PGDATABASE=oobir

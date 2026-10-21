@@ -7,14 +7,14 @@ WORKDIR /home/app/oobir
 # Install system dependencies needed for some Python wheels
 # Note: cp trick works around BuildKit read-only /etc/resolv.conf
 RUN cp /etc/resolv.conf /tmp/resolv.conf.bak || true \
- && (echo "nameserver 8.8.8.8" | tee /etc/resolv.conf 2>/dev/null || true) \
- && apt-get update \
- && apt-get install -y --no-install-recommends \
+  && (echo "nameserver 8.8.8.8" | tee /etc/resolv.conf 2>/dev/null || true) \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     ca-certificates \
     git \
- && rm -rf /var/lib/apt/lists/*
+  && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install
 COPY requirements.txt /home/app/oobir/requirements.txt
@@ -27,7 +27,8 @@ RUN chown -R app:app /home/app/oobir
 
 USER app
 ENV PATH="/home/app/.local/bin:${PATH}"
-ENV OLLAMA_HOST=http://ollama:11434
+ENV OLLAMA_HOST=http://oobir_ollama:11434
+ENV OOBIR_API_KEYS=dev-api-key-change-in-production
 
 # Helper script location
 ENV APP_RUNNER=/home/app/oobir/run-tests.sh

@@ -6,20 +6,18 @@
         <title>OOBIR - Stock Analysis Platform</title>
         <link rel="stylesheet" href="styles.css">
         <link rel="stylesheet" href="tooltip.css">
+        <link rel="icon" href="favicon.svg" type="image/svg+xml">
         <style>
         .unified-page {
             min-height: 100vh;
-            background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
+            background: #f8fafc;
         }
 
-        .unified-header {
-            background: white;
-            border-bottom: 1px solid #e5e7eb;
-            padding: 20px 0;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        /* Override glassmorphism from styles.css with solid white */
+        .app-header {
+            background: white !important;
+            backdrop-filter: none !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
         }
 
         .unified-header-content {
@@ -33,22 +31,28 @@
         }
 
         .unified-logo {
-            font-size: 1.8em;
-            font-weight: 300;
-            letter-spacing: -1px;
+            font-size: 1.4em;
+            font-weight: 800;
+            letter-spacing: -0.5px;
             color: #1a73e8;
             cursor: pointer;
+            text-decoration: none;
+        }
+
+        .unified-logo span {
+            color: #ea4335;
         }
 
         .unified-search-bar {
             flex: 1;
-            max-width: 500px;
+            max-width: 480px;
         }
 
         .unified-nav {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 6px;
+            flex-wrap: wrap;
         }
 
         .unified-nav a {
@@ -56,10 +60,10 @@
             color: #374151;
             background: #f3f4f6;
             border: 1px solid #e5e7eb;
-            border-radius: 16px;
+            border-radius: 20px;
             padding: 6px 12px;
-            font-size: 0.82em;
-            font-weight: 600;
+            font-size: 0.78em;
+            font-weight: 500;
             transition: all 0.2s ease;
         }
 
@@ -68,19 +72,265 @@
             border-color: #cbd5e1;
         }
 
+        .unified-nav a.active {
+            background: #1a73e8;
+            color: white;
+            border-color: #1a73e8;
+        }
+
+        .theme-toggle {
+            background: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            border-radius: 20px;
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s ease;
+        }
+
+        .theme-toggle:hover {
+            background: #e5e7eb;
+        }
+
+        /* ML Prediction Card */
+        .ml-prediction-card {
+            margin-bottom: 20px;
+            border: 1px solid #e0e7ff;
+            background: linear-gradient(180deg, #f8faff 0%, #ffffff 100%);
+            border-radius: 16px;
+            box-shadow: 0 4px 18px rgba(79, 70, 229, 0.08);
+            overflow: hidden;
+        }
+        .ml-prediction-card-header {
+            padding: 14px 18px;
+            border-bottom: 1px solid #ede9fe;
+            font-weight: 800;
+            font-size: 0.95rem;
+            color: #3730a3;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .ml-prediction-card-body {
+            padding: 18px;
+        }
+
+        /* Model Lab knobs */
+        .lab-panel {
+            margin-bottom: 18px;
+        }
+        .lab-panel summary {
+            cursor: pointer;
+            list-style: none;
+            padding: 12px 16px;
+            font-weight: 800;
+            font-size: 0.9rem;
+            color: #3730a3;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+        }
+        .lab-panel summary::-webkit-details-marker { display: none; }
+        .lab-panel summary::after {
+            content: "▸"; margin-left: auto; transition: transform 0.18s ease;
+            color: #818cf8;
+        }
+        .lab-panel[open] summary::after { transform: rotate(90deg); }
+        .lab-body { padding: 4px 16px 16px; }
+        .lab-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 14px;
+        }
+        .lab-field label {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.75rem; font-weight: 700; color: #475569;
+            margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.03em;
+        }
+        .lab-tooltip {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #e0e7ff;
+            color: #4f46e5;
+            font-size: 0.65rem;
+            font-weight: 800;
+            cursor: help;
+            margin-left: 6px;
+            flex-shrink: 0;
+            position: relative;
+        }
+        .lab-tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 140%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1f2937;
+            color: #f3f4f6;
+            text-align: left;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            font-weight: 500;
+            white-space: normal;
+            width: 220px;
+            z-index: 1000;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+            pointer-events: none;
+            line-height: 1.4;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+        .lab-tooltip:hover::before {
+            content: '';
+            position: absolute;
+            bottom: 130%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: #1f2937;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        .lab-field .lab-value { color: #4f46e5; font-weight: 800; }
+        .lab-field select, .lab-field input[type="number"] {
+            width: 100%; border: 1px solid #d6deea; border-radius: 10px;
+            padding: 8px 10px; font-size: 0.85rem; background: #fff;
+            color: #1f2937; outline: none;
+        }
+        .lab-field select:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.12); }
+        input[type=range].ml-slider {
+            width: 100%; accent-color: #4f46e5; height: 24px; cursor: pointer;
+        }
+        .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+        .chip {
+            border: 1px solid #dbe2ea; background: #fff; color: #475569;
+            border-radius: 999px; padding: 5px 10px; font-size: 0.75rem;
+            font-weight: 700; cursor: pointer; transition: all 0.15s ease;
+        }
+        .chip.active {
+            background: #4f46e5; border-color: #4f46e5; color: #fff;
+            box-shadow: 0 4px 12px rgba(79,70,229,0.28);
+        }
+        .lab-actions {
+            display: flex; gap: 8px; align-items: center; margin-top: 14px;
+            flex-wrap: wrap;
+        }
+        .lab-btn {
+            border: 1px solid #c7d2fe; background: #eef2ff; color: #3730a3;
+            border-radius: 10px; padding: 8px 14px; font-size: 0.8rem;
+            font-weight: 700; cursor: pointer;
+        }
+        .lab-btn:hover { background: #e0e7ff; }
+        .lab-hint { font-size: 0.72rem; color: #94a3b8; margin-left: auto; }
+        .lab-model-desc { font-size: 0.7rem; color: #94a3b8; margin-top: 4px; }
+
+        /* ML Results Grid */
+        .ml-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 16px;
+        }
+        @media (max-width: 820px) { .ml-grid { grid-template-columns: 1fr; } }
+        .ml-card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            box-shadow: 0 4px 18px rgba(15,23,42,.06);
+            overflow: hidden;
+        }
+        .ml-card-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            font-weight: 800;
+            font-size: 0.9rem;
+            color: #1f2937;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ml-card-body { padding: 16px; }
+        .forecast-hero {
+            display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+        }
+        .forecast-icon { font-size: 2.8rem; line-height: 1; }
+        .forecast-main { flex: 1; }
+        .forecast-dir { font-size: 1.5rem; font-weight: 900; letter-spacing: -0.01em; }
+        .forecast-meta { color: #6b7280; font-size: 0.82rem; margin-top: 2px; }
+        .prob-bars { margin-top: 14px; }
+        .prob-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .prob-row .prob-label { width: 48px; font-weight: 700; font-size: 0.8rem; color: #475569; }
+        .prob-track { flex: 1; height: 12px; background: #f1f5f9; border-radius: 999px; overflow: hidden; }
+        .prob-fill { height: 100%; border-radius: 999px; transition: width 0.4s ease; }
+        .prob-row .prob-pct { width: 44px; text-align: right; font-weight: 800; font-size: 0.8rem; }
+        .conf-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 999px;
+            font-size: 0.7rem; font-weight: 800; letter-spacing: 0.03em;
+        }
+        .conf-HIGH { background: #dcfce7; color: #15803d; }
+        .conf-MEDIUM { background: #fef3c7; color: #b45309; }
+        .conf-LOW { background: #f1f5f9; color: #64748b; }
+        .ml-chart-wrap { position: relative; }
+        .ml-chart { width: 100%; height: 260px; display: block; }
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 8px;
+        }
+        .metric-box {
+            text-align: center; border: 1px solid #e5e7eb; border-radius: 10px;
+            padding: 8px 4px;
+        }
+        .metric-box .m-value { font-size: 1.1rem; font-weight: 900; color: #1f2937; }
+        .metric-box .m-label { font-size: 0.68rem; color: #64748b; }
+        .metric-box.good .m-value { color: #15803d; }
+        .metric-box.bad .m-value { color: #b91c1c; }
+        .metric-box.warn .m-value { color: #b45309; }
+        .feat-list { list-style: none; }
+        .feat-row {
+            display: flex; align-items: center; gap: 10px;
+            padding: 7px 0; border-bottom: 1px solid #f8fafc; font-size: 0.85rem;
+        }
+        .feat-row:last-child { border-bottom: 0; }
+        .feat-name { flex: 1; font-weight: 700; color: #374151; }
+        .feat-rank { color: #94a3b8; font-size: 0.75rem; width: 20px; }
+        .feat-bar { width: 100px; height: 7px; background: #f1f5f9; border-radius: 999px; overflow: hidden; }
+        .feat-bar > div { height: 100%; background: linear-gradient(90deg, #8b5cf6, #6366f1); }
+        .ml-empty {
+            color: #94a3b8; text-align: center; padding: 30px 16px; font-size: 0.9rem;
+        }
+        .ml-error {
+            background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca;
+            border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; margin-top: 10px;
+        }
+        .badge-row { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+        .badge {
+            background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe;
+            border-radius: 999px; padding: 3px 9px; font-size: 0.7rem; font-weight: 700;
+        }
+        .class-balance { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; font-size: 0.75rem; }
+        .class-balance span { color: #475569; }
+        .class-balance b { color: #1f2937; }
+
         .unified-content {
             max-width: 1400px;
             margin: 0 auto;
-            padding: 40px 20px;
+            padding: 24px 20px;
         }
 
         .stocks-grid-section {
-            margin-top: 40px;
+            margin-top: 24px;
         }
 
         .stocks-grid-section h2 {
-            font-size: 1.8em;
-            margin-bottom: 24px;
+            font-size: 1.4em;
+            margin-bottom: 16px;
             color: #1f2937;
             display: flex;
             align-items: center;
@@ -89,24 +339,24 @@
 
         .stocks-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
-            gap: 24px;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 20px;
         }
 
         .stock-card {
             background: white;
-            border-radius: 12px;
-            padding: 16px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            transition: all 0.3s ease;
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            transition: all 0.25s ease;
             border: 1px solid #e5e7eb;
-            min-height: 400px;
+            min-height: 380px;
             cursor: pointer;
         }
 
         .stock-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 16px rgba(0,0,0,0.12);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.10);
             border-color: #3b82f6;
         }
 
@@ -190,6 +440,46 @@
             color: #999;
         }
 
+        /* Stock card directional accent */
+        .stock-card[data-direction="up"] {
+            border-left: 3px solid #10b981;
+        }
+
+        .stock-card[data-direction="down"] {
+            border-left: 3px solid #ef4444;
+        }
+
+        /* Reveal animation */
+        .stock-card.reveal {
+            opacity: 0;
+            transform: translateY(16px);
+            animation: cardReveal 0.4s ease forwards;
+        }
+
+        @keyframes cardReveal {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Loading skeleton */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f2f5 25%, #e5e7eb 50%, #f0f2f5 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        .skeleton-card {
+            min-height: 380px;
+            border-radius: 14px;
+        }
+
         .stock-metric strong {
             color: #1f2937;
         }
@@ -248,6 +538,7 @@
                         <a href="screener.html">Fundamentals</a>
                         <a href="markets.html">Markets</a>
                         <a href="stocks.html">AI Picks</a>
+                        <a href="predictions.html">AI Predictions</a>
                         <a href="crypto.html">Crypto</a>
                         <a href="metals.html">Metals</a>
                         <a href="commodities.html">Commodities</a>
@@ -260,17 +551,16 @@
                 <div class="market-radar-section">
                     <div class="market-radar-header">
                         <div>
-                            <h2>Market Radar</h2>
-                            <p>Fast paths into unusual movers, active names, and dividend ideas.</p>
+                            <h2>🎯 Market Radar</h2>
+                            <p>Unusual movers, active names, and dividend ideas.</p>
                         </div>
                     </div>
                     <div id="market-radar-grid" class="market-radar-grid">
                         <div class="market-radar-empty">Loading radar...</div>
                     </div>
                 </div>
-                <!-- Stocks Grid -->
                 <div class="stocks-grid-section">
-                    <h2>📊 Stock Screener</h2>
+                    <h2>📊 AI Stock Picks</h2>
                     <div class="stocks-grid" id="stocks-grid">
                         <div style="text-align: center;
                                     padding: 40px;
@@ -321,6 +611,7 @@
                     </form>
                 </div>
                 <div class="header-right">
+                    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">🌙</button>
                     <button id="export-pdf-button"
                             class="export-pdf-button"
                             title="Export page to PDF">Export PDF</button>
@@ -356,14 +647,15 @@
                             <div id="price-trend-summary" class="price-trend-summary"></div>
                     </div>
                     <nav class="results-section-nav" aria-label="Results sections">
-                        <button type="button" class="section-chip active" data-target="section-overview">Overview</button>
-                        <button type="button" class="section-chip" data-target="decision-summary">Signals</button>
-                        <button type="button" class="section-chip" data-target="section-price-history">Price</button>
-                        <button type="button" class="section-chip" data-target="section-fundamentals">Fundamentals</button>
-                        <button type="button" class="section-chip" data-target="section-analyst-targets">Analyst</button>
-                        <button type="button" class="section-chip" data-target="section-news">News</button>
-                        <button type="button" class="section-chip" data-target="section-options">Options</button>
-                        <button type="button" class="section-chip" data-target="section-related-stocks">Related</button>
+                        <button type="button" class="section-chip active" data-target="section-overview" data-tooltip="Company snapshot, key metrics, and today's price action">Overview</button>
+                        <button type="button" class="section-chip" data-target="decision-summary" data-tooltip="AI trading decision with bull/bear score breakdown">Signals</button>
+                        <button type="button" class="section-chip" data-target="section-price-history" data-tooltip="Historical price chart with moving averages">Price</button>
+                        <button type="button" class="section-chip" data-target="section-fundamentals" data-tooltip="Financial health: P/E, revenue, book value, dividends">Fundamentals</button>
+                        <button type="button" class="section-chip" data-target="section-analyst-targets" data-tooltip="Wall Street price targets and ratings">Analyst</button>
+                        <button type="button" class="section-chip" data-target="section-news" data-tooltip="Latest news headlines and sentiment">News</button>
+                        <button type="button" class="section-chip" data-target="section-options" data-tooltip="Put/call volume, open interest, implied volatility">Options</button>
+                        <button type="button" class="section-chip" data-target="ml-prediction-card" data-tooltip="ML-powered directional forecast with backtesting">AI Predictions</button>
+                        <button type="button" class="section-chip" data-target="section-related-stocks" data-tooltip="Similar companies and sector peers">Related</button>
                     </nav>
                     <div id="decision-summary"
                         class="card decision-summary-panel section-anchor">
@@ -374,7 +666,8 @@
                             class="card section-anchor"
                          style="margin-bottom: 20px;
                                 border-left: 4px solid #3b82f6;
-                                background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)">
+                                background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)"
+                         data-tooltip="AI trend forecast based on momentum, sentiment, and technical indicators">
                         <div style="padding: 20px;">
                             <div class="loading-placeholder">Analyzing trend...</div>
                         </div>
@@ -384,9 +677,156 @@
                             class="card section-anchor"
                          style="margin-bottom: 20px;
                                 border-left: 4px solid #8b5cf6;
-                                background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%)">
+                                background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%)"
+                         data-tooltip="Actionable trading ideas generated from the AI analysis">
                         <div style="padding: 20px;">
                             <div class="loading-placeholder">Generating trading strategy...</div>
+                        </div>
+                    </div>
+                    <!-- ML Prediction Card - Full Model Lab -->
+                    <div id="ml-prediction-card" class="ml-prediction-card section-anchor" data-tooltip="Train ML models to predict stock direction with walk-forward validation">
+                        <div class="ml-prediction-card-header">🎛️ AI Prediction Lab</div>
+                        <div class="ml-prediction-card-body">
+                            <div id="ml-error-slot"></div>
+
+                            <!-- Model Lab: tunable knobs -->
+                            <details class="lab-panel" id="ml-lab" open>
+                                <summary>Model Lab — tune the experiment</summary>
+                                <div class="lab-body">
+                                    <div class="lab-grid">
+                                        <div class="lab-field">
+                                            <label>Model family <span class="lab-value" id="lab-model-val">Hist GBM</span>
+                                                <span class="lab-tooltip" data-tooltip="The ML algorithm used to predict direction. Hist GBM is fast and handles missing data well. Random Forest is robust but slower. Logistic Regression is a simple linear baseline.">?</span>
+                                            </label>
+                                            <select id="lab-model"></select>
+                                            <div class="lab-model-desc" id="lab-model-desc"></div>
+                                        </div>
+                                        <div class="lab-field">
+                                            <label>Forecast horizon <span class="lab-value" id="lab-horizon-val">5d</span>
+                                                <span class="lab-tooltip" data-tooltip="How many days ahead the model predicts. 5d means predicting the direction 5 trading days from now. Longer horizons are harder but can capture bigger trends.">?</span>
+                                            </label>
+                                            <input type="range" id="lab-horizon" class="ml-slider" min="1" max="30" value="5">
+                                        </div>
+                                        <div class="lab-field">
+                                            <label>Flat band <span class="lab-value" id="lab-margin-val">0.0%</span>
+                                                <span class="lab-tooltip" data-tooltip="Tolerance margin around zero. Small price changes within ±band are labeled FLAT instead of UP/DOWN. Helps reduce noise in volatile markets.">?</span>
+                                            </label>
+                                            <input type="range" id="lab-margin" class="ml-slider" min="0" max="50" value="0">
+                                            <div class="lab-model-desc">Returns within ±band become FLAT.</div>
+                                        </div>
+                                        <div class="lab-field">
+                                            <label>Backtest folds <span class="lab-value" id="lab-folds-val">3</span>
+                                                <span class="lab-tooltip" data-tooltip="Number of walk-forward validation splits. Higher = more robust accuracy estimates but slower. 3 is good for quick experiments, 5-10 for final validation.">?</span>
+                                            </label>
+                                            <input type="range" id="lab-folds" class="ml-slider" min="2" max="10" value="3">
+                                        </div>
+                                        <div class="lab-field">
+                                            <label>Train window <span class="lab-value" id="lab-train-val">200</span>
+                                                <span class="lab-tooltip" data-tooltip="Max number of historical trading days used for training. Smaller = faster but less historical context. 200 days ≈ 10 months of data.">?</span>
+                                            </label>
+                                            <input type="range" id="lab-max-train" class="ml-slider" min="60" max="1000" step="20" value="200">
+                                            <div class="lab-model-desc">Smaller = faster, shorter memory.</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="lab-field" style="margin-top:14px;">
+                                        <label>Feature groups <span class="lab-value" id="lab-features-val">all</span>
+                                            <span class="lab-tooltip" data-tooltip="Input signals the model uses. Returns = short-term price changes. Volatility = how much price swings. Trend = moving average relationships. Volume = trading activity patterns.">?</span>
+                                        </label>
+                                        <div class="chips" id="lab-feature-chips"></div>
+                                    </div>
+
+                                    <div class="lab-actions">
+                                        <button type="button" class="lab-btn" id="ml-lab-run">⚡ Run experiment
+                                            <span class="lab-tooltip" data-tooltip="Train the model and generate predictions using current knob settings. Takes a few seconds depending on horizon and data size." style="position:relative; display:inline-flex; margin-left:4px;">?</span>
+                                        </button>
+                                        <button type="button" class="lab-btn" id="ml-lab-reset">↺ Reset</button>
+                                        <button type="button" class="lab-btn" id="ml-lab-preset-baseline">Baseline</button>
+                                        <button type="button" class="lab-btn" id="ml-lab-preset-trend">Trend</button>
+                                        <button type="button" class="lab-btn" id="ml-lab-preset-long">Long-horizon</button>
+                                        <span class="lab-hint" id="lab-status">Tune the knobs, then run.</span>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <!-- ML Results Grid -->
+                            <div class="ml-grid" id="ml-results" style="display:none;">
+                                <!-- Prediction card -->
+                                <div class="ml-card" data-tooltip="ML model's directional prediction with probability estimates">
+                                    <div class="ml-card-header">📊 ML Direction Forecast</div>
+                                    <div class="ml-card-body">
+                                        <div class="forecast-hero">
+                                            <div class="forecast-icon" id="ml-icon">⏸️</div>
+                                            <div class="forecast-main">
+                                                <div class="forecast-dir" id="ml-direction">—</div>
+                                                <div class="forecast-meta" id="ml-meta">Enter a ticker to begin</div>
+                                            </div>
+                                        </div>
+                                        <div class="prob-bars">
+                                            <div class="prob-row">
+                                                <span class="prob-label">UP</span>
+                                                <div class="prob-track"><div class="prob-fill" id="ml-bar-up" style="background:#10b981;"></div></div>
+                                                <span class="prob-pct" id="ml-pct-up">0%</span>
+                                            </div>
+                                            <div class="prob-row">
+                                                <span class="prob-label">FLAT</span>
+                                                <div class="prob-track"><div class="prob-fill" id="ml-bar-flat" style="background:#94a3b8;"></div></div>
+                                                <span class="prob-pct" id="ml-pct-flat">0%</span>
+                                            </div>
+                                            <div class="prob-row">
+                                                <span class="prob-label">DOWN</span>
+                                                <div class="prob-track"><div class="prob-fill" id="ml-bar-down" style="background:#ef4444;"></div></div>
+                                                <span class="prob-pct" id="ml-pct-down">0%</span>
+                                            </div>
+                                        </div>
+                                        <div style="margin-top:6px; text-align:right;"><span id="ml-conf" class="conf-badge conf-LOW">LOW</span></div>
+                                    </div>
+                                </div>
+
+                                <!-- Projection chart card -->
+                                <div class="ml-card" data-tooltip="Historical prices overlaid with ML model prediction path">
+                                    <div class="ml-card-header">🎚️ Projection Chart</div>
+                                    <div class="ml-card-body">
+                                        <div class="badge-row" id="ml-run-badges"></div>
+                                        <div class="ml-chart-wrap" style="margin-top:12px;">
+                                            <canvas id="ml-chart" class="ml-chart"></canvas>
+                                            <div id="ml-chart-empty" class="ml-empty">Price chart + projection appears here</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Class balance card -->
+                                <div class="ml-card" data-tooltip="Training label distribution: UP/FLAT/DOWN classes">
+                                    <div class="ml-card-header">⚖️ Label / Class Balance</div>
+                                    <div class="ml-card-body">
+                                        <div id="ml-balance" class="ml-empty">Run an experiment to see class balance</div>
+                                    </div>
+                                </div>
+
+                                <!-- Feature contributions card -->
+                                <div class="ml-card" data-tooltip="Which input features mattered most to the model">
+                                    <div class="ml-card-header">🧠 Top Feature Drivers</div>
+                                    <div class="ml-card-body">
+                                        <ul class="feat-list" id="ml-features"><li class="ml-empty">Run a prediction to see drivers</li></ul>
+                                    </div>
+                                </div>
+
+                                <!-- Backtest card -->
+                                <div class="ml-card" data-tooltip="Walk-forward validation: train on past, test on unseen future">
+                                    <div class="ml-card-header">📉 Walk-Forward Backtest</div>
+                                    <div class="ml-card-body">
+                                        <div class="metric-grid" id="ml-backtest"><div class="ml-empty">Run a prediction to see metrics</div></div>
+                                    </div>
+                                </div>
+
+                                <!-- Technical comparison card -->
+                                <div class="ml-card" style="grid-column:span 2;" data-tooltip="Compare ML prediction against traditional RSI/MACD signals">
+                                    <div class="ml-card-header">⚖️ ML vs Technical Signals</div>
+                                    <div class="ml-card-body">
+                                        <div id="ml-compare" class="ml-empty">Compare the ML call to a heuristic RSI/MACD read</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <!-- Company Summary Box -->
@@ -399,7 +839,7 @@
                         </div>
                     </div>
                     <!-- Price History Chart - FEATURED -->
-                    <div class="card highlight-card section-anchor" id="section-price-history">
+                    <div class="card highlight-card section-anchor" id="section-price-history" data-tooltip="121-day price history with SMA 20/50 overlays">
                         <h2>📈 Price History (121 Days)</h2>
                         <div id="price-history-data" class="data-content">
                             <div class="loading-placeholder"></div>
@@ -408,28 +848,28 @@
                     <!-- Data Grid -->
                     <div class="data-grid">
                         <!-- Fundamentals -->
-                        <div class="card section-anchor" id="section-fundamentals">
+                        <div class="card section-anchor" id="section-fundamentals" data-tooltip="Valuation, profitability, and dividend metrics from financial statements">
                             <h3>📊 Fundamentals</h3>
                             <div id="fundamentals-data" class="data-content">
                                 <div class="loading-placeholder"></div>
                             </div>
                         </div>
                         <!-- Analyst Targets -->
-                        <div class="card section-anchor" id="section-analyst-targets">
+                        <div class="card section-anchor" id="section-analyst-targets" data-tooltip="Wall Street analyst price targets, ratings, and recommendations">
                             <h3>🎯 Analyst Targets</h3>
                             <div id="analyst-targets-data" class="data-content">
                                 <div class="loading-placeholder"></div>
                             </div>
                         </div>
                         <!-- Technical Signals -->
-                        <div class="card section-anchor" id="section-technical-signals">
+                        <div class="card section-anchor" id="section-technical-signals" data-tooltip="RSI, MACD, Stochastic, ADX, Bollinger Bands — momentum and trend indicators">
                             <h3>📈 Technical Signals</h3>
                             <div id="technical-signals-data" class="data-content">
                                 <div class="loading-placeholder"></div>
                             </div>
                         </div>
                         <!-- Calendar Events -->
-                        <div class="card">
+                        <div class="card" data-tooltip="Upcoming earnings, dividends, and corporate events">
                             <h3>📅 Calendar Events</h3>
                             <div id="calendar-data" class="data-content">
                                 <div class="loading-placeholder"></div>
@@ -439,14 +879,14 @@
                     <!-- News & Option Chain Side-by-Side -->
                     <div class="two-column-cards">
                         <!-- News -->
-                        <div class="card section-anchor" id="section-news">
+                        <div class="card section-anchor" id="section-news" data-tooltip="Latest news headlines and sentiment analysis">
                             <h3>📰 News</h3>
                             <div id="news-data" class="data-content">
                                 <div class="loading-placeholder"></div>
                             </div>
                         </div>
                         <!-- Option Chain -->
-                        <div class="card section-anchor" id="section-options">
+                        <div class="card section-anchor" id="section-options" data-tooltip="Call/put options, volume, open interest, and implied volatility">
                             <h3>📊 Option Chain</h3>
                             <div id="option-chain-data" class="data-content">
                                 <div class="loading-placeholder"></div>
@@ -465,7 +905,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="card section-anchor" id="section-related-stocks">
+                    <div class="card section-anchor" id="section-related-stocks" data-tooltip="Companies in the same sector or with similar financial characteristics">
                         <h3>🔗 Related Stocks To Explore</h3>
                         <div id="related-stocks-data" class="data-content">
                             <div class="loading-placeholder"></div>
@@ -480,6 +920,7 @@
     <script src="config.js?v=8"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="app.js?v=30"></script>
+    <script src="predictions.js?v=1"></script>
+    <script src="app.js?v=31"></script>
 </body>
 </html>

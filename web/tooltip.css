@@ -6,7 +6,21 @@
     border-bottom: 1px dotted rgba(0, 0, 0, 0.2);
 }
 
-.tooltip-wrapper:hover::after {
+span[data-tooltip],
+button[data-tooltip],
+label[data-tooltip],
+.lab-tooltip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    cursor: help;
+}
+
+/* Tooltip for inline elements only */
+span[data-tooltip]:hover::after,
+button[data-tooltip]:hover::after,
+label[data-tooltip]:hover::after,
+.lab-tooltip:hover::after {
     content: attr(data-tooltip);
     position: absolute;
     bottom: 125%;
@@ -17,18 +31,21 @@
     text-align: center;
     padding: 8px 12px;
     border-radius: 6px;
-    font-size: 0.85em;
-    white-space: nowrap;
+    font-size: 0.82em;
     z-index: 1000;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     pointer-events: none;
     animation: tooltipFadeIn 0.2s ease-in-out;
     line-height: 1.4;
-    max-width: 200px;
+    max-width: 240px;
     white-space: normal;
+    font-weight: 500;
 }
 
-.tooltip-wrapper:hover::before {
+span[data-tooltip]:hover::before,
+button[data-tooltip]:hover::before,
+label[data-tooltip]:hover::before,
+.lab-tooltip:hover::before {
     content: '';
     position: absolute;
     bottom: 120%;
@@ -52,7 +69,10 @@
     }
 }
 
-.tooltip-wrapper:hover::before {
+span[data-tooltip]:hover::before,
+button[data-tooltip]:hover::before,
+label[data-tooltip]:hover::before,
+.lab-tooltip:hover::before {
     animation: none;
     bottom: 120%;
 }

@@ -8,17 +8,18 @@ Ollama LLM integration.
 
 # pylint: disable=global-statement,import-outside-toplevel,no-member
 
+import inspect
+import json
 import os
 import sys
-import json
-import inspect
 from datetime import date, datetime
 
-import yfinance as yf
 import pandas as pd
+import yfinance as yf
 
-# Point ollama client to a remote host by default. Can be overridden with OLLAMA_HOST env var.
-_default_ollama = os.environ.get("OLLAMA_HOST", "http://192.168.1.248:11434")
+# Point ollama client to the docker sidecar container by default.
+# Can be overridden with OLLAMA_HOST env var.
+_default_ollama = os.environ.get("OLLAMA_HOST", "http://ollama:11434")
 os.environ.setdefault("OLLAMA_HOST", _default_ollama)
 os.environ.setdefault("OLLAMA_URL", _default_ollama)
 os.environ.setdefault("OLLAMA_BASE_URL", _default_ollama)
@@ -397,12 +398,153 @@ def get_balance_sheet(ticker):
 def get_screen_undervalued_large_caps():
     """Retrieve stock screen of undervalued large cap stocks."""
     try:
-        screen = yf.screen("undervalued_large_caps")
+        screen = yf.screener.screen("undervalued_large_caps")
         tickers = [quote["symbol"] for quote in screen["quotes"]]
         return tickers
 
     except Exception as exc:  # pylint: disable=broad-except
         print(f"An error occurred while fetching undervalued_large_caps: {exc}")
+        return None
+
+
+def get_money_flow_stocks(period="day", direction="in", limit=25):
+    """Get top stocks by money flow (net dollar volume) for a given period.
+
+    Money flow is calculated as price change * volume, showing where money is
+    flowing in (buying) or out (selling) of stocks.
+
+    Parameters
+    ----------
+    period : str
+        Time period - 'day', 'week', 'month', '3month', '6month', 'year'
+    direction : str
+        'in' for money flowing in (gainers), 'out' for money flowing out (losers)
+    limit : int
+        Number of results to return
+
+    Returns
+    -------
+    list of dict with keys: symbol, shortName, regularMarketPrice,
+        regularMarketChange, regularMarketChangePercent, regularMarketVolume,
+        moneyFlow (calculated as price_change * volume)
+    """
+    try:
+        if period == "day":
+            screen = yf.screener.screen(
+                "day_gainers" if direction == "in" else "day_losers", count=limit
+            )
+            results = []
+            for quote in screen.get("quotes", [])[:limit]:
+                price = quote.get("regularMarketPrice", 0)
+                change = quote.get("regularMarketChange", 0)
+                volume = quote.get("regularMarketVolume", 0)
+                money_flow = (
+                    abs(price * volume * (change / 100)) if price and volume else 0
+                )
+
+                results.append(
+                    {
+                        "symbol": quote.get("symbol", ""),
+                        "shortName": quote.get(
+                            "shortName", quote.get("displayName", "")
+                        ),
+                        "longName": quote.get("longName", ""),
+                        "regularMarketPrice": price,
+                        "regularMarketChange": change,
+                        "regularMarketChangePercent": quote.get(
+                            "regularMarketChangePercent", 0
+                        ),
+                        "regularMarketVolume": volume,
+                        "averageDailyVolume3Month": quote.get(
+                            "averageDailyVolume3Month", 0
+                        ),
+                        "marketCap": quote.get("marketCap", 0),
+                        "moneyFlow": money_flow,
+                        "exchange": quote.get("exchange", ""),
+                        "quoteType": quote.get("quoteType", "EQUITY"),
+                    }
+                )
+            return results
+
+        period_map = {
+            "week": ("5d", 5),
+            "month": ("1mo", 30),
+            "3month": ("3mo", 90),
+            "6month": ("6mo", 180),
+            "year": ("1y", 365),
+        }
+
+        if period not in period_map:
+            period = "week"
+
+        yf_period, _days = period_map[period]
+
+        screen = yf.screener.screen("most_actives", count=100)
+        tickers = [
+            q["symbol"]
+            for q in screen.get("quotes", [])
+            if q.get("quoteType") == "EQUITY"
+        ]
+
+        if not tickers:
+            return []
+
+        ticker_data = {}
+        for ticker in tickers[:100]:
+            try:
+                t = yf.Ticker(ticker)
+                hist = t.history(period=yf_period, auto_adjust=True)
+                if len(hist) < 2:
+                    continue
+
+                start_price = hist["Close"].iloc[0]
+                end_price = hist["Close"].iloc[-1]
+                current_price = t.fast_info.last_price or end_price
+
+                if start_price <= 0:
+                    continue
+
+                period_return = ((end_price - start_price) / start_price) * 100
+                avg_volume = hist["Volume"].mean() if "Volume" in hist.columns else 0
+
+                quote = next((q for q in screen["quotes"] if q["symbol"] == ticker), {})
+
+                money_flow = (
+                    abs(end_price * avg_volume * (period_return / 100))
+                    if end_price and avg_volume
+                    else 0
+                )
+
+                ticker_data[ticker] = {
+                    "symbol": ticker,
+                    "shortName": quote.get("shortName", quote.get("displayName", "")),
+                    "longName": quote.get("longName", ""),
+                    "regularMarketPrice": current_price,
+                    "periodChange": period_return,
+                    "periodChangePercent": period_return,
+                    "regularMarketVolume": quote.get("regularMarketVolume", avg_volume),
+                    "averageDailyVolume3Month": quote.get(
+                        "averageDailyVolume3Month", avg_volume
+                    ),
+                    "marketCap": quote.get("marketCap", 0),
+                    "moneyFlow": money_flow,
+                    "exchange": quote.get("exchange", ""),
+                    "quoteType": quote.get("quoteType", "EQUITY"),
+                }
+            except Exception:
+                continue
+
+        results = list(ticker_data.values())
+
+        if direction == "in":
+            results.sort(key=lambda x: x["moneyFlow"], reverse=True)
+        else:
+            results.sort(key=lambda x: x["moneyFlow"], reverse=False)
+
+        return results[:limit]
+
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while fetching money flow stocks: {exc}")
         return None
 
 
@@ -629,7 +771,7 @@ def _render_balance_sheet_bullets(metrics):
     verdict = "VALUE" if liquidity_ok and leverage_ok else "INCONCLUSIVE"
     verdict_line = f"Verdict: {verdict}"
 
-    return "\n".join([liquidity_line, leverage_line, margin_line, verdict_line])
+    return f"{liquidity_line}\n{leverage_line}\n{margin_line}\n{verdict_line}"
 
 
 def _coerce_balance_sheet_response(metrics, raw_text):
@@ -1028,7 +1170,7 @@ def get_ai_quarterly_income_stm_analysis(ticker):
             line2 = f"Margins: {margin_line}"
             line3 = f"Earnings: {eps_bit}"
             line4 = f"Verdict: {verdict}"
-            return "\n".join([line1, line2, line3, line4])
+            return f"{line1}\n{line2}\n{line3}\n{line4}"
 
         def _coerce_income_stmt_response(summary, raw_text):
             def _maybe_use_raw(text):
@@ -1105,6 +1247,105 @@ def get_ai_quarterly_income_stm_analysis(ticker):
     except Exception as exc:
         print(f"An error occurred while performing income statement analysis: {exc}")
         return None
+
+
+def _compute_technical_indicators(price_df):
+    """
+    Compute all technical indicators from price data and return as a dict.
+
+    Returns:
+        dict with keys: sma_20, sma_50, rsi, macd, macd_signal, bb_upper,
+                        bb_lower, bb_mid, volume_avg, close_latest, volume_latest
+        Values are None if calculation fails or data insufficient.
+    """
+    indicators = {
+        "sma_20": None,
+        "sma_50": None,
+        "rsi": None,
+        "macd": None,
+        "macd_signal": None,
+        "bb_upper": None,
+        "bb_lower": None,
+        "bb_mid": None,
+        "volume_avg": None,
+        "close_latest": None,
+        "volume_latest": None,
+    }
+
+    try:
+        if price_df is None or len(price_df) < 30:
+            return indicators
+
+        df = price_df.copy()
+
+        if "Close" not in df.columns or "Volume" not in df.columns:
+            return indicators
+
+        close = df["Close"]
+        volume = df["Volume"]
+
+        indicators["close_latest"] = float(close.iloc[-1])
+        indicators["volume_latest"] = float(volume.iloc[-1])
+
+        df["SMA_20"] = close.rolling(window=20).mean()
+        df["SMA_50"] = close.rolling(window=50).mean()
+        indicators["sma_20"] = (
+            float(df["SMA_20"].iloc[-1]) if not pd.isna(df["SMA_20"].iloc[-1]) else None
+        )
+        indicators["sma_50"] = (
+            float(df["SMA_50"].iloc[-1]) if not pd.isna(df["SMA_50"].iloc[-1]) else None
+        )
+
+        delta = close.diff()
+        gain = delta.where(delta > 0, 0).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / loss
+        df["RSI"] = 100 - (100 / (1 + rs))
+        indicators["rsi"] = (
+            float(df["RSI"].iloc[-1]) if not pd.isna(df["RSI"].iloc[-1]) else None
+        )
+
+        ema_12 = close.ewm(span=12).mean()
+        ema_26 = close.ewm(span=26).mean()
+        df["MACD"] = ema_12 - ema_26
+        df["MACD_Signal"] = df["MACD"].ewm(span=9).mean()
+        indicators["macd"] = (
+            float(df["MACD"].iloc[-1]) if not pd.isna(df["MACD"].iloc[-1]) else None
+        )
+        indicators["macd_signal"] = (
+            float(df["MACD_Signal"].iloc[-1])
+            if not pd.isna(df["MACD_Signal"].iloc[-1])
+            else None
+        )
+
+        df["BB_SMA"] = close.rolling(window=20).mean()
+        df["BB_STD"] = close.rolling(window=20).std()
+        df["BB_Upper"] = df["BB_SMA"] + (df["BB_STD"] * 2)
+        df["BB_Lower"] = df["BB_SMA"] - (df["BB_STD"] * 2)
+        indicators["bb_upper"] = (
+            float(df["BB_Upper"].iloc[-1])
+            if not pd.isna(df["BB_Upper"].iloc[-1])
+            else None
+        )
+        indicators["bb_mid"] = (
+            float(df["BB_SMA"].iloc[-1]) if not pd.isna(df["BB_SMA"].iloc[-1]) else None
+        )
+        indicators["bb_lower"] = (
+            float(df["BB_Lower"].iloc[-1])
+            if not pd.isna(df["BB_Lower"].iloc[-1])
+            else None
+        )
+
+        indicators["volume_avg"] = (
+            float(volume.rolling(window=20).mean().iloc[-1])
+            if not pd.isna(volume.rolling(window=20).mean().iloc[-1])
+            else None
+        )
+
+    except Exception:
+        pass
+
+    return indicators
 
 
 def _calculate_technical_indicators(price_df):
@@ -1539,66 +1780,32 @@ def get_trading_strategy(ticker):
         price_df["Date"] = pd.to_datetime(price_df["Date"])
         price_df = price_df.sort_values("Date")
 
-        # Get current price
         current_price = float(price_df["Close"].iloc[-1])
 
-        # Calculate technical indicators
-        _calculate_technical_indicators(price_df)
+        indicators = _compute_technical_indicators(price_df)
 
-        # Extract key technical values
-        df = price_df.copy()
-
-        # SMAs
-        df["SMA_20"] = df["Close"].rolling(window=20).mean()
-        df["SMA_50"] = df["Close"].rolling(window=50).mean()
         sma_20 = (
-            float(df["SMA_20"].iloc[-1])
-            if not pd.isna(df["SMA_20"].iloc[-1])
-            else current_price
+            indicators["sma_20"] if indicators["sma_20"] is not None else current_price
         )
         sma_50 = (
-            float(df["SMA_50"].iloc[-1])
-            if not pd.isna(df["SMA_50"].iloc[-1])
-            else current_price
+            indicators["sma_50"] if indicators["sma_50"] is not None else current_price
         )
-
-        # RSI
-        delta = df["Close"].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-        rs = gain / loss
-        df["RSI"] = 100 - (100 / (1 + rs))
-        rsi = float(df["RSI"].iloc[-1]) if not pd.isna(df["RSI"].iloc[-1]) else 50
-
-        # Bollinger Bands
-        df["BB_SMA"] = df["Close"].rolling(window=20).mean()
-        df["BB_STD"] = df["Close"].rolling(window=20).std()
-        df["BB_Upper"] = df["BB_SMA"] + (df["BB_STD"] * 2)
-        df["BB_Lower"] = df["BB_SMA"] - (df["BB_STD"] * 2)
+        rsi = indicators["rsi"] if indicators["rsi"] is not None else 50
         bb_upper = (
-            float(df["BB_Upper"].iloc[-1])
-            if not pd.isna(df["BB_Upper"].iloc[-1])
+            indicators["bb_upper"]
+            if indicators["bb_upper"] is not None
             else current_price * 1.05
         )
         bb_lower = (
-            float(df["BB_Lower"].iloc[-1])
-            if not pd.isna(df["BB_Lower"].iloc[-1])
+            indicators["bb_lower"]
+            if indicators["bb_lower"] is not None
             else current_price * 0.95
         )
-
-        # MACD
-        ema_12 = df["Close"].ewm(span=12).mean()
-        ema_26 = df["Close"].ewm(span=26).mean()
-        df["MACD"] = ema_12 - ema_26
-        df["MACD_Signal"] = df["MACD"].ewm(span=9).mean()
-        macd = float(df["MACD"].iloc[-1]) if not pd.isna(df["MACD"].iloc[-1]) else 0
+        macd = indicators["macd"] if indicators["macd"] is not None else 0
         macd_signal = (
-            float(df["MACD_Signal"].iloc[-1])
-            if not pd.isna(df["MACD_Signal"].iloc[-1])
-            else 0
+            indicators["macd_signal"] if indicators["macd_signal"] is not None else 0
         )
 
-        # Determine signals
         signals = []
         bullish_count = 0
         bearish_count = 0
