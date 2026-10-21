@@ -31,6 +31,7 @@ class TestIndexPageContracts(unittest.TestCase):
             "section-analyst-targets",
             "section-news",
             "section-options",
+            "ml-prediction-card",
         ]
 
         for target in expected_targets:
@@ -277,6 +278,54 @@ class TestCommoditiesPageContracts(unittest.TestCase):
         html = (WEB_DIR / "commodities.html").read_text(encoding="utf-8")
         self.assertIn("api/price-history/", html)
         self.assertIn("loadCommoditiesCharts", html)
+
+
+class TestModelLabContracts(unittest.TestCase):
+    """Ensure the full Model Lab is present on index.html."""
+
+    def test_ml_prediction_card_exists(self):
+        """index.html should include the ML prediction card section."""
+        html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+        self.assertIn('id="ml-prediction-card"', html)
+
+    def test_model_lab_panel_exists(self):
+        """index.html should include the Model Lab knob panel."""
+        html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+        self.assertIn('id="ml-lab"', html)
+        self.assertIn('id="lab-model"', html)
+        self.assertIn('id="lab-horizon"', html)
+        self.assertIn('id="lab-margin"', html)
+        self.assertIn('id="lab-folds"', html)
+        self.assertIn('id="lab-max-train"', html)
+
+    def test_model_lab_run_button_exists(self):
+        """index.html should include the Run experiment button."""
+        html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+        self.assertIn('id="ml-lab-run"', html)
+        self.assertIn('id="ml-lab-reset"', html)
+
+    def test_ml_results_grid_exists(self):
+        """index.html should include the ML results grid."""
+        html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+        self.assertIn('id="ml-results"', html)
+        self.assertIn('id="ml-direction"', html)
+        self.assertIn('id="ml-bar-up"', html)
+        self.assertIn('id="ml-conf"', html)
+        self.assertIn('id="ml-chart"', html)
+        self.assertIn('id="ml-features"', html)
+        self.assertIn('id="ml-backtest"', html)
+
+    def test_predictions_js_included_in_index(self):
+        """index.html should include predictions.js script."""
+        html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+        self.assertIn('predictions.js', html)
+
+    def test_no_duplicate_ids_in_ml_section(self):
+        """ML section IDs should not conflict with other page IDs."""
+        html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+        ids = re.findall(r'id="([^"]+)"', html)
+        duplicates = sorted({value for value in ids if ids.count(value) > 1})
+        self.assertEqual(duplicates, [], f"Duplicate id values found: {duplicates}")
 
 
 if __name__ == "__main__":

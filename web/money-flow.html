@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Money Flow - OOBIR</title>
+        <link rel="stylesheet" href="styles.css">
+        <link rel="icon" href="favicon.svg" type="image/svg+xml">
+        <style>
+        .money-flow-page {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .money-flow-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .money-flow-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .money-flow-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            border-color: #3b82f6;
+        }
+
+        .money-flow-card.money-in {
+            border-left: 4px solid #10b981;
+        }
+
+        .money-flow-card.money-out {
+            border-left: 4px solid #ef4444;
+        }
+
+        .money-flow-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .money-flow-ticker {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #1f2937;
+        }
+
+        .money-flow-price {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #3b82f6;
+        }
+
+        .money-flow-name {
+            color: #6b7280;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+
+        .money-flow-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 15px 0;
+            font-size: 0.85em;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+        }
+
+        .metric-label {
+            color: #6b7280;
+        }
+
+        .metric-value {
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .metric-value.positive {
+            color: #10b981;
+        }
+
+        .metric-value.negative {
+            color: #ef4444;
+        }
+
+        .money-flow-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #10b981;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75em;
+            font-weight: 600;
+        }
+
+        .money-flow-badge.out {
+            background: #ef4444;
+        }
+
+        .rank-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            color: #374151;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .rank-badge.top {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            color: #92400e;
+        }
+
+        .mini-chart {
+            width: 100%;
+            height: 80px;
+            margin: 15px 0;
+            background: linear-gradient(to bottom, #1e293b 0%, #0f172a 100%);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            padding: 8px;
+        }
+
+        .loading-state {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .chart-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100px;
+            color: #9ca3af;
+            font-size: 0.85em;
+        }
+
+        .controls-bar {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            padding: 15px 20px;
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .control-group label {
+            font-size: 0.8em;
+            font-weight: 600;
+            color: #6b7280;
+        }
+
+        .control-group select {
+            padding: 8px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 0.95em;
+            background: white;
+            cursor: pointer;
+            min-width: 140px;
+        }
+
+        .control-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .direction-tabs {
+            display: flex;
+            gap: 10px;
+            margin-left: auto;
+            align-items: flex-end;
+        }
+
+        .direction-tab {
+            padding: 8px 20px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95em;
+            background: white;
+            transition: all 0.2s ease;
+        }
+
+        .direction-tab:hover {
+            border-color: #3b82f6;
+        }
+
+        .direction-tab.active.in {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            border-color: #10b981;
+            color: #065f46;
+        }
+
+        .direction-tab.active.out {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            border-color: #ef4444;
+            color: #991b1b;
+        }
+
+        @media (max-width: 768px) {
+            .controls-bar {
+                flex-direction: column;
+            }
+            .direction-tabs {
+                margin-left: 0;
+            }
+            .money-flow-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        </style>
+    </head>
+    <body>
+        <div class="money-flow-page">
+            <header class="app-header">
+                <div class="app-header-content">
+                    <div class="app-header-left">
+                        <a class="app-brand" href="search.html">OOBIR</a>
+                        <span class="app-page-label">Money Flow</span>
+                    </div>
+                    <nav class="app-nav" aria-label="Primary navigation">
+                        <a href="search.html">Search</a>
+                        <a href="index.html">Stock Screen</a>
+                        <a href="screener.html">Fundamentals</a>
+                        <a href="markets.html">Markets</a>
+                        <a href="stocks.html">AI Picks</a>
+                        <a href="predictions.html">AI Predictions</a>
+                        <a href="money-flow.html" class="active">Money Flow</a>
+                        <a href="crypto.html">Crypto</a>
+                        <a href="metals.html">Metals</a>
+                        <a href="commodities.html">Commodities</a>
+                    </nav>
+                    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">🌙</button>
+                </div>
+            </header>
+
+            <div style="margin-top: 16px; margin-bottom: 12px;">
+                <h1>📈 Money Flow</h1>
+            </div>
+
+            <div class="controls-bar">
+                <div class="control-group">
+                    <label for="period-select">Time Period</label>
+                    <select id="period-select">
+                        <option value="day">Today</option>
+                        <option value="week">This Week</option>
+                        <option value="month" selected>This Month</option>
+                        <option value="3month">3 Months</option>
+                        <option value="6month">6 Months</option>
+                        <option value="year">This Year</option>
+                    </select>
+                </div>
+
+                <div class="direction-tabs">
+                    <button class="direction-tab in active" id="tab-in" onclick="setDirection('in')">
+                        📈 Money In
+                    </button>
+                    <button class="direction-tab out" id="tab-out" onclick="setDirection('out')">
+                        📉 Money Out
+                    </button>
+                </div>
+            </div>
+
+            <div id="stocks-container">
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Loading money flow data...</p>
+                </div>
+            </div>
+        </div>
+
+        <script src="config.js"></script>
+        <script>
+        const API_BASE_URL = (typeof window !== 'undefined' && window.OOBIR_API_BASE)
+            ? window.OOBIR_API_BASE
+            : window.location.origin;
+
+        let currentDirection = 'in';
+        let currentPeriod = 'month';
+
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            const div = document.createElement('div');
+            div.textContent = String(text);
+            return div.innerHTML;
+        }
+
+        function formatCurrency(value) {
+            if (value === null || value === undefined) return 'N/A';
+            return '$' + parseFloat(value).toFixed(2);
+        }
+
+        function formatLargeNumber(value) {
+            if (value === null || value === undefined) return 'N/A';
+            const num = parseFloat(value);
+            if (num >= 1e12) return '$' + (num / 1e12).toFixed(2) + 'T';
+            if (num >= 1e9) return '$' + (num / 1e9).toFixed(2) + 'B';
+            if (num >= 1e6) return '$' + (num / 1e6).toFixed(2) + 'M';
+            if (num >= 1e3) return '$' + (num / 1e3).toFixed(2) + 'K';
+            return '$' + num.toFixed(2);
+        }
+
+        function formatPercent(value) {
+            if (value === null || value === undefined) return 'N/A';
+            const num = parseFloat(value);
+            const formatted = (num >= 0 ? '+' : '') + num.toFixed(2) + '%';
+            return formatted;
+        }
+
+        function viewStock(ticker) {
+            window.location.href = `index.html?ticker=${encodeURIComponent(ticker)}`;
+        }
+
+        function setDirection(dir) {
+            currentDirection = dir;
+            document.getElementById('tab-in').classList.toggle('active', dir === 'in');
+            document.getElementById('tab-out').classList.toggle('active', dir === 'out');
+            loadMoneyFlow();
+        }
+
+        function createMoneyFlowCard(stock, rank) {
+            const changePercent = stock.periodChangePercent ?? stock.regularMarketChangePercent ?? 0;
+            const isPositive = changePercent >= 0;
+            const cardClass = currentDirection === 'in' ? 'money-in' : 'money-out';
+            const changeClass = isPositive ? 'positive' : 'negative';
+            const rankClass = rank <= 3 ? 'top' : '';
+
+            const card = document.createElement('div');
+            card.className = `money-flow-card ${cardClass}`;
+            card.style.cursor = 'pointer';
+
+            const moneyFlowFormatted = formatLargeNumber(Math.abs(stock.moneyFlow || 0));
+            const moneyFlowPrefix = (stock.moneyFlow || 0) >= 0 ? '+$' : '-$';
+
+            card.innerHTML = `
+                <div class="money-flow-card-header">
+                    <div style="display: flex; align-items: center;">
+                        <span class="rank-badge ${rankClass}">${rank}</span>
+                        <div>
+                            <div class="money-flow-ticker">${escapeHtml(stock.symbol)}</div>
+                            <div class="money-flow-name">${escapeHtml(stock.shortName || stock.longName || '')}</div>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div class="money-flow-price">${formatCurrency(stock.regularMarketPrice)}</div>
+                        <span class="money-flow-badge ${currentDirection}">
+                            ${currentDirection === 'in' ? '📈' : '📉'} ${formatPercent(changePercent)}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="money-flow-metrics">
+                    <div class="metric">
+                        <span class="metric-label">Change</span>
+                        <span class="metric-value ${changeClass}">${formatCurrency(stock.regularMarketChange)}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Volume</span>
+                        <span class="metric-value">${formatLargeNumber(stock.regularMarketVolume)}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Money Flow</span>
+                        <span class="metric-value ${changeClass}">${moneyFlowPrefix}${moneyFlowFormatted.replace('$', '')}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Market Cap</span>
+                        <span class="metric-value">${formatLargeNumber(stock.marketCap)}</span>
+                    </div>
+                </div>
+            `;
+
+            card.addEventListener('click', () => viewStock(stock.symbol));
+            return card;
+        }
+
+        async function loadMoneyFlow() {
+            const container = document.getElementById('stocks-container');
+            const period = document.getElementById('period-select').value;
+            currentPeriod = period;
+
+            container.innerHTML = `
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Loading ${period === 'day' ? 'today\'s' : 'this ' + period} money flow...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(
+                    `${API_BASE_URL}/api/screener/money-flow?period=${encodeURIComponent(period)}&direction=${encodeURIComponent(currentDirection)}&limit=50`
+                );
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (!data || data.length === 0) {
+                    container.innerHTML = `
+                        <div class="loading-state">
+                            <p>No money flow data available for the selected criteria.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const grid = document.createElement('div');
+                grid.className = 'money-flow-grid';
+
+                data.forEach((stock, index) => {
+                    const card = createMoneyFlowCard(stock, index + 1);
+                    grid.appendChild(card);
+                });
+
+                container.innerHTML = '';
+                container.appendChild(grid);
+
+            } catch (error) {
+                console.error('Error loading money flow data:', error);
+                container.innerHTML = `
+                    <div class="loading-state" style="color: #ef4444;">
+                        <p>❌ Failed to load money flow data</p>
+                        <p style="font-size: 0.9em; color: #6b7280; margin-top: 10px;">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        document.getElementById('period-select').addEventListener('change', loadMoneyFlow);
+
+        document.addEventListener('DOMContentLoaded', loadMoneyFlow);
+
+        // Theme toggle
+        (function() {
+            var themeToggle = document.getElementById('theme-toggle');
+            var THEME_KEY = 'oobir_theme';
+            function getPreferredTheme() {
+                return localStorage.getItem(THEME_KEY) ||
+                    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            }
+            function applyTheme(theme) {
+                document.documentElement.setAttribute('data-theme', theme);
+                localStorage.setItem(THEME_KEY, theme);
+                if (themeToggle) themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+            }
+            function toggleTheme() {
+                var current = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
+                applyTheme(current === 'dark' ? 'light' : 'dark');
+            }
+            if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
+            applyTheme(getPreferredTheme());
+        })();        </script>
+
+        // Theme toggle
+        (function() {
+            var themeToggle = document.getElementById('theme-toggle');
+            var THEME_KEY = 'oobir_theme';
+            function getPreferredTheme() {
+                return localStorage.getItem(THEME_KEY) ||
+                    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            }
+            function applyTheme(theme) {
+                document.documentElement.setAttribute('data-theme', theme);
+                localStorage.setItem(THEME_KEY, theme);
+                if (themeToggle) themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+            }
+            function toggleTheme() {
+                var current = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
+                applyTheme(current === 'dark' ? 'light' : 'dark');
+            }
+            if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
+            applyTheme(getPreferredTheme());
+        })();
+    </body>
+</html>

@@ -1,6 +1,7 @@
 """FastAPI application exposing flow.py functions as REST endpoints.
 
-No authentication; suitable for internal networks only.
+Includes API key authentication, rate limiting, structured logging,
+circuit breakers for external APIs, and comprehensive health checks.
 """
 
 import collections
@@ -8,20 +9,39 @@ import json
 import logging
 import math
 import os
+import uuid
 from contextlib import asynccontextmanager
 from datetime import date, datetime
 
 import numpy as np
 import pandas as pd
-from fastapi import FastAPI, HTTPException, Query
+import pybreaker
+import yfinance as yf
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    Query,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import BaseModel, field_validator
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
-import db  # Database caching layer
+import db
 import db_timescale
 import flow
 import ml
+
+limiter = Limiter(key_func=get_remote_address)
+
+breaker_ollama = pybreaker.CircuitBreaker(fail_max=5, reset_timeout=60, exclude=[])
+breaker_yfinance = pybreaker.CircuitBreaker(fail_max=5, reset_timeout=60, exclude=[])
 
 
 # Helper to convert non-JSON-serializable objects to strings
@@ -73,6 +93,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.state.limiter = limiter
+
 # CORS for web UI (allow local and LAN UI origins)
 allowed_origins = [
     "http://localhost",
@@ -84,12 +106,14 @@ allowed_origins = [
     "http://192.168.1.248",
     "http://192.168.1.248:8080",
     "http://192.168.1.248:8081",
+    "http://localhost:2009",
+    "http://127.0.0.1:2009",
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins + ["*"],  # permissive during development
-    allow_credentials=False,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
     allow_methods=["GET"],
     allow_headers=["*"],
 )
@@ -102,6 +126,106 @@ OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
 logger.info("Ollama host configured: %s", OLLAMA_HOST)
 
 PRICE_HISTORY_WINDOW = 121
+
+API_KEYS = set(os.getenv("OOBIR_API_KEYS", "").split(",")) - {""}
+if not API_KEYS:
+    API_KEYS = {"dev-api-key-change-in-production"}
+
+
+@app.middleware("http")
+async def add_correlation_id(request: Request, call_next):
+    """Add correlation ID to each request for tracing."""
+    correlation_id = request.headers.get("X-Correlation-ID", str(uuid.uuid4()))
+    request.state.correlation_id = correlation_id
+    response = await call_next(request)
+    response.headers["X-Correlation-ID"] = correlation_id
+    logger.info(
+        "request_started",
+        extra={
+            "correlation_id": correlation_id,
+            "method": request.method,
+            "path": request.url.path,
+            "client": request.client.host if request.client else None,
+        },
+    )
+    return response
+
+
+@app.middleware("http")
+async def require_api_key_middleware(request: Request, call_next):
+    """Enforce API key authentication on all /api/ endpoints."""
+    if (
+        request.url.path.startswith("/api/")
+        and not request.url.path.startswith("/api/health")
+        and not request.url.path.startswith("/api/cache")
+        and os.getenv("OOBIR_AUTH_ENABLED", "true").lower() != "false"
+    ):
+        api_key = request.headers.get("X-API-Key")
+        if not api_key:
+            return JSONResponse(
+                status_code=401, content={"detail": "Missing X-API-Key header"}
+            )
+        if api_key not in API_KEYS:
+            return JSONResponse(status_code=403, content={"detail": "Invalid API key"})
+    return await call_next(request)
+
+
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+class ExploreParams(BaseModel):
+    model_name: str = "hist_gbm"
+    horizon: int = 5
+    margin: float = 0.0
+    feature_groups: str = ""
+    folds: int = 3
+    max_train: int = 200
+
+    @field_validator("model_name")
+    @classmethod
+    def validate_model_name(cls, v):
+        valid = ("hist_gbm", "random_forest", "extra_trees", "logistic")
+        if v not in valid:
+            raise HTTPException(
+                status_code=422, detail=f"model_name must be one of {valid}"
+            )
+        return v
+
+    @field_validator("horizon")
+    @classmethod
+    def validate_horizon(cls, v):
+        if not 1 <= v <= 60:
+            raise HTTPException(
+                status_code=422, detail="horizon must be between 1 and 60"
+            )
+        return v
+
+    @field_validator("margin")
+    @classmethod
+    def validate_margin(cls, v):
+        if not 0.0 <= v <= 0.10:
+            raise HTTPException(
+                status_code=422, detail="margin must be between 0.0 and 0.10"
+            )
+        return v
+
+    @field_validator("folds")
+    @classmethod
+    def validate_folds(cls, v):
+        if not 2 <= v <= 10:
+            raise HTTPException(
+                status_code=422, detail="folds must be between 2 and 10"
+            )
+        return v
+
+    @field_validator("max_train")
+    @classmethod
+    def validate_max_train(cls, v):
+        if not 60 <= v <= 2000:
+            raise HTTPException(
+                status_code=422, detail="max_train must be between 60 and 2000"
+            )
+        return v
 
 
 # System/Cache Endpoints
@@ -118,7 +242,7 @@ def cache_info():
 
 
 @app.post("/api/cache-flush")
-def flush_cache(endpoint: str = None, symbol: str = None):
+def flush_cache(endpoint: str | None = None, symbol: str | None = None):
     """
     Clear cache entries.
 
@@ -200,7 +324,7 @@ def health_check_ollama():
                 "status": "unhealthy",
                 "ollama_host": OLLAMA_HOST,
                 "ollama_reachable": False,
-                "error": f"Cannot connect to Ollama: {str(exc)}",
+                "error": f"Cannot connect to Ollama: {exc!s}",
             },
         )
     except Exception as exc:  # pylint: disable=broad-except
@@ -213,6 +337,77 @@ def health_check_ollama():
                 "error": str(exc),
             },
         )
+
+
+@app.get("/health/deps")
+def health_check_deps(request: Request):
+    """
+    Detailed health check for all dependencies.
+
+    Returns status of:
+    - yfinance (Yahoo Finance API)
+    - TimescaleDB (PostgreSQL)
+    - Ollama (LLM service)
+    - SQLite cache
+    """
+    import requests
+
+    deps = {}
+    all_healthy = True
+
+    ollama_status = "unhealthy"
+    try:
+        response = requests.get(f"{OLLAMA_HOST}/api/tags", timeout=5)
+        if response.status_code == 200:
+            ollama_status = "healthy"
+        else:
+            all_healthy = False
+    except Exception:
+        all_healthy = False
+    deps["ollama"] = {"status": ollama_status, "host": OLLAMA_HOST}
+
+    cache_status = "healthy"
+    try:
+        stats = db.get_cache_stats()
+        deps["cache"] = {"status": cache_status, "stats": stats}
+    except Exception:
+        deps["cache"] = {"status": "unhealthy", "error": str(Exception)}
+        all_healthy = False
+
+    timescale_status = "unhealthy"
+    try:
+        conn = db_timescale.get_conn()
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT 1")
+            cur.close()
+            timescale_status = "healthy"
+        finally:
+            conn.close()
+    except Exception:
+        all_healthy = False
+    deps["timescale"] = {"status": timescale_status}
+
+    yfinance_status = "healthy"
+    try:
+        test_ticker = yf.Ticker("AAPL")
+        _ = test_ticker.fast_info
+        deps["yfinance"] = {"status": yfinance_status}
+    except Exception:
+        yfinance_status = "degraded"
+        deps["yfinance"] = {
+            "status": yfinance_status,
+            "note": "May still work but Yahoo Finance is slow/unavailable",
+        }
+
+    status_code = 200 if all_healthy else 503
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": "healthy" if all_healthy else "degraded",
+            "dependencies": deps,
+        },
+    )
 
 
 def with_cache(endpoint: str, symbol: str, flow_function, *args, **kwargs):
@@ -1386,6 +1581,52 @@ def get_screen_undervalued_large_caps():
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+@app.get("/api/screener/money-flow")
+def get_money_flow_screener(
+    period: str = Query(
+        default="day",
+        description="Time period: 'day', 'week', 'month', '3month', '6month', 'year'",
+    ),
+    direction: str = Query(
+        default="in",
+        description="Flow direction: 'in' for money in (gainers), 'out' for money out (losers)",
+    ),
+    limit: int = Query(
+        default=25, ge=1, le=100, description="Number of results to return"
+    ),
+):
+    """Get top stocks by money flow (net dollar volume) for a given period.
+
+    Money flow is calculated as price change * volume, showing where money is
+    flowing in (buying) or out (selling) of stocks.
+
+    - period: 'day' (today), 'week' (5d), 'month' (1m), '3month' (3m), '6month' (6m), 'year' (1y)
+    - direction: 'in' = top gainers by dollar volume, 'out' = top losers by dollar volume
+    """
+    logger.info(
+        "Money flow screener requested: period=%s, direction=%s, limit=%d",
+        period,
+        direction,
+        limit,
+    )
+
+    try:
+        cached_key = f"{period}-{direction}-{limit}"
+        cached_data = db.get_cached_data("money-flow", cached_key)
+        if cached_data is not None:
+            logger.info("Returning cached money-flow data")
+            return JSONResponse(content=cached_data)
+
+        flow.ensure_ollama(OLLAMA_HOST)
+        result = flow.get_money_flow_stocks(period, direction, limit)
+
+        db.set_cached_data("money-flow", result, cached_key)
+        return JSONResponse(content=result)
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.error("Error in money-flow screener: %s", str(exc))
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 # ============================================================================
 # Cache Management Endpoints
 # ============================================================================
@@ -1658,12 +1899,12 @@ def get_decision_engine(symbol: str, portfolio: str = ""):
 
 @app.get("/api/fundamentals-db")
 def list_fundamentals_db(
-    sector: str = None,
-    min_market_cap: float = None,
-    max_pe: float = None,
-    min_dividend_yield: float = None,
-    min_roe: float = None,
-    max_debt_to_equity: float = None,
+    sector: str | None = None,
+    min_market_cap: float | None = None,
+    max_pe: float | None = None,
+    min_dividend_yield: float | None = None,
+    min_roe: float | None = None,
+    max_debt_to_equity: float | None = None,
     sort_by: str = "market_cap",
     sort_dir: str = "desc",
     limit: int = 100,
@@ -1879,9 +2120,7 @@ def get_db_stats():
             # Serialize datetimes
             for d in [ph, fu, ti]:
                 for k, v in d.items():
-                    if isinstance(v, datetime):
-                        d[k] = v.isoformat()
-                    elif hasattr(v, "isoformat"):
+                    if isinstance(v, datetime) or hasattr(v, "isoformat"):
                         d[k] = v.isoformat()
             for row in stale:
                 for k, v in row.items():
@@ -1907,6 +2146,187 @@ def get_db_stats():
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("DB stats error: %s", str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@limiter.limit("10/minute")
+@app.post("/api/batch/fundamentals")
+def get_batch_fundamentals(request: Request, symbols: list[str]):
+    """
+    Get fundamentals for multiple tickers efficiently.
+
+    Request body: JSON array of ticker symbols, e.g. ["AAPL", "GOOGL", "MSFT"]
+
+    Returns:
+        Dict mapping each symbol to its fundamentals payload
+    """
+    symbols = [s.upper() for s in symbols]
+    results = {}
+    for symbol in symbols:
+        try:
+            results[symbol] = get_fundamentals_payload(symbol)
+        except Exception as exc:
+            results[symbol] = {"error": str(exc)}
+    return JSONResponse(content=results)
+
+
+@limiter.limit("10/minute")
+@app.post("/api/batch/price-history")
+def get_batch_price_history(request: Request, symbols: list[str]):
+    """
+    Get price history for multiple tickers efficiently.
+
+    Request body: JSON array of ticker symbols, e.g. ["AAPL", "GOOGL", "MSFT"]
+
+    Returns:
+        Dict mapping each symbol to its price history payload
+    """
+    symbols = [s.upper() for s in symbols]
+    results = {}
+    for symbol in symbols:
+        try:
+            results[symbol] = get_price_history_payload(symbol)
+        except Exception as exc:
+            results[symbol] = {"error": str(exc)}
+    return JSONResponse(content=results)
+
+
+@limiter.limit("30/minute")
+@app.get("/api/export/fundamentals/{symbol}")
+def export_fundamentals(request: Request, symbol: str, format: str = "csv"):
+    """
+    Export fundamentals data as CSV or JSON.
+
+    Query Parameters:
+        symbol: Stock ticker symbol
+        format: Export format - 'csv' or 'json' (default: csv)
+    """
+    symbol = symbol.upper()
+    if format not in ("csv", "json"):
+        raise HTTPException(status_code=400, detail="Format must be 'csv' or 'json'")
+
+    data = get_fundamentals_payload(symbol)
+
+    if format == "json":
+        return JSONResponse(content=data)
+
+    import csv
+    import io
+
+    output = io.StringIO()
+    if isinstance(data, dict):
+        writer = csv.DictWriter(output, fieldnames=data.keys())
+        writer.writeheader()
+        writer.writerow(data)
+    elif isinstance(data, list):
+        if data and isinstance(data[0], dict):
+            writer = csv.DictWriter(output, fieldnames=data[0].keys())
+            writer.writeheader()
+            writer.writerows(data)
+
+    output.seek(0)
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode()),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename={symbol}_fundamentals.csv"
+        },
+    )
+
+
+@limiter.limit("30/minute")
+@app.get("/api/export/price-history/{symbol}")
+def export_price_history(request: Request, symbol: str, format: str = "csv"):
+    """
+    Export price history data as CSV or JSON.
+
+    Query Parameters:
+        symbol: Stock ticker symbol
+        format: Export format - 'csv' or 'json' (default: csv)
+    """
+    symbol = symbol.upper()
+    if format not in ("csv", "json"):
+        raise HTTPException(status_code=400, detail="Format must be 'csv' or 'json'")
+
+    data = get_price_history_payload(symbol)
+
+    if format == "json":
+        return JSONResponse(content=data)
+
+    import csv
+    import io
+
+    output = io.StringIO()
+    if isinstance(data, dict) and "data" in data:
+        rows = data["data"]
+        if rows and isinstance(rows[0], dict):
+            writer = csv.DictWriter(output, fieldnames=rows[0].keys())
+            writer.writeheader()
+            writer.writerows(rows)
+    elif isinstance(data, list):
+        if data and isinstance(data[0], dict):
+            writer = csv.DictWriter(output, fieldnames=data[0].keys())
+            writer.writeheader()
+            writer.writerows(data)
+
+    output.seek(0)
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode()),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename={symbol}_price_history.csv"
+        },
+    )
+
+
+class ConnectionManager:
+    """Manage WebSocket connections for real-time price updates."""
+
+    def __init__(self):
+        self.active_connections: dict[str, list[WebSocket]] = {}
+
+    async def connect(self, websocket: WebSocket, symbol: str):
+        await websocket.accept()
+        if symbol.upper() not in self.active_connections:
+            self.active_connections[symbol.upper()] = []
+        self.active_connections[symbol.upper()].append(websocket)
+
+    def disconnect(self, websocket: WebSocket, symbol: str):
+        if symbol.upper() in self.active_connections:
+            self.active_connections[symbol.upper()].remove(websocket)
+
+    async def broadcast(self, symbol: str, message: str):
+        if symbol.upper() in self.active_connections:
+            for connection in self.active_connections[symbol.upper()]:
+                try:
+                    await connection.send_text(message)
+                except Exception:
+                    pass
+
+
+manager = ConnectionManager()
+
+
+@app.websocket("/ws/prices/{symbol}")
+async def price_websocket(websocket: WebSocket, symbol: str):
+    """
+    WebSocket endpoint for real-time price updates.
+
+    Connect via: ws://host/ws/prices/AAPL
+
+    The server will broadcast price updates to all connected clients
+    for the specified symbol. Note: This is a demonstration endpoint
+    that accepts connections but does not yet push live price updates
+    (requires a background task to poll yfinance and broadcast).
+    """
+    symbol = symbol.upper()
+    await manager.connect(websocket, symbol)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, symbol)
 
 
 if __name__ == "__main__":

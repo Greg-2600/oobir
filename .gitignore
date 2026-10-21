@@ -8,6 +8,7 @@ env/
 cache.db
 historical_data/
 node_modules/
+web/dist/
 
 # ML model artifacts
 models/

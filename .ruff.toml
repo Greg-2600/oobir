@@ -4,3 +4,15 @@ extend-exclude = [
   ".venv",
   "db/init"
 ]
+
+[lint]
+ignore = [
+  "BLE001",   # Do not catch blind exception - widely used with pylint: disable=broad-except
+  "S112",     # try-except-continue - common pattern in data fetching
+  "S110",     # try-except-pass - common in cleanup/optional operations
+  "EXE001",   # Shebang present but not executable - scripts are run via python
+]
+
+[lint.per-file-ignores]
+"flow.py" = ["BLE001", "S112", "S110"]
+"flow_api.py" = ["BLE001", "S112", "S110"]

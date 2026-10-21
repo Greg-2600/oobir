@@ -2,12 +2,12 @@
 
 // Configuration
 // Prefer explicit value from config.js (window.OOBIR_API_BASE), otherwise
-// derive from current host and default API port (8000).
+// derive from current host and default API port (2010).
 const API_BASE_URL = (typeof window !== 'undefined' && window.OOBIR_API_BASE)
     ? window.OOBIR_API_BASE
     : (window.location.hostname === 'localhost'
-        ? 'http://localhost:8000'
-        : 'http://' + window.location.hostname + ':8000');
+        ? 'http://localhost:2010'
+        : 'http://' + window.location.hostname + ':2010');
 
 const RECENT_TICKERS_KEY = 'oobir_recent_tickers';
 const LAST_VIEW_SNAPSHOTS_KEY = 'oobir_last_view_snapshots';
@@ -31,6 +31,38 @@ const PRICE_HISTORY_CHART_LIMIT = 121;
 let activeLoadController = null;
 const deferredSectionLoaders = new Map();
 let deferredSectionObserver = null;
+
+const THEME_KEY = 'oobir_theme';
+
+function getPreferredTheme() {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved) return saved;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem(THEME_KEY, theme);
+    const btn = document.getElementById('theme-toggle');
+    if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+}
+
+function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+}
+
+function initTheme() {
+    applyTheme(getPreferredTheme());
+    const btn = document.getElementById('theme-toggle');
+    if (btn) btn.addEventListener('click', toggleTheme);
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initTheme);
+} else {
+    initTheme();
+}
 
 function beginNewLoadSession() {
     if (activeLoadController) {
@@ -873,7 +905,7 @@ function renderMarketRadar(stocks) {
             </div>
             <div class="market-radar-list">
                 ${group.items.length ? group.items.map((item, index) => `
-                    <button type="button" class="market-radar-item" data-ticker="${escapeHtml(item.ticker)}">
+                    <button type="button" class="market-radar-item${item.change > 0 ? ' gainer' : item.change < 0 ? ' loser' : ' highlight'}" data-ticker="${escapeHtml(item.ticker)}">
                         <div class="market-radar-item-main">
                             <div>
                                 <div class="market-radar-item-ticker">${escapeHtml(item.ticker)}</div>
@@ -1430,7 +1462,7 @@ async function renderStocksGrid(stocks) {
             : '';
 
         return `
-            <div class="stock-card" data-ticker="${escapeHtml(ticker)}" style="cursor: pointer; display: flex; flex-direction: column;">
+            <div class="stock-card" data-ticker="${escapeHtml(ticker)}" data-direction="${isPositive ? 'up' : 'down'}" style="cursor: pointer; display: flex; flex-direction: column;">
                 <div class="stock-card-header">
                     <h3 class="stock-ticker">${symbol}</h3>
                     <span class="stock-price-badge">$${currentPrice.toFixed(2)}</span>
@@ -1824,6 +1856,8 @@ function initializeNewsSentiment(ticker) {
 // Load news sentiment on demand
 async function loadNewsSentiment(ticker) {
     const container = document.getElementById('news-sentiment-data');
+    const button = document.getElementById('news-sentiment-button');
+    if (button) button.classList.add('loading');
     container.innerHTML = '<p class="text-muted">🔄 Loading news sentiment...</p>';
 
     try {
@@ -1834,11 +1868,13 @@ async function loadNewsSentiment(ticker) {
         }
 
         const data = await response.json();
+        if (button) button.classList.remove('loading');
         renderNewsSentiment(data, container);
     } catch (error) {
         console.error(`Error fetching news sentiment:`, error);
+        if (button) button.classList.remove('loading');
         container.innerHTML = `
-            <p class="text-danger">❌ Failed to load news sentiment</p>
+            <p class="ai-error">❌ Failed to load news sentiment</p>
             <button class="ai-button" id="news-sentiment-retry" style="margin-top: 10px;">
                 🔄 Retry
             </button>

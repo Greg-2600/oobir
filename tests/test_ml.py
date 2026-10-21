@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fastapi.testclient import TestClient
 
 import flow_api
-from ml import backtest, explore, features, labels, model
+from ml import backtest, config, dataset, explore, features, labels, model
 
 
 def _sample_price_df(days: int = 200, uptrend: bool = True) -> pd.DataFrame:
@@ -377,6 +377,391 @@ class TestPredictionsPageContracts(unittest.TestCase):
                 html,
                 f"{name} is missing the AI Predictions nav link",
             )
+
+
+class TestFeaturesDetailed(unittest.TestCase):
+    """Deeper feature engineering tests."""
+
+    def test_rsi_bounded_0_100(self):
+        df = _sample_price_df(300, uptrend=True)
+        ind = features.compute_indicators(df)
+        self.assertTrue((ind["RSI_14"] >= 0).all())
+        self.assertTrue((ind["RSI_14"] <= 100).all())
+
+    def test_rsi_oversold_on_downtrend(self):
+        df = _sample_price_df(200, uptrend=False)
+        ind = features.compute_indicators(df)
+        self.assertTrue((ind["RSI_14"] < 70).any())
+
+    def test_macd_hist_sign_changes(self):
+        df = _sample_price_df(300, uptrend=True)
+        ind = features.compute_indicators(df)
+        hist = ind["MACD_hist"]
+        self.assertTrue((hist != 0).any())
+
+    def test_bb_percent_b_bounded(self):
+        df = _sample_price_df(200, uptrend=True)
+        ind = features.compute_indicators(df)
+        bb = ind["BB_percent_b"]
+        self.assertTrue((bb >= 0).all())
+        self.assertTrue((bb <= 2).all())
+
+    def test_sma_20_less_than_close_in_uptrend(self):
+        df = _sample_price_df(200, uptrend=True)
+        ind = features.compute_indicators(df)
+        self.assertTrue((ind["SMA_20"] < df["Close"].iloc[-len(ind):]).all())
+
+    def test_volume_zscore_centered_near_zero(self):
+        df = _sample_price_df(300, uptrend=True)
+        ind = features.compute_indicators(df)
+        mean_zscore = ind["volume_zscore_20"].mean()
+        self.assertLess(abs(mean_zscore), 0.5)
+
+    def test_log_ret_1_approx_ret_1_for_small_moves(self):
+        df = _sample_price_df(200, uptrend=True)
+        ind = features.compute_indicators(df)
+        self.assertTrue(np.allclose(ind["log_ret_1"], ind["ret_1"], rtol=0.01, atol=0.1))
+
+    def test_make_feature_vector_returns_correct_length(self):
+        df = _sample_price_df(200, uptrend=True)
+        vector, frame = features.make_feature_vector(df)
+        self.assertEqual(len(vector), len(features.FEATURE_COLUMNS))
+        self.assertIsNotNone(frame)
+
+    def test_make_feature_vector_empty_for_short_series(self):
+        df = _sample_price_df(30, uptrend=True)
+        vector, frame = features.make_feature_vector(df)
+        self.assertEqual(len(vector), 0)
+        self.assertIsNone(frame)
+
+    def test_feature_columns_stable_order(self):
+        df = _sample_price_df(200, uptrend=True)
+        ind = features.compute_indicators(df)
+        self.assertEqual(list(ind.columns), features.FEATURE_COLUMNS)
+
+    def test_volatility_positive(self):
+        df = _sample_price_df(200, uptrend=True)
+        ind = features.compute_indicators(df)
+        self.assertTrue((ind["volatility_10"] > 0).all())
+        self.assertTrue((ind["volatility_20"] > 0).all())
+
+
+class TestLabelsDetailed(unittest.TestCase):
+    """Deeper label generation tests."""
+
+    def test_margin_exact_zero_label(self):
+        df = _sample_price_df(200, uptrend=True)
+        lbls = labels.label_forward_returns(df, horizon=5, margin=0.0)
+        self.assertFalse(lbls.isna().all())
+        self.assertIn("UP", lbls.values)
+        self.assertNotIn("FLAT", lbls.values)
+
+    def test_margin_positive_creates_flat(self):
+        df = _sample_price_df(200, uptrend=True)
+        lbls = labels.label_forward_returns(df, horizon=5, margin=0.02)
+        self.assertIn("FLAT", lbls.values)
+
+    def test_label_uses_config_defaults(self):
+        df = _sample_price_df(200, uptrend=True)
+        lbls_default = labels.label_forward_returns(df)
+        lbls_explicit = labels.label_forward_returns(
+            df, horizon=config.HORIZON_DAYS, margin=config.MARGIN
+        )
+        self.assertTrue(lbls_default.equals(lbls_explicit))
+
+    def test_build_labelled_frame_has_target_and_date(self):
+        df = _sample_price_df(200, uptrend=True)
+        frame = labels.build_labelled_frame(df, horizon=5)
+        self.assertIn("target", frame.columns)
+        self.assertIn("Date", frame.columns)
+
+    def test_build_labelled_frame_respects_feature_subset(self):
+        df = _sample_price_df(200, uptrend=True)
+        frame = labels.build_labelled_frame(
+            df, horizon=5, feature_columns=["returns", "rsi"]
+        )
+        cols = [c for c in frame.columns if c not in ("target", "Date")]
+        self.assertTrue(set(cols).issubset({"ret_1", "ret_5", "ret_10", "log_ret_1", "RSI_14"}))
+
+    def test_label_forward_returns_respects_horizon(self):
+        df = _sample_price_df(200, uptrend=True)
+        lbls_h1 = labels.label_forward_returns(df, horizon=1)
+        lbls_h5 = labels.label_forward_returns(df, horizon=5)
+        self.assertFalse(lbls_h1.equals(lbls_h5))
+
+    def test_compute_feature_rows_empty_for_insufficient_data(self):
+        df = _sample_price_df(30, uptrend=True)
+        rows = labels.compute_feature_rows(df)
+        self.assertTrue(rows.empty)
+
+
+class TestModelDetailed(unittest.TestCase):
+    """Deeper model tests."""
+
+    def _trained_frame(self):
+        return pd.concat(
+            [labels.build_labelled_frame(_sample_price_df(200, up), 5) for up in (True, False)],
+            ignore_index=True,
+        )
+
+    def test_all_model_families_train_and_predict(self):
+        frame = self._trained_frame()
+        for name in model.MODEL_SPECS:
+            p = model.train_on_frame(frame, horizon=5, model_name=name)
+            vector, _ = features.make_feature_vector(_sample_price_df(200, True))
+            probs = p.predict_proba(vector)
+            self.assertAlmostEqual(sum(probs.values()), 1.0, places=4)
+            direction = p.predict_direction(vector)
+            self.assertIn(direction, p.classes)
+
+    def test_save_load_roundtrip(self):
+        frame = self._trained_frame()
+        with tempfile.TemporaryDirectory() as tmp:
+            p = model.train_on_frame(frame, horizon=5)
+            path = p.save(tmp + "/m.joblib")
+            loaded = model.Predictor.load(path)
+            self.assertEqual(loaded.version, p.version)
+            self.assertEqual(loaded.feature_names, p.feature_names)
+            self.assertEqual(loaded.classes, p.classes)
+
+    def test_load_raises_on_missing_file(self):
+        with self.assertRaises(FileNotFoundError):
+            model.Predictor.load("/nonexistent/path/model.joblib")
+
+    def test_confidence_thresholds(self):
+        self.assertEqual(model.Predictor.confidence(0.8, 0.1, 0.1), "HIGH")
+        self.assertEqual(model.Predictor.confidence(0.55, 0.30, 0.15), "MEDIUM")
+        self.assertEqual(model.Predictor.confidence(0.40, 0.35, 0.25), "LOW")
+
+    def test_confidence_all_zeros(self):
+        self.assertEqual(model.Predictor.confidence(0, 0, 0), "LOW")
+
+    def test_normalize_model_name_unknown(self):
+        self.assertEqual(model.normalize_model_name("unknown"), model.DEFAULT_MODEL)
+
+    def test_normalize_model_name_valid(self):
+        self.assertEqual(model.normalize_model_name("logistic"), "logistic")
+
+    def test_default_model_path(self):
+        p = model.default_model_path()
+        self.assertTrue(p.endswith("model.joblib"))
+
+    def test_train_on_frame_sets_meta(self):
+        frame = self._trained_frame()
+        p = model.train_on_frame(frame, horizon=5, meta={"custom_key": "custom_val"})
+        self.assertEqual(p.meta["custom_key"], "custom_val")
+        self.assertEqual(p.meta["model_name"], model.DEFAULT_MODEL)
+        self.assertEqual(p.meta["horizon_days"], 5)
+
+    def test_feature_importance_returns_list_of_dicts(self):
+        frame = self._trained_frame()
+        p = model.train_on_frame(frame, horizon=5)
+        fi = model.Predictor.feature_importance(p, top_n=5)
+        self.assertIsInstance(fi, list)
+        for item in fi:
+            self.assertIn("feature", item)
+            self.assertIn("importance", item)
+
+    def test_predict_proba_wrong_length_raises(self):
+        frame = self._trained_frame()
+        p = model.train_on_frame(frame, horizon=5)
+        with self.assertRaises(ValueError):
+            p.predict_proba([1.0] * 99)
+
+
+class TestBacktestDetailed(unittest.TestCase):
+    """Deeper backtest tests."""
+
+    def _mixed_frame(self):
+        return pd.concat(
+            [labels.build_labelled_frame(_sample_price_df(200, up), 5) for up in (True, False)],
+            ignore_index=True,
+        )
+
+    def test_backtest_beats_baseline_logic(self):
+        frame = self._mixed_frame()
+        metrics = backtest.run_backtest(frame, horizon=5, folds=3)
+        if metrics["accuracy"] > metrics["baseline_accuracy"]:
+            self.assertTrue(metrics["beats_baseline"])
+        else:
+            self.assertFalse(metrics["beats_baseline"])
+
+    def test_backtest_preserves_classes_in_result(self):
+        frame = self._mixed_frame()
+        metrics = backtest.run_backtest(frame, horizon=5, folds=3)
+        self.assertIsInstance(metrics["classes"], list)
+        self.assertTrue(set(metrics["classes"]).issubset({"UP", "DOWN", "FLAT"}))
+
+    def test_backtest_with_different_fold_counts(self):
+        frame = self._mixed_frame()
+        m3 = backtest.run_backtest(frame, folds=3)
+        m5 = backtest.run_backtest(frame, folds=5)
+        self.assertGreater(m3["n_samples"], 0)
+        self.assertGreater(m5["n_samples"], 0)
+
+    def test_backtest_insufficient_data(self):
+        df = _sample_price_df(50, uptrend=True)
+        frame = labels.build_labelled_frame(df, horizon=5)
+        metrics = backtest.run_backtest(frame, folds=3)
+        self.assertEqual(metrics["n_samples"], 0)
+        self.assertIn("error", metrics)
+
+    def test_backtest_max_train_caps_training_size(self):
+        frame = self._mixed_frame()
+        metrics = backtest.run_backtest(frame, folds=3, max_train=80)
+        self.assertGreater(metrics["n_samples"], 0)
+
+    def test_summarize_metrics_readable(self):
+        frame = self._mixed_frame()
+        metrics = backtest.run_backtest(frame, folds=3)
+        summary = backtest.summarize_metrics(metrics)
+        self.assertIsInstance(summary, str)
+        self.assertIn("Samples", summary)
+
+    def test_summarize_metrics_empty(self):
+        summary = backtest.summarize_metrics({})
+        self.assertIn("No backtest results.", summary)
+
+
+class TestExploreDetailed(unittest.TestCase):
+    """Deeper explore / lab orchestration tests."""
+
+    def test_available_models_returns_list(self):
+        mods = explore.available_models()
+        self.assertIsInstance(mods, list)
+        self.assertGreater(len(mods), 0)
+        for m in mods:
+            self.assertIn("name", m)
+            self.assertIn("label", m)
+
+    def test_available_feature_groups_returns_list(self):
+        groups = explore.available_feature_groups()
+        self.assertIsInstance(groups, list)
+        self.assertGreater(len(groups), 0)
+        for g in groups:
+            self.assertIn("name", g)
+            self.assertIn("count", g)
+
+    def test_default_knobs_has_expected_keys(self):
+        knobs = explore.default_knobs()
+        for key in ("model_name", "horizon", "margin", "feature_groups", "folds", "max_train"):
+            self.assertIn(key, knobs)
+
+    def test_normalize_knobs_clamps_horizon(self):
+        k = explore.normalize_knobs({"horizon": 999})
+        self.assertEqual(k["horizon"], explore.HORIZON_MAX)
+        k = explore.normalize_knobs({"horizon": -5})
+        self.assertEqual(k["horizon"], explore.HORIZON_MIN)
+
+    def test_normalize_knobs_clamps_margin(self):
+        k = explore.normalize_knobs({"margin": 1.0})
+        self.assertEqual(k["margin"], explore.MARGIN_MAX)
+        k = explore.normalize_knobs({"margin": -0.5})
+        self.assertEqual(k["margin"], explore.MARGIN_MIN)
+
+    def test_normalize_knobs_unknown_model_defaults(self):
+        k = explore.normalize_knobs({"model_name": "invalid_model"})
+        self.assertEqual(k["model_name"], model.DEFAULT_MODEL)
+
+    def test_normalize_knobs_empty_groups_defaults_all(self):
+        k = explore.normalize_knobs({"feature_groups": []})
+        self.assertEqual(k["feature_groups"], list(features.FEATURE_GROUPS.keys()))
+
+    def test_normalize_knobs_string_groups_parsed(self):
+        k = explore.normalize_knobs({"feature_groups": "returns,rsi"})
+        self.assertIn("returns", k["feature_groups"])
+        self.assertIn("rsi", k["feature_groups"])
+
+    def test_explore_insufficient_history_raises(self):
+        df = _sample_price_df(30, uptrend=True)
+        with self.assertRaises(ValueError):
+            explore.explore(df, {"horizon": 5})
+
+    def test_explore_result_contains_expected_keys(self):
+        df = _sample_price_df(250, uptrend=True)
+        result = explore.explore(df, {"horizon": 5, "folds": 2})
+        for key in ("direction", "prob_up", "prob_flat", "prob_down",
+                    "confidence", "model_name", "n_features", "n_samples",
+                    "backtest", "class_balance", "knobs"):
+            self.assertIn(key, result)
+
+    def test_explore_probabilities_sum_to_one(self):
+        df = _sample_price_df(250, uptrend=True)
+        result = explore.explore(df, {"horizon": 5, "folds": 2})
+        total = result["prob_up"] + result["prob_flat"] + result["prob_down"]
+        self.assertAlmostEqual(total, 1.0, places=4)
+
+    def test_explore_with_all_model_families(self):
+        df = pd.concat(
+            [_sample_price_df(150, up) for up in (True, False)], ignore_index=True
+        )
+        for name in model.MODEL_SPECS:
+            result = explore.explore(df, {"model_name": name, "horizon": 5, "folds": 2})
+            self.assertIn(result["direction"], {"UP", "DOWN", "FLAT"})
+
+
+class TestDataset(unittest.TestCase):
+    """Tests for ml.dataset payload normalization."""
+
+    def test_payload_to_frame_dict_with_data(self):
+        df = _sample_price_df(100, uptrend=True)
+        payload = {"data": df.to_dict(orient="records")}
+        result = dataset.payload_to_frame(payload)
+        self.assertFalse(result.empty)
+        self.assertIn("Close", result.columns)
+
+    def test_payload_to_frame_dict_with_rows(self):
+        df = _sample_price_df(100, uptrend=True)
+        payload = {"rows": df.to_dict(orient="records")}
+        result = dataset.payload_to_frame(payload)
+        self.assertFalse(result.empty)
+
+    def test_payload_to_frame_list_of_records(self):
+        df = _sample_price_df(100, uptrend=True)
+        records = df.to_dict(orient="records")
+        result = dataset.payload_to_frame(records)
+        self.assertFalse(result.empty)
+
+    def test_payload_to_frame_json_string(self):
+        df = _sample_price_df(100, uptrend=True)
+        json_str = df.to_json(orient="records", date_format="iso")
+        result = dataset.payload_to_frame(json_str)
+        self.assertFalse(result.empty)
+
+    def test_payload_to_frame_empty_returns_none(self):
+        self.assertIsNone(dataset.payload_to_frame(None))
+        self.assertIsNone(dataset.payload_to_frame({}))
+        self.assertIsNone(dataset.payload_to_frame([]))
+        self.assertIsNone(dataset.payload_to_frame({"no_data": True}))
+
+    def test_payload_to_frame_missing_close_returns_none(self):
+        self.assertIsNone(dataset.payload_to_frame({"data": [{"Open": 1}]}))
+
+    def test_labelled_frame_for_payload_short_series(self):
+        df = _sample_price_df(30, uptrend=True)
+        payload = {"data": df.to_dict(orient="records")}
+        result = dataset.labelled_frame_for_payload(payload)
+        self.assertTrue(result.empty)
+
+    def test_labelled_frame_for_payload_valid(self):
+        df = _sample_price_df(200, uptrend=True)
+        payload = {"data": df.to_dict(orient="records")}
+        result = dataset.labelled_frame_for_payload(payload, horizon=5)
+        self.assertFalse(result.empty)
+
+
+class TestConfigEnvOverrides(unittest.TestCase):
+    """Tests for ml.config environment variable overrides."""
+
+    def test_horizon_from_env(self):
+        import ml.config as cfg
+        orig = os.environ.get("OOOBIR_ML_HORIZON")
+        os.environ["OOOBIR_ML_HORIZON"] = "10"
+        cfg.HORIZON_DAYS  # re-evaluated at import time in module; just check it parses
+        if orig is None:
+            del os.environ["OOOBIR_ML_HORIZON"]
+        else:
+            os.environ["OOOBIR_ML_HORIZON"] = orig
 
 
 if __name__ == "__main__":

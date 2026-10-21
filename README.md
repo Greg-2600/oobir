@@ -171,7 +171,11 @@ docker compose exec daily-sync python scripts/daily_sync.py --fundamentals-only
   - ✓ **Smart Analyst Targets**: Visual arrows (↑↓→) showing upside/downside potential vs current price
   - ✓ **Option Chain Summary**: Simplified call/put analysis with In-The-Money, Volume, Open Interest metrics
   - ✓ **Technical Signal Cards**: Visual bars for RSI, Stochastic, ADX with color-coded signals (Overbought/Oversold/Neutral)
-  - ✓ **Hover Tooltips**: Non-technical explanations for every metric (P/E ratio, RSI, Bollinger Bands, etc.)
+  - ✓ **Hover Tooltips Everywhere**: Non-technical explanations for every metric — fundamentals, technical indicators, section nav chips, ML Model Lab controls, and result cards. Just hover over `?` circles or any labeled element for plain-English explanations.
+
+- **Dark Mode**: Toggle between light and dark themes with system preference detection and localStorage persistence. Dark theme features slate-blue tones (`bg: rgb(15,23,42)`, header `rgb(30,41,59)`).
+
+- **Custom Favicon**: SVG favicon (`favicon.svg`) with blue rounded rectangle and "oo" monogram, matching the brand across all 10 HTML pages.
 
 ### 2. Comprehensive REST API
 - **30 production endpoints** spanning data, AI analysis, trading strategy, ML prediction, caching, and health checks
@@ -492,6 +496,7 @@ Run cache tests: `pytest tests/test_cache_layer.py -v`
 
 ### 🧠 Machine Learning Prediction Lab
 - **Scikit-Learn Directional Model**: Predicts UP / FLAT / DOWN forward return with no LLM in the request path
+- **Integrated into Stock Results**: Full Model Lab is embedded directly in the stock results page (no page navigation needed) — scroll to "AI Predictions" section chip
 - **Interactive Model Lab**: Tune model family, horizon, flat band, feature groups, folds, and training cap live from the AI Predictions page
 - **Four Estimator Families**: Histogram gradient boosting, random forest, extra trees, and logistic regression
 - **Walk-Forward Backtesting**: Honest out-of-sample metrics (accuracy, balanced accuracy, per-class F1, majority baseline)
@@ -512,6 +517,23 @@ Run cache tests: `pytest tests/test_cache_layer.py -v`
 - **Service Mesh Integration**: Multi-container setup (app + web + Ollama) with automatic health checks
 - **Environment Parity**: Guaranteed consistency across development, staging, and production
 - **Scalability**: Stateless design supports horizontal scaling, load balancing, and orchestration (Kubernetes-compatible)
+
+### Code Quality & Linting
+
+OOBIR maintains strict code quality standards with multi-language linting:
+
+- **Ruff** (`flow.py`, `flow_api.py`): Import sorting (I001–I005), f-string consistency (F541), undefined names (F821), useless expressions (B018), implicit Optional types (RUF013). Configured to allow broad-except patterns (BLE001, S112, S110, EXE001) with `# noqa` comments.
+- **Black** (`flow.py`, `flow_api.py`): PEP 8 compliant code formatting
+- **ESLint** (`web/*.js`): 0 errors, 0 warnings — consistent JS across all web pages
+- **Pytest** (`tests/test_ui_static_files.py`): 32 static file contract tests including new `TestModelLabContracts` (6 tests) validating ML UI elements
+
+```bash
+# Run all linters
+ruff check flow.py flow_api.py
+black --check flow.py flow_api.py
+npx eslint web/*.js
+pytest tests/test_ui_static_files.py -v
+```
 
 ### 🚀 REST API & Platform Features
 - **30 Comprehensive Endpoints**: data, AI analysis, trading strategy, ML prediction, screener, cache management, and health checks
@@ -1335,7 +1357,7 @@ For issues, questions, or contributions:
 
 ---
 
-**Last Updated**: March 2026  
-**Version**: 1.2.0  
+**Last Updated**: October 2026  
+**Version**: 1.3.0  
 **Status**: ✅ Production Ready  
 **Features**: AI Analysis • Market-Aware Caching • Technical Indicators • REST API • Cloud-Native

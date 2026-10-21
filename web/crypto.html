@@ -5,11 +5,10 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Crypto - OOBIR</title>
         <link rel="stylesheet" href="styles.css">
+        <link rel="icon" href="favicon.svg" type="image/svg+xml">
         <style>
         body {
-            background: radial-gradient(circle at 20% 20%, #fff7ed, #f8fafc 45%),
-                        radial-gradient(circle at 80% 0%, #fef3c7, #f8fafc 40%),
-                        #f8fafc;
+            background: #f9fafb;
             min-height: 100vh;
         }
 
@@ -28,22 +27,23 @@
 
         .crypto-header-section h1 {
             margin: 0;
-            font-size: 2em;
+            font-size: 1.5em;
+            font-weight: 600;
             color: #1f2937;
         }
 
         .hero-subtitle {
             margin: 0;
-            color: #475569;
-            font-size: 1rem;
+            color: #6b7280;
+            font-size: 0.9rem;
         }
 
         .hero-tags { display: flex; gap: 10px; flex-wrap: wrap; }
 
         .crypto-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-            gap: 18px;
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            gap: 16px;
             margin-top: 20px;
         }
 
@@ -51,67 +51,63 @@
             position: relative;
             background: white;
             border: 1px solid #e5e7eb;
-            border-radius: 16px;
-            padding: 18px 18px 16px;
-            transition: all 0.3s ease;
+            border-radius: 12px;
+            padding: 16px;
+            transition: all 0.25s ease;
             cursor: pointer;
-            box-shadow: 0 10px 30px rgba(15,23,42,0.06);
-            min-height: 220px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            min-height: 200px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            overflow: hidden;
         }
 
         .stock-card::before {
             content: '';
             position: absolute;
-            inset: 0;
-            background: linear-gradient(135deg, rgba(245,158,11,0.06), rgba(245,158,11,0));
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: #f59e0b;
+            border-radius: 4px 0 0 4px;
             opacity: 0;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.25s ease;
         }
 
         .stock-card::after {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 6px;
-            background: linear-gradient(90deg, #f59e0b, #f97316);
-            opacity: 0.7;
+            top: 0; left: 0;
+            width: 100%; height: 3px;
+            background: linear-gradient(90deg, #f59e0b, #fbbf24);
+            opacity: 0;
+            transition: opacity 0.25s ease;
         }
 
         .stock-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 16px 38px rgba(15,23,42,0.12);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
             border-color: #f59e0b;
         }
 
         .stock-card:hover::before { opacity: 1; }
+        .stock-card:hover::after { opacity: 1; }
 
-        /* Category accent bars */
-        .stock-card[data-category="layer1"]::after   { background: linear-gradient(90deg, #f59e0b, #f97316); }
-        .stock-card[data-category="layer2"]::after   { background: linear-gradient(90deg, #8b5cf6, #6366f1); }
-        .stock-card[data-category="defi"]::after     { background: linear-gradient(90deg, #10b981, #06b6d4); }
-        .stock-card[data-category="exchange"]::after { background: linear-gradient(90deg, #3b82f6, #6366f1); }
-        .stock-card[data-category="meme"]::after     { background: linear-gradient(90deg, #ec4899, #f43f5e); }
-        .stock-card[data-category="stablecoin"]::after { background: linear-gradient(90deg, #94a3b8, #64748b); }
+        /* Category accent bars - left border only */
+        .stock-card[data-category="layer1"]    { border-left: 3px solid #f59e0b; }
+        .stock-card[data-category="layer2"]    { border-left: 3px solid #8b5cf6; }
+        .stock-card[data-category="defi"]      { border-left: 3px solid #10b981; }
+        .stock-card[data-category="exchange"]  { border-left: 3px solid #3b82f6; }
+        .stock-card[data-category="meme"]      { border-left: 3px solid #ec4899; }
+        .stock-card[data-category="stablecoin"] { border-left: 3px solid #94a3b8; }
 
-        .stock-card[data-category="layer1"]   { background: linear-gradient(180deg, rgba(245,158,11,0.05), rgba(249,115,22,0.02)); }
-        .stock-card[data-category="layer2"]   { background: linear-gradient(180deg, rgba(139,92,246,0.05), rgba(99,102,241,0.02)); }
-        .stock-card[data-category="defi"]     { background: linear-gradient(180deg, rgba(16,185,129,0.05), rgba(6,182,212,0.02)); }
-        .stock-card[data-category="exchange"] { background: linear-gradient(180deg, rgba(59,130,246,0.05), rgba(99,102,241,0.02)); }
-        .stock-card[data-category="meme"]     { background: linear-gradient(180deg, rgba(236,72,153,0.05), rgba(244,63,94,0.02)); }
-        .stock-card[data-category="stablecoin"] { background: linear-gradient(180deg, rgba(148,163,184,0.04), rgba(203,213,225,0.02)); }
-
-        .stock-card.trend-up   { background: linear-gradient(180deg, rgba(16,185,129,0.06), rgba(16,185,129,0.02)); border-color: rgba(16,185,129,0.2); box-shadow: 0 8px 24px rgba(16,185,129,0.06); }
-        .stock-card.trend-down { background: linear-gradient(180deg, rgba(239,68,68,0.06), rgba(239,68,68,0.02)); border-color: rgba(239,68,68,0.2); box-shadow: 0 8px 24px rgba(239,68,68,0.06); }
+        .stock-card.trend-up   { border-left: 3px solid #10b981; }
+        .stock-card.trend-down { border-left: 3px solid #ef4444; }
         .stock-card.trend-neutral { background: white; border-color: #e5e7eb; }
-        .stock-card.trend-up .stock-price   { color: #065f46; }
-        .stock-card.trend-down .stock-price { color: #7f1d1d; }
-        .stock-card.trend-up:hover, .stock-card.trend-down:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(2,6,23,0.12); }
+        .stock-card.trend-up .stock-price   { color: #059669; }
+        .stock-card.trend-down .stock-price { color: #dc2626; }
+        .stock-card.trend-up:hover, .stock-card.trend-down:hover { transform: translateY(-2px); }
 
         .stock-card-header {
             display: flex;
@@ -137,19 +133,18 @@
         .trend-badge.flat { background: #f8fafc; color: #475569; border: 1px solid rgba(148,163,184,0.3); }
 
         .mini-chart {
-            height: 140px;
-            border-radius: 16px;
-            background: radial-gradient(circle at 25% 25%, rgba(255,255,255,0.08), rgba(15,23,42,0.06) 55%);
+            height: 100px;
+            border-radius: 8px;
+            background: #f8fafc;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #cbd5e1;
-            font-size: 0.9em;
-            border: 1px solid rgba(148,163,184,0.18);
-            box-shadow: inset 0 2px 10px rgba(15,23,42,0.18);
+            color: #9ca3af;
+            font-size: 0.85em;
+            border: 1px solid #e5e7eb;
             position: relative;
             overflow: hidden;
-            padding: 12px;
+            padding: 8px;
         }
 
         .chart-container-inner {
@@ -182,10 +177,12 @@
                         <a href="markets.html">Markets</a>
                         <a href="stocks.html">AI Picks</a>
                         <a href="predictions.html">AI Predictions</a>
+                        <a href="money-flow.html">Money Flow</a>
                         <a href="crypto.html" class="active">Crypto</a>
                         <a href="metals.html">Metals</a>
                         <a href="commodities.html">Commodities</a>
                     </nav>
+                    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">🌙</button>
                 </div>
             </header>
 
@@ -696,6 +693,47 @@
 
         if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadCryptoCharts);
         else loadCryptoCharts();
-        </script>
+
+        // Theme toggle
+        (function() {
+            var themeToggle = document.getElementById('theme-toggle');
+            var THEME_KEY = 'oobir_theme';
+            function getPreferredTheme() {
+                return localStorage.getItem(THEME_KEY) ||
+                    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            }
+            function applyTheme(theme) {
+                document.documentElement.setAttribute('data-theme', theme);
+                localStorage.setItem(THEME_KEY, theme);
+                if (themeToggle) themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+            }
+            function toggleTheme() {
+                var current = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
+                applyTheme(current === 'dark' ? 'light' : 'dark');
+            }
+            if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
+            applyTheme(getPreferredTheme());
+        })();        </script>
+
+        // Theme toggle
+        (function() {
+            var themeToggle = document.getElementById('theme-toggle');
+            var THEME_KEY = 'oobir_theme';
+            function getPreferredTheme() {
+                return localStorage.getItem(THEME_KEY) ||
+                    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            }
+            function applyTheme(theme) {
+                document.documentElement.setAttribute('data-theme', theme);
+                localStorage.setItem(THEME_KEY, theme);
+                if (themeToggle) themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+            }
+            function toggleTheme() {
+                var current = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
+                applyTheme(current === 'dark' ? 'light' : 'dark');
+            }
+            if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
+            applyTheme(getPreferredTheme());
+        })();
     </body>
 </html>

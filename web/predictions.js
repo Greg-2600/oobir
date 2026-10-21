@@ -48,7 +48,9 @@
     }
 
     async function fetchJson(path, signal) {
-        const resp = await fetch(API + path, { signal: signal || abortController.signal });
+        const controller = signal || (abortController ? abortController.signal : null);
+        const opts = controller ? { signal: controller } : {};
+        const resp = await fetch(API + path, opts);
         if (!resp.ok) {
             let detail = 'HTTP ' + resp.status;
             try {
@@ -186,8 +188,16 @@
     // ── Run the experiment ────────────────────────────────────────────────────
 
     async function run() {
-        const ticker = normalizeTicker(el('ml-ticker-input').value);
-        if (!ticker) { showError('Please enter a ticker symbol.'); return; }
+        // Get ticker from stock page context, or fall back to input field
+        let ticker = normalizeTicker(window.currentTicker || '');
+        if (!ticker) {
+            const symEl = document.getElementById('stock-symbol');
+            if (symEl) ticker = normalizeTicker(symEl.textContent || '');
+        }
+        if (!ticker) {
+            ticker = normalizeTicker(el('ml-ticker-input') ? el('ml-ticker-input').value : '');
+        }
+        if (!ticker) { showError('No ticker available. Search for a stock first.'); return; }
         const signal = newSession();
         currentTicker = ticker;
         clearError();
@@ -558,34 +568,46 @@
             const node = el(id);
             if (node) node.addEventListener('input', syncKnobLabels);
         });
-        el('lab-run').addEventListener('click', run);
-        el('lab-reset').addEventListener('click', () => {
+        // Wire original lab buttons if they exist (predictions.html)
+        const labRun = el('lab-run');
+        if (labRun) labRun.addEventListener('click', run);
+        const labReset = el('lab-reset');
+        if (labReset) labReset.addEventListener('click', () => {
             applyKnobs(mlOptions ? mlOptions.defaults : null);
             setLabStatus('Defaults restored.');
-            if (currentTicker) run();
         });
-        el('lab-preset-baseline').addEventListener('click', () => applyPreset('baseline'));
-        el('lab-preset-trend').addEventListener('click', () => applyPreset('trend'));
-        el('lab-preset-long').addEventListener('click', () => applyPreset('long-horizon'));
+        const labPresetBaseline = el('lab-preset-baseline');
+        if (labPresetBaseline) labPresetBaseline.addEventListener('click', () => applyPreset('baseline'));
+        const labPresetTrend = el('lab-preset-trend');
+        if (labPresetTrend) labPresetTrend.addEventListener('click', () => applyPreset('trend'));
+        const labPresetLong = el('lab-preset-long');
+        if (labPresetLong) labPresetLong.addEventListener('click', () => applyPreset('long-horizon'));
     }
 
     function init() {
-        el('ml-run-btn').addEventListener('click', run);
-        el('ml-ticker-input').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') run();
+        // Wire up the Model Lab buttons (in the full lab panel - index.html)
+        const mlLabRun = el('ml-lab-run');
+        if (mlLabRun) mlLabRun.addEventListener('click', run);
+        const mlLabReset = el('ml-lab-reset');
+        if (mlLabReset) mlLabReset.addEventListener('click', () => {
+            applyKnobs(mlOptions ? mlOptions.defaults : null);
+            setLabStatus('Defaults restored.');
         });
+        const mlLabPresetBaseline = el('ml-lab-preset-baseline');
+        if (mlLabPresetBaseline) mlLabPresetBaseline.addEventListener('click', () => applyPreset('baseline'));
+        const mlLabPresetTrend = el('ml-lab-preset-trend');
+        if (mlLabPresetTrend) mlLabPresetTrend.addEventListener('click', () => applyPreset('trend'));
+        const mlLabPresetLong = el('ml-lab-preset-long');
+        if (mlLabPresetLong) mlLabPresetLong.addEventListener('click', () => applyPreset('long-horizon'));
+        // Also wire the original lab buttons if they exist (for predictions.html compatibility)
+        const labRun = el('lab-run');
+        if (labRun) labRun.addEventListener('click', run);
+        const mlRunBtn = el('ml-run-btn');
+        if (mlRunBtn) mlRunBtn.addEventListener('click', run);
+        // Initialize lab panel sliders and other elements
         initLab();
+        // Load model options
         loadOptions();
-        // Auto-run with a ticker in the URL, e.g. ?ticker=AAPL.
-        const params = new URLSearchParams(window.location.search);
-        const t = params.get('ticker');
-        if (t) {
-            el('ml-ticker-input').value = normalizeTicker(t);
-            // Wait for options so knobs are populated before the first run.
-            const start = () => run();
-            if (mlOptions) start();
-            else { const iv = setInterval(() => { if (mlOptions) { clearInterval(iv); start(); } }, 50); }
-        }
     }
 
     if (document.readyState === 'loading') {
