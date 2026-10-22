@@ -4,13 +4,13 @@ This module tests the SQLite-based caching system with market-aware expiration l
 Tests cover cache operations, market state detection, and expiration behavior.
 """
 
-import unittest
+import os
+import sys
 import tempfile
+import unittest
 from datetime import datetime, time, timedelta
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-import sys
-import os
+from unittest.mock import MagicMock, patch
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

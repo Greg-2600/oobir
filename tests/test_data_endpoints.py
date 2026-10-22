@@ -1,10 +1,11 @@
 """Unit tests for data endpoints."""
 
-import unittest
-from unittest.mock import patch, MagicMock
-from fastapi.testclient import TestClient
-import sys
 import os
+import sys
+import unittest
+from unittest.mock import MagicMock, patch
+
+from fastapi.testclient import TestClient
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

@@ -17,12 +17,12 @@ from __future__ import annotations
 
 import argparse
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import psycopg2
 import yfinance as yf
 from psycopg2 import sql
-from psycopg2.extras import execute_values, RealDictCursor
+from psycopg2.extras import RealDictCursor, execute_values
 
 # ── DB connection ───────────────────────────────────────────────────────────
 
@@ -197,7 +197,7 @@ def _convert_epoch(val):
     """Convert epoch seconds to datetime if applicable."""
     if isinstance(val, (int, float)) and val > 0:
         try:
-            return datetime.fromtimestamp(val, tz=timezone.utc)
+            return datetime.fromtimestamp(val, tz=UTC)
         except (OSError, OverflowError, ValueError):
             return None
     return None
@@ -220,7 +220,7 @@ def sync_fundamentals(conn, ticker: str) -> bool:
         print(f"  {ticker}: yfinance error — {exc}")
         return False
 
-    fetched_at = datetime.now(timezone.utc)
+    fetched_at = datetime.now(UTC)
     info["_fetched_at"] = fetched_at.isoformat()
 
     cols = ["ticker", "fetched_at", "raw_info"]
@@ -389,7 +389,7 @@ def main() -> int:
             return 0
 
         print(
-            f"Daily sync starting for {len(tickers)} tickers at {datetime.now(timezone.utc).isoformat()}"
+            f"Daily sync starting for {len(tickers)} tickers at {datetime.now(UTC).isoformat()}"
         )
         print(f"Tickers: {', '.join(tickers)}")
         print()
@@ -456,7 +456,7 @@ def main() -> int:
             price_stats["errors"] + fund_stats["errors"] + ind_stats["errors"]
         )
         print("=" * 50)
-        print(f"Daily sync completed at {datetime.now(timezone.utc).isoformat()}")
+        print(f"Daily sync completed at {datetime.now(UTC).isoformat()}")
         print(f"  Tickers: {len(tickers)}")
         if not args.fundamentals_only:
             print(f"  New price rows: {price_stats['new_rows']}")

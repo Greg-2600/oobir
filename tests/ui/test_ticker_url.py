@@ -8,10 +8,9 @@ Tests cover:
 - API base URL resolution (2010 vs 8000 mismatch fix)
 """
 
-import pytest
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 
 class TestLandingPageLoads:

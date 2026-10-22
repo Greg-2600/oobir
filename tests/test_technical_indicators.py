@@ -1,14 +1,13 @@
 """Tests for technical indicator calculation and AI technical analysis flow."""
 
 import json
+import os
+import sys
 import unittest
-from unittest.mock import patch, MagicMock
 from datetime import datetime, timedelta
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
-
-import sys
-import os
 
 # Ensure project root is on path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

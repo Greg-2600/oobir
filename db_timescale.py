@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta, timezone
-from typing import Iterable, Tuple
+from collections.abc import Iterable
+from datetime import UTC, datetime, timedelta
 
 import psycopg2
-from psycopg2.extras import execute_values, RealDictCursor
+from psycopg2.extras import RealDictCursor, execute_values
 
 
 def get_conn():
@@ -20,7 +20,7 @@ def get_conn():
     )
 
 
-def get_ticker_date_range(conn, ticker: str) -> Tuple[datetime | None, datetime | None]:
+def get_ticker_date_range(conn, ticker: str) -> tuple[datetime | None, datetime | None]:
     with conn.cursor() as cur:
         cur.execute(
             "SELECT MIN(date), MAX(date) FROM price_history WHERE ticker = %s",
@@ -66,7 +66,7 @@ def fetch_price_history(
     if since_days is not None:
         # Pass a concrete timestamp (not make_interval) so TimescaleDB can
         # prune chunks and avoid a multi-second planner pass.
-        cutoff = datetime.now(timezone.utc) - timedelta(days=int(since_days))
+        cutoff = datetime.now(UTC) - timedelta(days=int(since_days))
         sql += " AND date >= %s"
         params.append(cutoff)
     sql += " ORDER BY date DESC"

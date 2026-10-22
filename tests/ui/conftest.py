@@ -4,6 +4,7 @@ Pytest configuration and fixtures for Selenium UI tests.
 
 import os
 import shutil
+
 import pytest
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService

@@ -79,7 +79,7 @@ def _fetch_live_payload(ticker: str):
         if history is None or history.empty:
             return None
         return json.loads(history.to_json(orient="table"))
-    except Exception:  # pylint: disable=broad-except  # noqa: BLE001
+    except Exception:  # pylint: disable=broad-except
         return None
 
 

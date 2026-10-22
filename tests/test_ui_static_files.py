@@ -1,8 +1,8 @@
 """Static UI contract tests for frontend HTML/JS assets."""
 
-from pathlib import Path
 import re
 import unittest
+from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 WEB_DIR = REPO_ROOT / "web"

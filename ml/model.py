@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import os
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import joblib
 import numpy as np
@@ -269,7 +269,7 @@ def train_on_frame(
     )
     resolved_meta.setdefault("margin", config.MARGIN)
     resolved_meta.setdefault("feature_columns", list(feature_cols))
-    resolved_meta.setdefault("trained_on", datetime.now(timezone.utc).isoformat())
+    resolved_meta.setdefault("trained_on", datetime.now(UTC).isoformat())
     resolved_meta.setdefault("rows", int(frame.shape[0]))
     if "feature_importances" not in resolved_meta:
         resolved_meta["feature_importances"] = _permutation_importances(
@@ -299,5 +299,5 @@ def _permutation_importances(estimator, X, y, feature_cols, top_n: int = 8):
             {"feature": feature_cols[i], "importance": float(max(means[i], 0.0))}
             for i in order
         ]
-    except Exception:  # pylint: disable=broad-except  # noqa: BLE001
+    except Exception:  # pylint: disable=broad-except
         return []

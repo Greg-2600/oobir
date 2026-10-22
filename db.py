@@ -2,11 +2,11 @@
 
 import json
 import logging
+import sqlite3
 import threading
 from collections import OrderedDict
-from datetime import datetime, time
-import sqlite3
 from contextlib import contextmanager
+from datetime import datetime, time
 from pathlib import Path
 
 # Setup logging
@@ -95,9 +95,7 @@ def _should_expire_cache(cached_at_str: str) -> bool:
         cache_age_seconds = (now - cached_at).total_seconds()
         if cache_age_seconds > 86400:
             return True
-        if _is_market_open_now() and cache_age_seconds > 3600:
-            return True
-        return False
+        return bool(_is_market_open_now() and cache_age_seconds > 3600)
     except Exception:
         return True
 
@@ -183,7 +181,7 @@ def set_cached_data(
         return False
 
 
-def clear_cache(endpoint: str = None, symbol: str = None) -> int:
+def clear_cache(endpoint: str | None = None, symbol: str | None = None) -> int:
     """Clear cache entries."""
     try:
         with get_db_connection() as conn:

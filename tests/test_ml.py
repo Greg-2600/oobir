@@ -4,7 +4,7 @@ import os
 import sys
 import tempfile
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -22,7 +22,7 @@ from ml import backtest, config, dataset, explore, features, labels, model
 
 def _sample_price_df(days: int = 200, uptrend: bool = True) -> pd.DataFrame:
     """Synthetic OHLCV frame with a clean directional trend + noise."""
-    base = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    base = datetime(2024, 1, 1, tzinfo=UTC)
     dates = [base + timedelta(days=i) for i in range(days)]
     drift = 0.5 if uptrend else -0.5
     rng = np.random.default_rng(0)
