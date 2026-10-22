@@ -1981,14 +1981,79 @@ function renderFundamentals(data, container) {
         nameEl.textContent = companyName;
     }
 
-    // Add sector/industry info in header
+    // Add sector/industry info in header with sector ETF link
+    const sectorETFMap = {
+        'Financials': 'XLF', 'Technology': 'XLK', 'Energy': 'XLE', 'Healthcare': 'XLV',
+        'Consumer Discretionary': 'XLY', 'Consumer Staples': 'XLP', 'Industrials': 'XLI',
+        'Materials': 'XLB', 'Real Estate': 'XLRE', 'Communication Services': 'XLC', 'Utilities': 'XLU',
+    };
     const summaryEl = document.getElementById('company-summary');
     if (summaryEl) {
-        let summary = '';
-        if (sector || industry) {
-            summary = [sector, industry].filter(s => s).join(' • ');
+        let summaryParts = [];
+        if (sector) {
+            const etfTicker = sectorETFMap[sector];
+            if (etfTicker) {
+                summaryParts.push(`<span style="color:#1a73e8;cursor:pointer;" onclick="event.stopPropagation();window.location.href='sectors.html'">${sector} <span style="font-size:0.8em;color:#93c5fd;">(${etfTicker})</span></span>`);
+            } else {
+                summaryParts.push(sector);
+            }
         }
-        summaryEl.textContent = summary;
+        if (industry) summaryParts.push(industry);
+        summaryEl.innerHTML = summaryParts.join(' • ') || '';
+    }
+
+    // Render key stats bar
+    const statsEl = document.getElementById('stock-key-stats');
+    if (statsEl) {
+        const price = data.regularMarketPrice || data.currentPrice || 0;
+        const high52 = data.fiftyTwoWeekHigh || 0;
+        const low52 = data.fiftyTwoWeekLow || 0;
+        const beta = data.beta;
+        const volume = data.averageVolume || data.volume || 0;
+        const marketCap = data.marketCap || 0;
+        const avgVolume10 = data.averageDailyVolume10Day || data.averageVolume10days || 0;
+
+        const formatLarge = (v) => {
+            if (!v) return '—';
+            if (v >= 1e12) return '$' + (v / 1e12).toFixed(1) + 'T';
+            if (v >= 1e9) return '$' + (v / 1e9).toFixed(1) + 'B';
+            if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M';
+            if (v >= 1e3) return (v / 1e3).toFixed(1) + 'K';
+            return v.toString();
+        };
+
+        let statsHtml = '';
+
+        if (high52 && low52 && price) {
+            const pct = ((price - low52) / (high52 - low52) * 100).toFixed(0);
+            statsHtml += `<div class="stat-item"><span class="stat-label">52w Range:</span><span class="stat-value">${formatLarge(low52)} – ${formatLarge(high52)}</span><span style="color:#94a3b8;font-size:0.75em;">(${pct}%现在的位置)</span></div>`;
+        }
+
+        if (beta !== undefined && beta !== null) {
+            const betaColor = beta > 1.2 ? '#ef4444' : beta < 0.8 ? '#10b981' : '';
+            statsHtml += `<div class="stat-divider"></div><div class="stat-item"><span class="stat-label">Beta:</span><span class="stat-value" style="${betaColor ? 'color:'+betaColor : ''}">${beta.toFixed(2)}</span></div>`;
+        }
+
+        if (volume) {
+            statsHtml += `<div class="stat-divider"></div><div class="stat-item"><span class="stat-label">Vol:</span><span class="stat-value">${formatLarge(volume)}</span></div>`;
+        }
+
+        if (marketCap) {
+            statsHtml += `<div class="stat-divider"></div><div class="stat-item"><span class="stat-label">Mkt Cap:</span><span class="stat-value">${formatLarge(marketCap)}</span></div>`;
+        }
+
+        if (avgVolume10) {
+            statsHtml += `<div class="stat-divider"></div><div class="stat-item"><span class="stat-label">10d Avg:</span><span class="stat-value">${formatLarge(avgVolume10)}</span></div>`;
+        }
+
+        const rec = data.recommendationKey || '';
+        if (rec) {
+            const recColors = { strongBuy: '#10b981', buy: '#34d399', hold: '#f59e0b', sell: '#f97316', strongSell: '#ef4444' };
+            const recColor = recColors[rec] || '#94a3b8';
+            statsHtml += `<div class="stat-divider"></div><div class="stat-item"><span class="stat-label">Rec:</span><span class="stat-value" style="color:${recColor};text-transform:capitalize;">${rec.replace(/([A-Z])/g, ' $1').trim()}</span></div>`;
+        }
+
+        statsEl.innerHTML = statsHtml;
     }
 
     // Populate company summary box

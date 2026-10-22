@@ -635,6 +635,35 @@
             font-size: 0.95em;
         }
 
+        .stock-key-stats {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+        .stock-key-stats .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .stock-key-stats .stat-label {
+            color: #94a3b8;
+            font-weight: 500;
+        }
+        .stock-key-stats .stat-value {
+            font-weight: 600;
+            color: #374151;
+        }
+        .stock-key-stats .stat-value.up { color: #10b981; }
+        .stock-key-stats .stat-value.down { color: #ef4444; }
+        .stock-key-stats .stat-divider {
+            width: 1px;
+            background: #e5e7eb;
+            align-self: stretch;
+        }
+
         .stock-card-chart {
             margin: 12px 0;
             border-radius: 6px;
@@ -889,6 +918,7 @@
                                         color: #999;
                                         margin-top: 4px"></div>
                             <div id="stock-price" class="stock-price"></div>
+                            <div id="stock-key-stats" class="stock-key-stats"></div>
                             <div id="since-last-view" class="since-last-view"></div>
                             <label class="revisit-marker-toggle" for="revisit-marker-toggle">
                                 <input id="revisit-marker-toggle" type="checkbox" checked>

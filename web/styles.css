@@ -1297,20 +1297,32 @@ input:focus-visible {
 }
 
 .card h2 {
-    font-size: 24px;
-    margin-bottom: 20px;
+    font-size: 20px;
+    margin-bottom: 16px;
     color: var(--text-primary);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .card h3 {
-    font-size: 18px;
-    margin-bottom: 16px;
+    font-size: 16px;
+    margin-bottom: 12px;
     color: var(--text-primary);
-    font-weight: 600;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .highlight-card {
     border-left: 4px solid var(--primary-color);
+    background: linear-gradient(135deg, rgba(26,115,232,0.03) 0%, transparent 100%);
+}
+
+[data-theme="dark"] .highlight-card {
+    background: linear-gradient(135deg, rgba(26,115,232,0.08) 0%, transparent 100%);
 }
 
 .recommendation-box {
@@ -1340,8 +1352,14 @@ input:focus-visible {
 /* Data Grid */
 .data-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: 20px;
+}
+
+@media (max-width: 900px) {
+    .data-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .data-content {
@@ -1797,6 +1815,19 @@ input:focus-visible {
 
 [data-theme="dark"] .stock-price {
     color: #e8eaed;
+}
+
+[data-theme="dark"] .stock-key-stats {
+    color: #9aa0a6;
+}
+[data-theme="dark"] .stock-key-stats .stat-label {
+    color: #6b7280;
+}
+[data-theme="dark"] .stock-key-stats .stat-value {
+    color: #e8eaed;
+}
+[data-theme="dark"] .stock-key-stats .stat-divider {
+    background: #374151;
 }
 
 [data-theme="dark"] .section-label {
