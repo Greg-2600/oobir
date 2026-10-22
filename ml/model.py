@@ -51,7 +51,7 @@ MODEL_SPECS = {
             max_depth=10,
             min_samples_leaf=25,
             class_weight="balanced_subsample",
-            n_jobs=1,
+            n_jobs=-1,
             random_state=42,
         ),
     },
@@ -63,7 +63,7 @@ MODEL_SPECS = {
             max_depth=10,
             min_samples_leaf=25,
             class_weight="balanced_subsample",
-            n_jobs=1,
+            n_jobs=-1,
             random_state=42,
         ),
     },
@@ -291,7 +291,7 @@ def _permutation_importances(estimator, X, y, feature_cols, top_n: int = 8):
             sample = X.iloc[idx]
             sample_y = y.iloc[idx]
         result = permutation_importance(
-            estimator, sample, sample_y, n_repeats=3, random_state=42, n_jobs=1
+            estimator, sample, sample_y, n_repeats=3, random_state=42, n_jobs=-1
         )
         means = result.importances_mean
         order = np.argsort(means)[::-1][:top_n]
