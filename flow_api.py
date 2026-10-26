@@ -1484,6 +1484,86 @@ def get_option_chain(symbol: str):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+@app.get("/api/recommendations/{symbol}")
+def get_recommendations(symbol: str):
+    """Get analyst recommendations summary (strong buy/buy/hold/sell/strong sell by period)."""
+    symbol = symbol.upper()
+    logger.info("Fetching recommendations for %s", symbol)
+    try:
+        result = with_cache("recommendations", symbol, flow.get_recommendations)
+        if result is None:
+            raise HTTPException(status_code=404, detail="Recommendations not found")
+        return JSONResponse(content=serialize_value(result))
+    except HTTPException:
+        raise
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.error("Error fetching recommendations for %s: %s", symbol, str(exc))
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/institutional-holders/{symbol}")
+def get_institutional_holders(symbol: str):
+    """Get top institutional shareholders for a stock."""
+    symbol = symbol.upper()
+    logger.info("Fetching institutional holders for %s", symbol)
+    try:
+        result = with_cache(
+            "institutional-holders", symbol, flow.get_institutional_holders
+        )
+        if result is None:
+            raise HTTPException(
+                status_code=404, detail="Institutional holders not found"
+            )
+        return JSONResponse(content=serialize_value(result))
+    except HTTPException:
+        raise
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.error(
+            "Error fetching institutional holders for %s: %s", symbol, str(exc)
+        )
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/insider-transactions/{symbol}")
+def get_insider_transactions(symbol: str):
+    """Get recent insider transactions for a stock."""
+    symbol = symbol.upper()
+    logger.info("Fetching insider transactions for %s", symbol)
+    try:
+        result = with_cache(
+            "insider-transactions", symbol, flow.get_insider_transactions
+        )
+        if result is None:
+            raise HTTPException(
+                status_code=404, detail="Insider transactions not found"
+            )
+        return JSONResponse(content=serialize_value(result))
+    except HTTPException:
+        raise
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.error("Error fetching insider transactions for %s: %s", symbol, str(exc))
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/analyst-upgrades/{symbol}")
+def get_analyst_upgrades(symbol: str):
+    """Get recent analyst upgrades, downgrades, and price target changes."""
+    symbol = symbol.upper()
+    logger.info("Fetching analyst upgrades/downgrades for %s", symbol)
+    try:
+        result = with_cache(
+            "analyst-upgrades", symbol, flow.get_analyst_upgrades_downgrades
+        )
+        if result is None:
+            raise HTTPException(status_code=404, detail="Analyst upgrades not found")
+        return JSONResponse(content=serialize_value(result))
+    except HTTPException:
+        raise
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.error("Error fetching analyst upgrades for %s: %s", symbol, str(exc))
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 @app.get("/api/related-stocks/{symbol}")
 def get_related_stocks(
     symbol: str,

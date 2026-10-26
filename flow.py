@@ -339,6 +339,64 @@ def get_option_chain(ticker):
         return None
 
 
+def get_recommendations(ticker):
+    """Retrieve analyst recommendations summary for a given ticker.
+
+    Returns strong buy / buy / hold / sell / strong sell counts by period."""
+    try:
+        yf_obj = yf.Ticker(ticker)
+        df = yf_obj.recommendations
+        if df is None or df.empty:
+            return None
+        df.index = df.index.astype(str)
+        return df.to_dict()
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while fetching recommendations: {exc}")
+        return None
+
+
+def get_institutional_holders(ticker):
+    """Retrieve top institutional shareholders for a given ticker."""
+    try:
+        yf_obj = yf.Ticker(ticker)
+        df = yf_obj.institutional_holders
+        if df is None or df.empty:
+            return None
+        df.index = df.index.astype(str)
+        return df.to_dict()
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while fetching institutional holders: {exc}")
+        return None
+
+
+def get_insider_transactions(ticker):
+    """Retrieve recent insider transactions for a given ticker."""
+    try:
+        yf_obj = yf.Ticker(ticker)
+        df = yf_obj.insider_transactions
+        if df is None or df.empty:
+            return None
+        df.index = df.index.astype(str)
+        return df.to_dict()
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while fetching insider transactions: {exc}")
+        return None
+
+
+def get_analyst_upgrades_downgrades(ticker):
+    """Retrieve recent analyst upgrades, downgrades, and price target changes."""
+    try:
+        yf_obj = yf.Ticker(ticker)
+        df = yf_obj.upgrades_downgrades
+        if df is None or df.empty:
+            return None
+        df.index = df.index.astype(str)
+        return df.to_dict()
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"An error occurred while fetching analyst upgrades/downgrades: {exc}")
+        return None
+
+
 def get_news(ticker):
     """Retrieve news for a given ticker."""
     try:

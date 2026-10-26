@@ -5,7 +5,7 @@
 ![Docker](https://img.shields.io/badge/Cloud_Native-Docker-blue?logo=docker)
 ![AI](https://img.shields.io/badge/AI-Ollama_LLM-purple?logo=ai)
 ![HTML5](https://img.shields.io/badge/Web_UI-HTML5_CSS3_JS-orange?logo=html5)
-![Tests](https://img.shields.io/badge/Tests-303_Passing-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-311_Passing-brightgreen)
 ![Status](https://img.shields.io/badge/Status-Production_Ready-success)
 
 > **Enterprise-grade stock analysis combining REST APIs, AI-powered insights, technical & fundamental analysis in a cloud-native architecture**
@@ -15,7 +15,7 @@
 **OOBIR** is a production-ready **REST API-first stock analysis platform** powered by artificial intelligence and built with modern cloud-native architecture. Developed in **Python** with **FastAPI**, containerized with **Docker**, and enhanced by **Ollama LLM**, OOBIR delivers comprehensive stock market intelligence through both **fundamental** and **technical analysis** approaches.
 
 **Key Differentiators:**
-- 🔌 **REST API First**: 40+ production-ready endpoints including data, AI analysis, trading strategy, ML prediction, batch export, and screener routes with auto-generated OpenAPI docs
+- 🔌 **REST API First**: 44 production-ready endpoints including data, AI analysis, ownership/analyst data, trading strategy, ML prediction, batch export, and screener routes with auto-generated OpenAPI docs
 - 🤖 **AI-Powered**: Local Ollama LLM (Llama 3.2) for privacy-preserving intelligent analysis
 - ☁️ **Cloud-Native**: Docker containerization for deployment anywhere (AWS, Azure, GCP, on-premises)
 - 🐍 **Python-Driven**: Modern Python 3.11+ with type hints, async support, and clean architecture
@@ -188,7 +188,7 @@ docker compose exec daily-sync python scripts/daily_sync.py --fundamentals-only
 - **Custom Favicon**: SVG favicon (`favicon.svg`) with blue rounded rectangle and "oo" monogram, matching the brand across all HTML pages
 
 ### 2. Comprehensive REST API
-- **40+ production endpoints** spanning data, AI analysis, trading strategy, ML prediction, batch export, screener, caching, and health checks
+- **44 production endpoints** spanning data, ownership/analyst data, AI analysis, trading strategy, ML prediction, batch export, screener, caching, and health checks
 - **Auto-generated documentation** with Swagger UI
 - **CORS enabled** for web applications
 - **Health monitoring** for app and AI services
@@ -348,7 +348,7 @@ Nine dedicated single-page tools for deep-dive market analysis, all accessible f
 │  ┌──────────────┬──────────────┬──────────────────────────┐ │
 │  │  CLI Tool    │   REST API   │   Interactive Web UI     │ │
 │  │  (flow.py)   │ (FastAPI)    │   (HTML5/CSS3/JS)        │ │
-│  │              │ • 40+ Endpoints│   • Candlestick Charts  │ │
+│  │              │ • 44 Endpoints│   • Candlestick Charts  │ │
 │  │              │ • OpenAPI Docs│   • Real-time Search    │ │
 │  │              │ • Health Checks│  • ML Model Lab        │ │
 │  └──────────────┴──────────────┴──────────────────────────┘ │
@@ -589,7 +589,7 @@ OOBIR maintains strict code quality standards with multi-language linting:
 - **Bandit** (`flow_api.py`, `db.py`, `db_timescale.py`, `ml/`): Security analysis — 0 High, 0 Medium, 0 Low issues (2 intentional `# nosec` suppressions)
 - **pylint** (`flow_api.py`, `db.py`, `db_timescale.py`): 10.00/10 score, 0 errors
 - **ESLint** (`web/*.js`): 0 errors, 0 warnings — consistent JS across all web pages
-- **Pytest** (`tests/`): 303 tests passing (ignore=tests/ui), 76% code coverage
+- **Pytest** (`tests/`): 311 tests passing (ignore=tests/ui), 76% code coverage
 
 ```bash
 # Run all linters
@@ -817,6 +817,12 @@ docker compose up -d
 - `GET /api/news/{symbol}` - Recent news articles
 - `GET /api/screen-undervalued` - Stock screener
 - `POST /api/batch/fundamentals` - Bulk fundamentals for multiple tickers (body: `{"tickers": ["AAPL","MSFT"]}`)
+
+**Ownership & Analyst Data Endpoints (4):**
+- `GET /api/recommendations/{symbol}` - Analyst recommendations summary (strong buy/buy/hold/sell/strong sell by period)
+- `GET /api/institutional-holders/{symbol}` - Top institutional shareholders with % held, shares, and value
+- `GET /api/insider-transactions/{symbol}` - Recent insider buy/sell transactions
+- `GET /api/analyst-upgrades/{symbol}` - Recent analyst upgrades, downgrades, and price target changes
 
 **AI Analysis Endpoints (10):**
 > Preferred fast path: the UI "AI Recommendation" uses fundamental analysis for quicker responses.
@@ -1065,7 +1071,7 @@ Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model installed.
 ├───────────────────────────────────────────────────────────┤
 │   CLI Interface  │  REST API       │  Web UI              │
 │   (flow.py)      │  (flow_api.py)  │  (HTML5/CSS3/JS)     │
-│                  │  • 40+ Endpoints │                      │
+│                  │  • 44 Endpoints │                      │
 │                  │  • OpenAPI Docs │  • Real-time search  │
 │                  │  • Health check │  • Charts & data     │
 │                  │                 │  • ML model lab      │
@@ -1119,7 +1125,7 @@ Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model installed.
 │  • Handle user interactions              │
 │  • On-demand AI button loading           │
 ├─────────────────────────────────────────┤
-│    REST API (FastAPI) - 40+ Endpoints     │
+│    REST API (FastAPI) - 44 Endpoints     │
 └─────────────────────────────────────────┘
 ```
 
@@ -1303,7 +1309,7 @@ docker compose exec app pytest tests/ -v
 ### Test Coverage
 
 - ✅ **Comprehensive multi-layer test suite** (API, cache, ML, integration, and Selenium UI)
-- ✅ All 40+ API endpoints covered, including ML prediction, batch export, screener, and model-lab routes
+- ✅ All 44 API endpoints covered, including ownership/analyst data, ML prediction, batch export, screener, and model-lab routes
 - ✅ Web UI integration validated
 - ✅ Success and error paths verified
 - ✅ Proper mocking of external dependencies (Ollama, yfinance, SQLite cache)
