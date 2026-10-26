@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Economic Calendar — OOBIR</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <style>
+        :root {
+            --bg-primary: #0d1117; --bg-secondary: #161b22; --bg-card: #1c2128;
+            --bg-input: #0d1117; --border: #30363d; --text-primary: #e6edf3;
+            --text-secondary: #8b949e; --text-muted: #484f58; --accent: #58a6ff;
+            --accent-dim: #1f3a5c; --green: #3fb950; --green-dim: #0f2a1a;
+            --red: #f85149; --red-dim: #2a1214; --yellow: #d29922; --yellow-dim: #2a200a;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg-primary); color: var(--text-primary); font-family: system-ui, -apple-system, sans-serif; min-height: 100vh; }
+        .ec-page { max-width: 1300px; margin: 0 auto; padding: 0 0 40px; }
+
+        /* Sticky Nav */
+        .ec-topbar { background: var(--bg-secondary); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; gap: 16px; height: 56px; position: sticky; top: 0; z-index: 200; }
+        .ec-topbar-brand { font-size: 1.1rem; font-weight: 900; color: var(--accent); text-decoration: none; letter-spacing: -0.02em; }
+        .ec-topbar h1 { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); flex: 1; }
+        .ec-topbar .theme-toggle { background: none; border: 1px solid var(--border); color: var(--text-secondary); border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 0.9rem; }
+        .ec-topbar .theme-toggle:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+
+        .app-nav { background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 24px; position: sticky; top: 56px; z-index: 199; }
+        .app-nav a { color: var(--text-secondary); text-decoration: none; font-size: 0.82rem; padding: 4px 8px; border-radius: 4px; transition: all 0.15s; }
+        .app-nav a:hover { color: var(--text-primary); background: var(--bg-card); }
+        .app-nav a.active { color: var(--accent); font-weight: 600; }
+
+        .ec-content { padding: 28px 24px; }
+
+        /* Filters */
+        .ec-filters { display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; }
+        .ec-filters .filter-chip { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-secondary); font-size: 0.82rem; cursor: pointer; transition: all 0.15s; }
+        .ec-filters .filter-chip:hover, .ec-filters .filter-chip.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+
+        /* Impact legend */
+        .impact-legend { display: flex; gap: 16px; margin-bottom: 20px; font-size: 0.78rem; color: var(--text-secondary); }
+        .impact-legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+
+        /* Calendar grid */
+        .ec-grid { display: flex; flex-direction: column; gap: 8px; }
+        .ec-day-header { font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 0 4px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+
+        .ec-event { display: grid; grid-template-columns: 100px 80px 1fr 120px 100px; gap: 12px; align-items: center; padding: 12px 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; transition: border-color 0.15s; }
+        .ec-event:hover { border-color: var(--accent); }
+        .ec-event .ec-time { font-size: 0.78rem; color: var(--text-muted); font-weight: 600; }
+        .ec-event .ec-time.amt { color: var(--accent); }
+        .ec-event .ec-impact { display: flex; align-items: center; gap: 4px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
+        .ec-event .ec-impact.high { color: var(--red); }
+        .ec-event .ec-impact.medium { color: var(--yellow); }
+        .ec-event .ec-impact.low { color: var(--green); }
+        .ec-event .ec-impact-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .ec-event .ec-name { font-size: 0.88rem; font-weight: 600; color: var(--text-primary); }
+        .ec-event .ec-desc { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+        .ec-event .ec-prev { font-size: 0.78rem; color: var(--text-secondary); text-align: right; }
+        .ec-event .ec-forecast { font-size: 0.78rem; color: var(--text-secondary); text-align: right; }
+        .ec-event .ec-prev span, .ec-event .ec-forecast span { display: block; font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; }
+
+        /* Earnings section */
+        .ec-section { margin-bottom: 40px; }
+        .ec-section-title { font-size: 1.1rem; font-weight: 800; color: var(--text-primary); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .ec-section-title .icon { font-size: 1.2rem; }
+
+        /* Ticker input for earnings */
+        .ec-ticker-lookup { display: flex; gap: 10px; margin-bottom: 20px; }
+        .ec-ticker-lookup input { padding: 9px 16px; border: 1px solid var(--border); background: var(--bg-input); color: var(--text-primary); border-radius: 8px; font-size: 0.9rem; width: 160px; text-transform: uppercase; }
+        .ec-ticker-lookup input:focus { border-color: var(--accent); outline: none; }
+        .ec-ticker-lookup button { padding: 9px 18px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+        .ec-ticker-lookup button:hover { opacity: 0.9; }
+
+        .ec-loading { text-align: center; padding: 40px; color: var(--text-muted); font-size: 0.9rem; }
+        .ec-empty { text-align: center; padding: 40px; color: var(--text-muted); }
+
+        /* Earnings results */
+        .earn-table { width: 100%; border-collapse: collapse; background: var(--bg-card); border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+        .earn-table th { background: var(--bg-secondary); padding: 10px 14px; text-align: left; font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+        .earn-table td { padding: 10px 14px; font-size: 0.82rem; border-top: 1px solid var(--border); }
+        .earn-table tr:hover td { background: rgba(88,166,255,0.05); }
+        .earn-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; }
+        .earn-badge.confirmed { background: var(--accent-dim); color: var(--accent); }
+        .earn-badge.expected { background: var(--yellow-dim); color: var(--yellow); }
+        .earn-table .ticker-cell { font-weight: 800; color: var(--accent); cursor: pointer; }
+        .earn-table .ticker-cell:hover { text-decoration: underline; }
+
+        @media (max-width: 768px) {
+            .ec-event { grid-template-columns: 80px 1fr; gap: 8px; }
+            .ec-event .ec-impact, .ec-event .ec-prev, .ec-event .ec-forecast { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="ec-page">
+        <div class="ec-topbar">
+            <a class="ec-topbar-brand" href="search.html">OOBIR</a>
+            <h1>📅 Economic Calendar</h1>
+            <button id="theme-toggle" class="theme-toggle">🌙</button>
+        </div>
+        <nav class="app-nav" aria-label="Primary navigation">
+            <a href="search.html">Search</a>
+            <a href="index.html">Stock Screen</a>
+            <a href="screener.html">Fundamentals</a>
+            <a href="markets.html">Markets</a>
+            <a href="sectors.html">Sectors</a>
+            <a href="stocks.html">AI Picks</a>
+            <a href="predictions.html">AI Predictions</a>
+            <a href="money-flow.html">Money Flow</a>
+            <a href="dividends.html">Dividends</a>
+            <a href="crypto.html">Crypto</a>
+            <a href="metals.html">Metals</a>
+            <a href="commodities.html">Commodities</a>
+            <a href="portfolio.html">Portfolio</a>
+            <a href="watchlist.html">Watchlist</a>
+            <a href="options.html">Options</a>
+            <a href="backtest.html">Backtest</a>
+            <a href="correlations.html">Correlations</a>
+            <a href="compare-sectors.html">Compare</a>
+            <a href="news-timeline.html">News</a>
+            <a href="calendar.html" class="active">Calendar</a>
+            <a href="optimizer.html">Optimizer</a>
+            <a href="correlation-matrix.html">Corr Matrix</a>
+            <a href="volatility.html">Volatility</a>
+        </nav>
+
+        <div class="ec-content">
+            <!-- Macro Events -->
+            <div class="ec-section">
+                <h2 class="ec-section-title"><span class="icon">🌐</span> Global Macro Events</h2>
+                <div class="impact-legend">
+                    <span><span class="dot" style="background:var(--red)"></span> High Impact (moves markets)</span>
+                    <span><span class="dot" style="background:var(--yellow)"></span> Medium Impact</span>
+                    <span><span class="dot" style="background:var(--green)"></span> Low Impact</span>
+                </div>
+                <div class="ec-filters" id="impact-filters">
+                    <span class="filter-chip active" data-impact="all">All</span>
+                    <span class="filter-chip" data-impact="high">High Impact</span>
+                    <span class="filter-chip" data-impact="medium">Medium</span>
+                    <span class="filter-chip" data-impact="low">Low Impact</span>
+                </div>
+                <div class="ec-grid" id="macro-events"></div>
+            </div>
+
+            <!-- Earnings Calendar -->
+            <div class="ec-section">
+                <h2 class="ec-section-title"><span class="icon">📈</span> Upcoming Earnings</h2>
+                <div class="ec-ticker-lookup">
+                    <input type="text" id="earn-ticker" placeholder="TICKER (e.g. AAPL)" value="">
+                    <button onclick="loadEarnings()">Load Earnings</button>
+                </div>
+                <div id="earnings-results">
+                    <div class="ec-empty">Enter a ticker to see upcoming earnings dates</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const API = window.location.origin;
+    const $ = id => document.getElementById(id);
+
+    // Curated macro economic events with historical release schedule
+    // Dates are approximate — actual releases confirmed weekly
+    const MACRO_EVENTS = [
+        // FOMC
+        { date: '2026-01-29', time: '14:00', name: 'FOMC Rate Decision', category: 'FOMC', impact: 'high', desc: 'Federal Reserve interest rate decision', prev: '4.25–4.50%', forecast: '4.25–4.50%' },
+        { date: '2026-01-29', time: '14:30', name: 'Fed Chair Press Conference', category: 'FOMC', impact: 'high', desc: 'Jerome Powell speaks after rate decision', prev: '—', forecast: '—' },
+        { date: '2026-03-19', time: '14:00', name: 'FOMC Rate Decision', category: 'FOMC', impact: 'high', desc: 'Federal Reserve interest rate decision', prev: '4.25–4.50%', forecast: '4.25–4.50%' },
+        { date: '2026-03-19', time: '14:30', name: 'Fed Chair Press Conference', category: 'FOMC', impact: 'high', desc: 'Jerome Powell speaks after rate decision', prev: '—', forecast: '—' },
+        { date: '2026-05-07', time: '14:00', name: 'FOMC Rate Decision', category: 'FOMC', impact: 'high', desc: 'Federal Reserve interest rate decision', prev: '4.25–4.50%', forecast: '4.00–4.25%' },
+        { date: '2026-06-18', time: '14:00', name: 'FOMC Rate Decision', category: 'FOMC', impact: 'high', desc: 'Federal Reserve interest rate decision', prev: '4.00–4.25%', forecast: '4.00–4.25%' },
+        { date: '2026-07-30', time: '14:00', name: 'FOMC Rate Decision', category: 'FOMC', impact: 'high', desc: 'Federal Reserve interest rate decision', prev: '4.00–4.25%', forecast: '3.75–4.00%' },
+        { date: '2026-09-24', time: '14:00', name: 'FOMC Rate Decision', category: 'FOMC', impact: 'high', desc: 'Federal Reserve interest rate decision', prev: '3.75–4.00%', forecast: '3.75–4.00%' },
+        { date: '2026-11-06', time: '14:00', name: 'FOMC Rate Decision', category: 'FOMC', impact: 'high', desc: 'Federal Reserve interest rate decision', prev: '3.75–4.00%', forecast: '3.50–3.75%' },
+        { date: '2026-12-18', time: '14:00', name: 'FOMC Rate Decision', category: 'FOMC', impact: 'high', desc: 'Federal Reserve interest rate decision + updated dot plot', prev: '3.50–3.75%', forecast: '3.50–3.75%' },
+
+        // Employment
+        { date: '2026-01-10', time: '08:30', name: 'Non-Farm Payrolls (NFP)', category: 'Employment', impact: 'high', desc: 'Monthly change in non-farm payrolls', prev: '227K', forecast: '200K' },
+        { date: '2026-01-10', time: '08:30', name: 'Unemployment Rate', category: 'Employment', impact: 'high', desc: 'Monthly unemployment rate', prev: '4.2%', forecast: '4.2%' },
+        { date: '2026-02-06', time: '08:30', name: 'Non-Farm Payrolls (NFP)', category: 'Employment', impact: 'high', desc: 'Monthly change in non-farm payrolls', prev: '227K', forecast: '185K' },
+        { date: '2026-02-06', time: '08:30', name: 'Unemployment Rate', category: 'Employment', impact: 'high', desc: 'Monthly unemployment rate', prev: '4.2%', forecast: '4.1%' },
+        { date: '2026-03-06', time: '08:30', name: 'Non-Farm Payrolls (NFP)', category: 'Employment', impact: 'high', desc: 'Monthly change in non-farm payrolls', prev: '185K', forecast: '175K' },
+        { date: '2026-04-03', time: '08:30', name: 'Non-Farm Payrolls (NFP)', category: 'Employment', impact: 'high', desc: 'Monthly change in non-farm payrolls', prev: '175K', forecast: '150K' },
+        { date: '2026-05-08', time: '08:30', name: 'Non-Farm Payrolls (NFP)', category: 'Employment', impact: 'high', desc: 'Monthly change in non-farm payrolls', prev: '150K', forecast: '175K' },
+        { date: '2026-06-05', time: '08:30', name: 'Non-Farm Payrolls (NFP)', category: 'Employment', impact: 'high', desc: 'Monthly change in non-farm payrolls', prev: '175K', forecast: '160K' },
+        { date: '2026-07-02', time: '08:30', name: 'Non-Farm Payrolls (NFP)', category: 'Employment', impact: 'high', desc: 'Monthly change in non-farm payrolls', prev: '160K', forecast: '180K' },
+        { date: '2026-08-07', time: '08:30', name: 'Non-Farm Payrolls (NFP)', category: 'Employment', impact: 'high', desc: 'Monthly change in non-farm payrolls', prev: '180K', forecast: '165K' },
+        { date: '2026-09-04', time: '08:30', name: 'Non-Farm Payrolls (NFP)', category: 'Employment', impact: 'high', desc: 'Monthly change in non-farm payrolls', prev: '165K', forecast: '155K' },
+        { date: '2026-10-02', time: '08:30', name: 'Non-Farm Payrolls (NFP)', category: 'Employment', impact: 'high', desc: 'Monthly change in non-farm payrolls', prev: '155K', forecast: '170K' },
+
+        // Inflation
+        { date: '2026-01-15', time: '08:30', name: 'CPI (MoM)', category: 'Inflation', impact: 'high', desc: 'Consumer Price Index month-over-month', prev: '0.3%', forecast: '0.2%' },
+        { date: '2026-01-15', time: '08:30', name: 'CPI (YoY)', category: 'Inflation', impact: 'high', desc: 'Consumer Price Index year-over-year', prev: '2.7%', forecast: '2.6%' },
+        { date: '2026-01-15', time: '08:30', name: 'Core CPI (MoM)', category: 'Inflation', impact: 'high', desc: 'Core CPI excluding food & energy', prev: '0.3%', forecast: '0.2%' },
+        { date: '2026-02-12', time: '08:30', name: 'CPI (YoY)', category: 'Inflation', impact: 'high', desc: 'Consumer Price Index year-over-year', prev: '2.6%', forecast: '2.5%' },
+        { date: '2026-03-12', time: '08:30', name: 'CPI (YoY)', category: 'Inflation', impact: 'high', desc: 'Consumer Price Index year-over-year', prev: '2.5%', forecast: '2.4%' },
+        { date: '2026-04-10', time: '08:30', name: 'CPI (YoY)', category: 'Inflation', impact: 'high', desc: 'Consumer Price Index year-over-year', prev: '2.4%', forecast: '2.3%' },
+        { date: '2026-05-12', time: '08:30', name: 'CPI (YoY)', category: 'Inflation', impact: 'high', desc: 'Consumer Price Index year-over-year', prev: '2.3%', forecast: '2.2%' },
+        { date: '2026-06-10', time: '08:30', name: 'CPI (YoY)', category: 'Inflation', impact: 'high', desc: 'Consumer Price Index year-over-year', prev: '2.2%', forecast: '2.1%' },
+        { date: '2026-07-14', time: '08:30', name: 'CPI (YoY)', category: 'Inflation', impact: 'high', desc: 'Consumer Price Index year-over-year', prev: '2.1%', forecast: '2.0%' },
+        { date: '2026-08-12', time: '08:30', name: 'CPI (YoY)', category: 'Inflation', impact: 'high', desc: 'Consumer Price Index year-over-year', prev: '2.0%', forecast: '2.0%' },
+        { date: '2026-09-10', time: '08:30', name: 'CPI (YoY)', category: 'Inflation', impact: 'high', desc: 'Consumer Price Index year-over-year', prev: '2.0%', forecast: '1.9%' },
+        { date: '2026-10-13', time: '08:30', name: 'CPI (YoY)', category: 'Inflation', impact: 'high', desc: 'Consumer Price Index year-over-year', prev: '1.9%', forecast: '1.8%' },
+        { date: '2026-01-16', time: '08:30', name: 'PPI (MoM)', category: 'Inflation', impact: 'medium', desc: 'Producer Price Index month-over-month', prev: '0.2%', forecast: '0.2%' },
+        { date: '2026-02-19', time: '08:30', name: 'PPI (MoM)', category: 'Inflation', impact: 'medium', desc: 'Producer Price Index month-over-month', prev: '0.2%', forecast: '0.1%' },
+
+        // GDP
+        { date: '2026-01-30', time: '08:30', name: 'GDP (Q4 2025 Advance)', category: 'GDP', impact: 'high', desc: 'Advance GDP estimate for Q4 2025', prev: '2.8%', forecast: '2.6%' },
+        { date: '2026-02-26', time: '08:30', name: 'GDP (Q4 2025 Final)', category: 'GDP', impact: 'medium', desc: 'Final GDP estimate for Q4 2025', prev: '2.8%', forecast: '2.8%' },
+        { date: '2026-04-30', time: '08:30', name: 'GDP (Q1 2026 Advance)', category: 'GDP', impact: 'high', desc: 'Advance GDP estimate for Q1 2026', prev: '2.8%', forecast: '2.4%' },
+        { date: '2026-07-30', time: '08:30', name: 'GDP (Q2 2026 Advance)', category: 'GDP', impact: 'high', desc: 'Advance GDP estimate for Q2 2026', prev: '2.4%', forecast: '2.3%' },
+        { date: '2026-10-29', time: '08:30', name: 'GDP (Q3 2026 Advance)', category: 'GDP', impact: 'high', desc: 'Advance GDP estimate for Q3 2026', prev: '2.3%', forecast: '2.5%' },
+
+        // Retail & Consumer
+        { date: '2026-01-17', time: '08:30', name: 'Retail Sales (MoM)', category: 'Consumer', impact: 'high', desc: 'Monthly retail sales change', prev: '0.7%', forecast: '0.5%' },
+        { date: '2026-02-17', time: '08:30', name: 'Retail Sales (MoM)', category: 'Consumer', impact: 'high', desc: 'Monthly retail sales change', prev: '0.5%', forecast: '0.4%' },
+        { date: '2026-03-17', time: '08:30', name: 'Retail Sales (MoM)', category: 'Consumer', impact: 'high', desc: 'Monthly retail sales change', prev: '0.4%', forecast: '0.5%' },
+        { date: '2026-04-16', time: '08:30', name: 'Retail Sales (MoM)', category: 'Consumer', impact: 'high', desc: 'Monthly retail sales change', prev: '0.5%', forecast: '0.4%' },
+        { date: '2026-05-15', time: '08:30', name: 'Retail Sales (MoM)', category: 'Consumer', impact: 'high', desc: 'Monthly retail sales change', prev: '0.4%', forecast: '0.5%' },
+        { date: '2026-06-17', time: '08:30', name: 'Retail Sales (MoM)', category: 'Consumer', impact: 'high', desc: 'Monthly retail sales change', prev: '0.5%', forecast: '0.3%' },
+        { date: '2026-07-17', time: '08:30', name: 'Retail Sales (MoM)', category: 'Consumer', impact: 'high', desc: 'Monthly retail sales change', prev: '0.3%', forecast: '0.4%' },
+        { date: '2026-08-14', time: '08:30', name: 'Consumer Confidence', category: 'Consumer', impact: 'medium', desc: 'CB Consumer Confidence Index', prev: '111.7', forecast: '110.0' },
+        { date: '2026-09-16', time: '08:30', name: 'Retail Sales (MoM)', category: 'Consumer', impact: 'high', desc: 'Monthly retail sales change', prev: '0.4%', forecast: '0.4%' },
+        { date: '2026-10-15', time: '08:30', name: 'Retail Sales (MoM)', category: 'Consumer', impact: 'high', desc: 'Monthly retail sales change', prev: '0.4%', forecast: '0.5%' },
+
+        // PMI & Manufacturing
+        { date: '2026-01-03', time: '10:00', name: 'ISM Manufacturing PMI', category: 'Manufacturing', impact: 'medium', desc: 'Institute for Supply Management Manufacturing Index', prev: '48.4', forecast: '48.5' },
+        { date: '2026-02-03', time: '10:00', name: 'ISM Manufacturing PMI', category: 'Manufacturing', impact: 'medium', desc: 'Institute for Supply Management Manufacturing Index', prev: '48.5', forecast: '49.0' },
+        { date: '2026-03-03', time: '10:00', name: 'ISM Manufacturing PMI', category: 'Manufacturing', impact: 'medium', desc: 'Institute for Supply Management Manufacturing Index', prev: '49.0', forecast: '49.5' },
+        { date: '2026-04-01', time: '10:00', name: 'ISM Manufacturing PMI', category: 'Manufacturing', impact: 'medium', desc: 'Institute for Supply Management Manufacturing Index', prev: '49.5', forecast: '50.0' },
+        { date: '2026-05-01', time: '10:00', name: 'ISM Manufacturing PMI', category: 'Manufacturing', impact: 'medium', desc: 'Institute for Supply Management Manufacturing Index', prev: '50.0', forecast: '50.2' },
+        { date: '2026-06-02', time: '10:00', name: 'ISM Manufacturing PMI', category: 'Manufacturing', impact: 'medium', desc: 'Institute for Supply Management Manufacturing Index', prev: '50.2', forecast: '50.0' },
+        { date: '2026-07-01', time: '10:00', name: 'ISM Manufacturing PMI', category: 'Manufacturing', impact: 'medium', desc: 'Institute for Supply Management Manufacturing Index', prev: '50.0', forecast: '49.8' },
+        { date: '2026-08-04', time: '10:00', name: 'ISM Manufacturing PMI', category: 'Manufacturing', impact: 'medium', desc: 'Institute for Supply Management Manufacturing Index', prev: '49.8', forecast: '50.0' },
+        { date: '2026-09-02', time: '10:00', name: 'ISM Manufacturing PMI', category: 'Manufacturing', impact: 'medium', desc: 'Institute for Supply Management Manufacturing Index', prev: '50.0', forecast: '50.1' },
+        { date: '2026-10-01', time: '10:00', name: 'ISM Manufacturing PMI', category: 'Manufacturing', impact: 'medium', desc: 'Institute for Supply Management Manufacturing Index', prev: '50.1', forecast: '50.0' },
+    ];
+
+    function formatDate(dateStr) {
+        const d = new Date(dateStr + 'T00:00:00');
+        return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    }
+
+    function isFuture(dateStr) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return new Date(dateStr) >= today;
+    }
+
+    function renderMacroEvents(impactFilter) {
+        const container = $('macro-events');
+        const futureEvents = MACRO_EVENTS.filter(e => isFuture(e.date));
+        const filtered = impactFilter === 'all' ? futureEvents : futureEvents.filter(e => e.impact === impactFilter);
+
+        if (!filtered.length) {
+            container.innerHTML = '<div class="ec-empty">No events match this filter</div>';
+            return;
+        }
+
+        let html = '';
+        let currentDay = '';
+        filtered.forEach(evt => {
+            if (evt.date !== currentDay) {
+                currentDay = evt.date;
+                html += `<div class="ec-day-header">${formatDate(currentDay)}</div>`;
+            }
+            const dotColor = evt.impact === 'high' ? 'var(--red)' : evt.impact === 'medium' ? 'var(--yellow)' : 'var(--green)';
+            html += `<div class="ec-event">
+                <div class="ec-time${evt.time === '14:30' || evt.time === '14:00' ? ' amt' : ''}">${evt.time}</div>
+                <div class="ec-impact ${evt.impact}"><span class="ec-impact-dot" style="background:${dotColor}"></span>${evt.impact}</div>
+                <div>
+                    <div class="ec-name">${evt.name}</div>
+                    <div class="ec-desc">${evt.desc}</div>
+                </div>
+                <div class="ec-prev"><span>Previous</span>${evt.prev}</div>
+                <div class="ec-forecast"><span>Forecast</span>${evt.forecast}</div>
+            </div>`;
+        });
+        container.innerHTML = html;
+    }
+
+    $('impact-filters').addEventListener('click', e => {
+        if (e.target.classList.contains('filter-chip')) {
+            document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+            e.target.classList.add('active');
+            renderMacroEvents(e.target.dataset.impact);
+        }
+    });
+
+    async function loadEarnings() {
+        const ticker = $('earn-ticker').value.trim().toUpperCase();
+        if (!ticker) return;
+        const results = $('earnings-results');
+        results.innerHTML = '<div class="ec-loading">Loading...</div>';
+        try {
+            const res = await fetch(`${API}/api/calendar/${ticker}`, {
+                headers: { 'X-API-Key': 'test-api-key-12345' }
+            });
+            if (!res.ok) throw new Error('Failed');
+            const data = await res.json();
+            if (!data || !data.earnings_dates || !data.earnings_dates.length) {
+                results.innerHTML = '<div class="ec-empty">No upcoming earnings found for ' + ticker + '</div>';
+                return;
+            }
+            const rows = data.earnings_dates.map(row => {
+                const date = new Date(row.date || row.Earnings Date || Object.values(row)[0]);
+                const isConfirmed = row.Reported EPS !== null && row.Reported EPS !== undefined;
+                const surprise = row['Surprise(%)'] !== undefined ? row['Surprise(%)'] : null;
+                return `<tr>
+                    <td class="ticker-cell" onclick="location.href='index.html?symbol=${ticker}'">${ticker}</td>
+                    <td>${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                    <td>${isConfirmed ? '<span class="earn-badge confirmed">Confirmed</span>' : '<span class="earn-badge expected">Expected</span>'}</td>
+                    <td>${row['EPS Estimate'] != null ? row['EPS Estimate'] : '—'}</td>
+                    <td>${row['Reported EPS'] != null ? row['Reported EPS'] : '—'}</td>
+                    <td style="color:${surprise > 0 ? 'var(--green)' : surprise < 0 ? 'var(--red)' : 'var(--text-secondary)'}">${surprise != null ? (surprise > 0 ? '+' : '') + surprise.toFixed(2) + '%' : '—'}</td>
+                </tr>`;
+            }).join('');
+            results.innerHTML = `<table class="earn-table">
+                <thead><tr><th>Ticker</th><th>Date</th><th>Status</th><th>EPS Est.</th><th>Reported</th><th>Surprise</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+        } catch {
+            results.innerHTML = `<div class="ec-empty">Failed to load earnings for ${ticker}</div>`;
+        }
+    }
+
+    renderMacroEvents('all');
+
+    // Theme toggle
+    (function() {
+        var btn = $('theme-toggle');
+        var KEY = 'oobir_theme';
+        function getPreferredTheme() { return localStorage.getItem(KEY) || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem(KEY, theme);
+            if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+        }
+        if (btn) btn.addEventListener('click', () => applyTheme(getPreferredTheme() === 'dark' ? 'light' : 'dark'));
+        applyTheme(getPreferredTheme());
+    })();
+    </script>
+</body>
+</html>

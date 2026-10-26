@@ -377,6 +377,10 @@
             .bt-main { grid-template-columns: 1fr; }
             .bt-sidebar { height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); }
         }
+        .bt-topbar .app-nav { display: flex; flex-wrap: wrap; gap: 4px; margin-left: 16px; }
+        .bt-topbar .app-nav a { color: var(--text-secondary); text-decoration: none; font-size: 0.8rem; padding: 4px 8px; border-radius: 4px; transition: all 0.15s; }
+        .bt-topbar .app-nav a:hover { color: var(--text-primary); background: var(--bg-card); }
+        .bt-topbar .app-nav a.active { color: var(--accent); font-weight: 600; }
     </style>
 </head>
 <body>
@@ -384,6 +388,31 @@
         <!-- Top bar -->
         <div class="bt-topbar">
             <a class="bt-topbar-brand" href="search.html">OOBIR</a>
+            <nav class="app-nav" aria-label="Primary navigation">
+                <a href="search.html">Search</a>
+                <a href="index.html">Stock Screen</a>
+                <a href="screener.html">Fundamentals</a>
+                <a href="markets.html">Markets</a>
+                <a href="sectors.html">Sectors</a>
+                <a href="stocks.html">AI Picks</a>
+                <a href="predictions.html">AI Predictions</a>
+                <a href="money-flow.html">Money Flow</a>
+                <a href="dividends.html">Dividends</a>
+                <a href="crypto.html">Crypto</a>
+                <a href="metals.html">Metals</a>
+                <a href="portfolio.html">Portfolio</a>
+                <a href="watchlist.html">Watchlist</a>
+                <a href="options.html">Options</a>
+                <a href="backtest.html" class="active">Backtest</a>
+                <a href="correlations.html">Correlations</a>
+                <a href="compare-sectors.html">Compare</a>
+                <a href="news-timeline.html">News</a>
+                <a href="calendar.html">Calendar</a>
+                <a href="commodities.html">Commodities</a>
+                <a href="optimizer.html">Optimizer</a>
+                <a href="correlation-matrix.html">Corr Matrix</a>
+                <a href="volatility.html">Volatility</a>
+            </nav>
             <h1>⚙️ Backtest Engine</h1>
             <div class="bt-topbar-controls">
                 <input type="text" id="bt-ticker" value="MSFT" placeholder="TICKER" style="width:80px;text-transform:uppercase">

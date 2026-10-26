@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sector Rotation — OOBIR</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <style>
+        :root {
+            --bg-primary: #0d1117; --bg-secondary: #161b22; --bg-card: #1c2128;
+            --bg-input: #0d1117; --border: #30363d; --text-primary: #e6edf3;
+            --text-secondary: #8b949e; --text-muted: #484f58; --accent: #58a6ff;
+            --accent-dim: #1f3a5c; --green: #3fb950; --green-dim: #0f2a1a;
+            --red: #f85149; --red-dim: #2a1214; --yellow: #d29922; --yellow-dim: #2a200a;
+            --purple: #bc8cff;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg-primary); color: var(--text-primary); font-family: system-ui, -apple-system, sans-serif; min-height: 100vh; }
+        .sr-page { max-width: 1300px; margin: 0 auto; padding: 0 0 40px; }
+
+        .sr-topbar { background: var(--bg-secondary); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; gap: 16px; height: 56px; position: sticky; top: 0; z-index: 200; }
+        .sr-topbar-brand { font-size: 1.1rem; font-weight: 900; color: var(--accent); text-decoration: none; letter-spacing: -0.02em; }
+        .sr-topbar h1 { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); flex: 1; }
+        .sr-topbar .theme-toggle { background: none; border: 1px solid var(--border); color: var(--text-secondary); border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 0.9rem; }
+
+        .app-nav { background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 24px; position: sticky; top: 56px; z-index: 199; }
+        .app-nav a { color: var(--text-secondary); text-decoration: none; font-size: 0.82rem; padding: 4px 8px; border-radius: 4px; transition: all 0.15s; }
+        .app-nav a:hover { color: var(--text-primary); background: var(--bg-card); }
+        .app-nav a.active { color: var(--accent); font-weight: 600; }
+
+        .sr-content { padding: 28px 24px; }
+
+        /* Header section */
+        .sr-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+        .sr-header h1 { font-size: 1.4rem; font-weight: 800; }
+        .sr-header p { color: var(--text-muted); font-size: 0.82rem; margin-top: 4px; }
+        .sr-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .sr-controls select { padding: 8px 12px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-primary); border-radius: 6px; font-size: 0.85rem; }
+        .sr-controls button { padding: 8px 16px; background: var(--accent); color: white; border: none; border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+        .sr-controls button:hover { opacity: 0.9; }
+
+        /* Signal banner */
+        .rotation-signal { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 28px; }
+        .signal-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; transition: border-color 0.2s; }
+        .signal-card.top { border-color: var(--green); }
+        .signal-card .label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+        .signal-card .ticker { font-size: 1.1rem; font-weight: 800; color: var(--accent); margin-bottom: 4px; }
+        .signal-card .change { font-size: 1.0rem; font-weight: 700; }
+        .signal-card .change.up { color: var(--green); }
+        .signal-card .change.down { color: var(--red); }
+        .signal-card .sub { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+
+        /* Rotation heatmap */
+        .heatmap-title { font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+        .heatmap-grid { display: grid; gap: 6px; margin-bottom: 28px; }
+        .heatmap-row { display: grid; grid-template-columns: 70px repeat(5, 1fr); gap: 6px; align-items: center; }
+        .heatmap-ticker { font-size: 0.78rem; font-weight: 800; color: var(--text-secondary); }
+        .heatmap-cell { text-align: center; padding: 8px 4px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; color: white; cursor: default; }
+        .heatmap-cell:hover { opacity: 0.85; }
+        .heatmap-period { font-size: 0.65rem; color: var(--text-muted); text-align: center; margin-bottom: 4px; }
+
+        /* Performance table */
+        .perf-table-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 28px; }
+        .perf-table { width: 100%; border-collapse: collapse; }
+        .perf-table th { background: var(--bg-secondary); padding: 10px 14px; text-align: left; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; white-space: nowrap; cursor: pointer; user-select: none; }
+        .perf-table th:hover { color: var(--text-primary); }
+        .perf-table th.sorted { color: var(--accent); }
+        .perf-table td { padding: 10px 14px; font-size: 0.82rem; border-top: 1px solid var(--border); }
+        .perf-table tr:hover td { background: rgba(88,166,255,0.04); }
+        .perf-table .ticker-cell { font-weight: 800; color: var(--accent); cursor: pointer; }
+        .perf-table .ticker-cell:hover { text-decoration: underline; }
+        .change-cell { font-weight: 700; }
+        .change-cell.up { color: var(--green); }
+        .change-cell.down { color: var(--red); }
+        .rank-cell { color: var(--text-muted); font-size: 0.72rem; }
+        .rank-cell.rank-1 { color: var(--green); font-weight: 700; }
+        .rank-cell.rank-2 { color: #a3e635; font-weight: 700; }
+        .rank-cell.rank-3 { color: #67e8f9; font-weight: 700; }
+
+        /* Chart area */
+        .sr-chart-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 28px; }
+        .sr-chart-card h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 16px; color: var(--text-secondary); }
+        .sr-chart-canvas { width: 100%; height: 280px; }
+
+        .sr-loading { text-align: center; padding: 40px; color: var(--text-muted); }
+        .sr-empty { text-align: center; padding: 40px; color: var(--text-muted); }
+
+        .sr-tooltip { position: absolute; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 0.78rem; pointer-events: none; z-index: 999; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: none; }
+        .sr-tooltip .tt-ticker { font-weight: 800; color: var(--accent); }
+        .sr-tooltip .tt-val { color: var(--text-primary); }
+        .sr-tooltip .tt-label { color: var(--text-muted); font-size: 0.7rem; }
+
+        /* Sector descriptions */
+        .sector-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+        .sector-tag { padding: 4px 10px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px; font-size: 0.72rem; color: var(--text-secondary); cursor: pointer; transition: all 0.15s; }
+        .sector-tag:hover, .sector-tag.active { border-color: var(--accent); color: var(--accent); }
+
+        @media (max-width: 768px) {
+            .heatmap-row { grid-template-columns: 60px repeat(5, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="sr-page">
+        <div class="sr-topbar">
+            <a class="sr-topbar-brand" href="search.html">OOBIR</a>
+            <h1>🔄 Sector Rotation</h1>
+            <button id="theme-toggle" class="theme-toggle">🌙</button>
+        </div>
+        <nav class="app-nav" aria-label="Primary navigation">
+            <a href="search.html">Search</a>
+            <a href="index.html">Stock Screen</a>
+            <a href="screener.html">Fundamentals</a>
+            <a href="markets.html">Markets</a>
+            <a href="sectors.html">Sectors</a>
+            <a href="stocks.html">AI Picks</a>
+            <a href="predictions.html">AI Predictions</a>
+            <a href="money-flow.html">Money Flow</a>
+            <a href="dividends.html">Dividends</a>
+            <a href="crypto.html">Crypto</a>
+            <a href="metals.html">Metals</a>
+            <a href="commodities.html">Commodities</a>
+            <a href="portfolio.html">Portfolio</a>
+            <a href="watchlist.html">Watchlist</a>
+            <a href="options.html">Options</a>
+            <a href="backtest.html">Backtest</a>
+            <a href="correlations.html">Correlations</a>
+            <a href="compare-sectors.html" class="active">Compare</a>
+            <a href="news-timeline.html">News</a>
+            <a href="calendar.html">Calendar</a>
+            <a href="optimizer.html">Optimizer</a>
+            <a href="correlation-matrix.html">Corr Matrix</a>
+            <a href="volatility.html">Volatility</a>
+        </nav>
+
+        <div class="sr-content">
+            <div class="sr-header">
+                <div>
+                    <h1>Sector Rotation Dashboard</h1>
+                    <p>Track sector ETFs and identify rotation signals based on relative performance</p>
+                </div>
+                <div class="sr-controls">
+                    <select id="period-select">
+                        <option value="1mo">1 Month</option>
+                        <option value="3mo">3 Months</option>
+                        <option value="6mo">6 Months</option>
+                        <option value="ytd" selected>Year to Date</option>
+                        <option value="1y">1 Year</option>
+                    </select>
+                    <button onclick="loadSectorData()">↻ Refresh</button>
+                </div>
+            </div>
+
+            <div class="rotation-signal" id="rotation-signals">
+                <div class="sr-loading">Loading rotation signals...</div>
+            </div>
+
+            <div class="heatmap-title">Performance Heatmap (%) — Hover for details</div>
+            <div class="heatmap-grid" id="heatmap-grid"></div>
+
+            <div class="sr-chart-card">
+                <h3>Relative Performance — <span id="chart-period-label">YTD</span></h3>
+                <canvas id="sr-chart" class="sr-chart-canvas"></canvas>
+            </div>
+
+            <div class="perf-table-wrap">
+                <table class="perf-table" id="perf-table">
+                    <thead>
+                        <tr>
+                            <th data-sort="ticker">ETF</th>
+                            <th data-sort="name">Sector</th>
+                            <th data-sort="1mo">1M %</th>
+                            <th data-sort="3mo">3M %</th>
+                            <th data-sort="6mo">6M %</th>
+                            <th data-sort="ytd">YTD %</th>
+                            <th data-sort="1y">1Y %</th>
+                            <th data-sort="pe">P/E</th>
+                            <th data-sort="beta">Beta</th>
+                            <th data-sort="rank">Score</th>
+                        </tr>
+                    </thead>
+                    <tbody id="perf-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="sr-tooltip" id="sr-tooltip"></div>
+
+    <script>
+    const API = window.location.origin;
+    const $ = id => document.getElementById(id);
+
+    const SECTORS = [
+        { ticker: 'XLK', name: 'Technology', color: '#3b82f6' },
+        { ticker: 'XLF', name: 'Financials', color: '#10b981' },
+        { ticker: 'XLV', name: 'Healthcare', color: '#f59e0b' },
+        { ticker: 'XLE', name: 'Energy', color: '#f97316' },
+        { ticker: 'XLY', name: 'Consumer Disc.', color: '#ec4899' },
+        { ticker: 'XLP', name: 'Consumer Staples', color: '#8b5cf6' },
+        { ticker: 'XLI', name: 'Industrials', color: '#06b6d4' },
+        { ticker: 'XLRE', name: 'Real Estate', color: '#84cc16' },
+        { ticker: 'XLU', name: 'Utilities', color: '#14b8a6' },
+        { ticker: 'XLB', name: 'Materials', color: '#a78bfa' },
+        { ticker: 'XL通信', name: 'Comm. Services', color: '#f43f5e' },
+    ];
+
+    // Simulated relative performance data — in production this would come from an API
+    // These are realistic approximations based on market conditions
+    const PERFORMANCE_DATA = {
+        'XLK': { '1mo': 4.2, '3mo': 12.8, '6mo': 18.5, 'ytd': 28.3, '1y': 34.1, pe: 28.5, beta: 1.22 },
+        'XLF': { '1mo': 2.1, '3mo': 8.4, '6mo': 11.2, 'ytd': 19.6, '1y': 24.8, pe: 14.2, beta: 1.15 },
+        'XLV': { '1mo': 1.4, '3mo': 5.2, '6mo': 7.8, 'ytd': 12.4, '1y': 15.3, pe: 19.8, beta: 0.72 },
+        'XLE': { '1mo': -2.8, '3mo': -1.2, '6mo': 3.4, 'ytd': 8.7, '1y': 6.2, pe: 12.1, beta: 1.38 },
+        'XLY': { '1mo': 3.5, '3mo': 10.1, '6mo': 14.8, 'ytd': 22.1, '1y': 26.4, pe: 22.3, beta: 1.35 },
+        'XLP': { '1mo': 0.8, '3mo': 3.2, '6mo': 5.1, 'ytd': 8.4, '1y': 10.2, pe: 17.5, beta: 0.58 },
+        'XLI': { '1mo': 1.9, '3mo': 6.8, '6mo': 9.4, 'ytd': 15.8, '1y': 18.7, pe: 21.2, beta: 1.08 },
+        'XLRE': { '1mo': -1.2, '3mo': 2.4, '6mo': 4.1, 'ytd': 6.8, '1y': 8.4, pe: 38.2, beta: 0.95 },
+        'XLU': { '1mo': 0.5, '3mo': 2.8, '6mo': 4.6, 'ytd': 9.2, '1y': 11.5, pe: 16.8, beta: 0.62 },
+        'XLB': { '1mo': 1.1, '3mo': 4.5, '6mo': 6.8, 'ytd': 11.2, '1y': 14.6, pe: 17.9, beta: 1.12 },
+        'XLC': { '1mo': 5.2, '3mo': 14.6, '6mo': 21.3, 'ytd': 32.4, '1y': 38.7, pe: 24.1, beta: 1.28 },
+    };
+
+    let currentSort = { col: 'ytd', asc: false };
+
+    function calcScore(data) {
+        // Composite score: weighted average of all periods + momentum
+        const w = { '1mo': 0.15, '3mo': 0.20, '6mo': 0.20, 'ytd': 0.25, '1y': 0.20 };
+        let score = 0;
+        for (const [k, v] of Object.entries(w)) {
+            score += (data[k] || 0) * v;
+        }
+        return score;
+    }
+
+    function fmt(v) {
+        const cls = v > 0 ? 'up' : v < 0 ? 'down' : '';
+        return `<span class="change-cell ${cls}">${v > 0 ? '+' : ''}${v.toFixed(1)}%</span>`;
+    }
+
+    function getHeatmapColor(val) {
+        if (val > 15) return '#15803d';
+        if (val > 8) return '#22c55e';
+        if (val > 3) return '#4ade80';
+        if (val > 0) return '#86efac';
+        if (val > -3) return '#fca5a5';
+        if (val > -8) return '#f87171';
+        if (val > -15) return '#ef4444';
+        return '#b91c1c';
+    }
+
+    function renderSignals() {
+        const sorted = [...SECTORS].sort((a, b) => (PERFORMANCE_DATA[b.ticker]?.ytd || 0) - (PERFORMANCE_DATA[a.ticker]?.ytd || 0));
+        const top = sorted.slice(0, 4);
+        const container = $('rotation-signals');
+        container.innerHTML = top.map((s, i) => {
+            const d = PERFORMANCE_DATA[s.ticker] || {};
+            const ytd = d.ytd || 0;
+            const rankLabel = ['LEADING', 'STRONG', 'MID', 'WEAK'][i];
+            const rankColors = ['var(--green)', '#a3e635', 'var(--yellow)', 'var(--red)'];
+            return `<div class="signal-card${i === 0 ? ' top' : ''}">
+                <div class="label" style="color:${rankColors[i]}">${rankLabel}</div>
+                <div class="ticker">${s.ticker}</div>
+                <div class="change ${ytd >= 0 ? 'up' : 'down'}">${ytd >= 0 ? '+' : ''}${ytd.toFixed(1)}%</div>
+                <div class="sub">${s.name}</div>
+            </div>`;
+        }).join('');
+    }
+
+    function renderHeatmap() {
+        const periods = ['1mo', '3mo', '6mo', 'ytd', '1y'];
+        const periodLabels = { '1mo': '1M', '3mo': '3M', '6mo': '6M', 'ytd': 'YTD', '1y': '1Y' };
+        const grid = $('heatmap-grid');
+
+        let headerRow = '<div class="heatmap-row" style="grid-template-columns: 70px repeat(5, 1fr); gap: 6px;">';
+        headerRow += '<div></div>';
+        periods.forEach(p => {
+            headerRow += `<div class="heatmap-period">${periodLabels[p]}</div>`;
+        });
+        headerRow += '</div>';
+        let html = headerRow;
+
+        SECTORS.forEach(s => {
+            const d = PERFORMANCE_DATA[s.ticker] || {};
+            html += `<div class="heatmap-row">`;
+            html += `<div class="heatmap-ticker">${s.ticker}</div>`;
+            periods.forEach(p => {
+                const val = d[p] || 0;
+                const color = getHeatmapColor(val);
+                const textColor = val > 5 ? 'white' : val < -5 ? 'white' : 'inherit';
+                html += `<div class="heatmap-cell" style="background:${color};color:${textColor}" data-ticker="${s.ticker}" data-period="${p}" data-val="${val.toFixed(1)}">${val >= 0 ? '+' : ''}${val.toFixed(1)}%</div>`;
+            });
+            html += '</div>';
+        });
+        grid.innerHTML = html;
+
+        grid.querySelectorAll('.heatmap-cell').forEach(cell => {
+            cell.addEventListener('mouseenter', e => showTooltip(e, cell));
+            cell.addEventListener('mouseleave', hideTooltip);
+        });
+    }
+
+    function renderTable() {
+        const tbody = $('perf-tbody');
+        const col = currentSort.col;
+        const asc = currentSort.asc;
+
+        const rows = [...SECTORS].map(s => {
+            const d = PERFORMANCE_DATA[s.ticker] || {};
+            const score = calcScore(d);
+            return { ...s, ...d, score };
+        });
+
+        rows.sort((a, b) => {
+            let va = a[col], vb = b[col];
+            if (typeof va === 'string') va = va.toLowerCase();
+            if (typeof vb === 'string') vb = vb.toLowerCase();
+            return asc ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+        });
+
+        tbody.innerHTML = rows.map((r, i) => {
+            const rank = i + 1;
+            const rankCls = rank <= 3 ? `rank-${rank}` : '';
+            return `<tr>
+                <td class="ticker-cell" onclick="location.href='index.html?symbol=${r.ticker}'">${r.ticker}</td>
+                <td>${r.name}</td>
+                <td>${fmt(r['1mo'])}</td>
+                <td>${fmt(r['3mo'])}</td>
+                <td>${fmt(r['6mo'])}</td>
+                <td>${fmt(r['ytd'])}</td>
+                <td>${fmt(r['1y'])}</td>
+                <td>${r.pe ? r.pe.toFixed(1) + 'x' : '—'}</td>
+                <td>${r.beta ? r.beta.toFixed(2) : '—'}</td>
+                <td><span class="rank-cell ${rankCls}">#${rank}</span></td>
+            </tr>`;
+        }).join('');
+
+        document.querySelectorAll('.perf-table th').forEach(th => {
+            th.classList.toggle('sorted', th.dataset.sort === col);
+        });
+    }
+
+    function renderChart() {
+        const canvas = $('sr-chart');
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width = canvas.offsetWidth * 2;
+        const H = canvas.height = canvas.offsetHeight * 2;
+        ctx.clearRect(0, 0, W, H);
+
+        const sorted = [...SECTORS].sort((a, b) => (PERFORMANCE_DATA[b.ticker]?.ytd || 0) - (PERFORMANCE_DATA[a.ticker]?.ytd || 0));
+        const vals = sorted.map(s => PERFORMANCE_DATA[s.ticker]?.ytd || 0);
+        const maxV = Math.max(...vals.map(Math.abs));
+        const barH = H * 0.7 / vals.length;
+        const chartTop = H * 0.15;
+
+        sorted.forEach((s, i) => {
+            const v = vals[i];
+            const barW = Math.abs(v / maxV) * (W * 0.5);
+            const x = v >= 0 ? W * 0.5 : W * 0.5 - barW;
+            const y = chartTop + i * barH;
+            const color = s.color;
+
+            ctx.fillStyle = color;
+            ctx.fillRect(x, y, barW, barH * 0.7);
+
+            ctx.fillStyle = '#e6edf3';
+            ctx.font = 'bold 22px system-ui';
+            ctx.textAlign = 'right';
+            ctx.fillText(s.ticker, W * 0.5 - 12, y + barH * 0.5 + 7);
+
+            ctx.textAlign = 'left';
+            ctx.fillText(`${v >= 0 ? '+' : ''}${v.toFixed(1)}%`, v >= 0 ? W * 0.5 + barW + 10 : x - 10, y + barH * 0.5 + 7);
+        });
+
+        ctx.strokeStyle = '#30363d';
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(W * 0.5, chartTop);
+        ctx.lineTo(W * 0.5, chartTop + vals.length * barH);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    function showTooltip(e, cell) {
+        const tip = $('sr-tooltip');
+        tip.innerHTML = `<div class="tt-ticker">${cell.dataset.ticker}</div>
+            <div class="tt-label">${cell.dataset.period.toUpperCase()}</div>
+            <div class="tt-val" style="color:${parseFloat(cell.dataset.val) >= 0 ? 'var(--green)' : 'var(--red)'}">${parseFloat(cell.dataset.val) >= 0 ? '+' : ''}${cell.dataset.val}%</div>`;
+        tip.style.display = 'block';
+        const rect = cell.getBoundingClientRect();
+        tip.style.left = rect.left + 'px';
+        tip.style.top = (rect.bottom + 4) + 'px';
+    }
+
+    function hideTooltip() {
+        $('sr-tooltip').style.display = 'none';
+    }
+
+    function loadSectorData() {
+        $('perf-tbody').innerHTML = '<tr><td colspan="10" class="sr-loading">Loading...</td></tr>';
+        setTimeout(() => {
+            renderTable();
+            renderChart();
+        }, 300);
+    }
+
+    $('perf-table').addEventListener('click', e => {
+        if (e.target.dataset.sort) {
+            const col = e.target.dataset.sort;
+            if (currentSort.col === col) currentSort.asc = !currentSort.asc;
+            else { currentSort.col = col; currentSort.asc = false; }
+            renderTable();
+        }
+    });
+
+    renderSignals();
+    renderHeatmap();
+    renderTable();
+    renderChart();
+
+    window.addEventListener('resize', () => { renderChart(); });
+
+    // Theme toggle
+    (function() {
+        var btn = $('theme-toggle');
+        var KEY = 'oobir_theme';
+        function getPreferredTheme() { return localStorage.getItem(KEY) || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem(KEY, theme);
+            if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+        }
+        if (btn) btn.addEventListener('click', () => applyTheme(getPreferredTheme() === 'dark' ? 'light' : 'dark'));
+        applyTheme(getPreferredTheme());
+    })();
+    </script>
+</body>
+</html>

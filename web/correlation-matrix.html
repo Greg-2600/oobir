@@ -155,6 +155,10 @@
             .cm-topbar input[type="text"] { width: 200px; }
             .stats-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
         }
+        .cm-topbar .app-nav { display: flex; flex-wrap: wrap; gap: 4px; margin-left: 16px; }
+        .cm-topbar .app-nav a { color: var(--text-secondary); text-decoration: none; font-size: 0.8rem; padding: 4px 8px; border-radius: 4px; transition: all 0.15s; }
+        .cm-topbar .app-nav a:hover { color: var(--text-primary); background: var(--bg-card); }
+        .cm-topbar .app-nav a.active { color: var(--accent); font-weight: 600; }
     </style>
 </head>
 <body>
@@ -162,15 +166,30 @@
         <div class="cm-topbar">
             <a class="cm-topbar-brand" href="index.html">OOBIR</a>
             <h1>Correlation Matrix</h1>
-            <nav style="display:flex;gap:8px;margin-left:16px;">
-                <a href="index.html" style="color:var(--text-secondary);text-decoration:none;font-size:0.8rem;">Screener</a>
-                <a href="backtest.html" style="color:var(--text-secondary);text-decoration:none;font-size:0.8rem;">Backtest</a>
-                <a href="optimizer.html" style="color:var(--text-secondary);text-decoration:none;font-size:0.8rem;">Optimizer</a>
-                <a href="correlation-matrix.html" style="color:var(--accent);text-decoration:none;font-size:0.8rem;">Corr Matrix</a>
-                <a href="volatility.html" style="color:var(--text-secondary);text-decoration:none;font-size:0.8rem;">Volatility</a>
-                <a href="news-timeline.html" style="color:var(--text-secondary);text-decoration:none;font-size:0.8rem;">News</a>
-                <a href="calendar.html" style="color:var(--text-secondary);text-decoration:none;font-size:0.8rem;">Calendar</a>
-                <a href="predictions.html" style="color:var(--text-secondary);text-decoration:none;font-size:0.8rem;">AI</a>
+            <nav class="app-nav" aria-label="Primary navigation">
+                <a href="search.html">Search</a>
+                <a href="index.html">Stock Screen</a>
+                <a href="screener.html">Fundamentals</a>
+                <a href="markets.html">Markets</a>
+                <a href="sectors.html">Sectors</a>
+                <a href="stocks.html">AI Picks</a>
+                <a href="predictions.html">AI Predictions</a>
+                <a href="money-flow.html">Money Flow</a>
+                <a href="dividends.html">Dividends</a>
+                <a href="crypto.html">Crypto</a>
+                <a href="metals.html">Metals</a>
+                <a href="portfolio.html">Portfolio</a>
+                <a href="watchlist.html">Watchlist</a>
+                <a href="options.html">Options</a>
+                <a href="backtest.html">Backtest</a>
+                <a href="correlations.html">Correlations</a>
+                <a href="compare-sectors.html">Compare</a>
+                <a href="news-timeline.html">News</a>
+                <a href="calendar.html">Calendar</a>
+                <a href="commodities.html">Commodities</a>
+                <a href="optimizer.html">Optimizer</a>
+                <a href="correlation-matrix.html" class="active">Corr Matrix</a>
+                <a href="volatility.html">Volatility</a>
             </nav>
             <div class="cm-topbar-controls">
                 <input type="text" id="tickers" value="AAPL,MSFT,GOOGL,NVDA,AMZN,META,JPM,JNJ,UNH,XOM,BRK-B,PG,V,JPM,HD,MA,CVX,AVGO,LLY" placeholder="TICKERS">
@@ -237,7 +256,7 @@
     </div>
 
     <script>
-    const API = window.API || 'http://192.168.1.248:2010';
+    const API = window.location.origin;
     const $ = id => document.getElementById(id);
 
     let priceData = {};
