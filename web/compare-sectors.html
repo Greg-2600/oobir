@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compare Sectors — OOBIR</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="tooltip.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <style>
+        .compare-page { max-width: 1300px; margin: 0 auto; padding: 24px 20px; }
+        .compare-header { margin-bottom: 24px; }
+        .compare-header h1 { font-size: 1.8rem; font-weight: 800; color: #1f2937; }
+        .compare-header p { color: #64748b; font-size: 0.85rem; margin-top: 4px; }
+        .sector-picker { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+        .sector-picker .chip {
+            padding: 8px 16px; border: 1.5px solid #dbe2ea; border-radius: 999px;
+            font-size: 0.82rem; font-weight: 700; cursor: pointer; background: white;
+            color: #475569; transition: all 0.18s;
+        }
+        .sector-picker .chip:hover { border-color: #1a73e8; color: #1a73e8; }
+        .sector-picker .chip.selected { background: #1a73e8; border-color: #1a73e8; color: white; }
+        .compare-chart { background: white; border: 1.5px solid #e5e7eb; border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+        .compare-chart h3 { font-size: 0.9rem; font-weight: 700; color: #1f2937; margin-bottom: 14px; }
+        .compare-canvas { width: 100%; height: 300px; }
+        .compare-table { width: 100%; border-collapse: collapse; background: white; border: 1.5px solid #e5e7eb; border-radius: 14px; overflow: hidden; margin-bottom: 20px; }
+        .compare-table th { background: #f8fafc; padding: 10px 14px; text-align: left; font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; }
+        .compare-table td { padding: 12px 14px; border-top: 1px solid #f3f4f6; font-size: 0.85rem; }
+        .compare-table tr:hover td { background: #f8fafc; }
+        .compare-table .ticker-cell { font-weight: 800; }
+        .compare-table .up { color: #15803d; font-weight: 700; }
+        .compare-table .down { color: #b91c1c; font-weight: 700; }
+        .compare-table .neutral { color: #64748b; }
+        .empty-state { text-align: center; padding: 40px; color: #94a3b8; }
+        .compare-section-title { font-size: 0.9rem; font-weight: 700; color: #1f2937; margin: 20px 0 12px; }
+        [data-theme="dark"] .compare-header h1 { color: #f1f5f9; }
+        [data-theme="dark"] .compare-chart, [data-theme="dark"] .compare-table { background: #1e293b; border-color: #334155; }
+        [data-theme="dark"] .compare-table th { background: #0f172a; color: #94a3b8; }
+        [data-theme="dark"] .compare-table td { border-color: #334155; }
+        [data-theme="dark"] .compare-table tr:hover td { background: #0f172a; }
+        [data-theme="dark"] .compare-table .ticker-cell { color: #f1f5f9; }
+        [data-theme="dark"] .sector-picker .chip { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="app-header-content">
+            <div class="app-header-left">
+                <a class="app-brand" href="search.html">OOBIR</a>
+                <span class="app-page-label">Compare Sectors</span>
+            </div>
+            <nav class="app-nav" aria-label="Primary navigation">
+                <a href="search.html">Search</a><a href="index.html">Stock Screen</a>
+                <a href="screener.html">Fundamentals</a><a href="markets.html">Markets</a>
+                <a href="sectors.html">Sectors</a><a href="stocks.html">AI Picks</a>
+                <a href="predictions.html">AI Predictions</a><a href="money-flow.html">Money Flow</a>
+                <a href="watchlist.html">Watchlist</a><a href="portfolio.html">Portfolio</a>
+                <a href="dividends.html">Dividends</a><a href="options.html">Options</a>
+                <a href="backtest.html">Backtest</a><a href="correlations.html">Correlations</a>
+                        <a href="compare-sectors.html">Compare</a>
+                        <a href="news-timeline.html">News</a>
+                        <a href="calendar.html">Calendar</a>
+                <a href="commodities.html">Commodities</a>
+                <a href="crypto.html">Crypto</a>
+                <a href="metals.html">Metals</a>
+                        <a href="optimizer.html">Optimizer</a>
+                        <a href="correlation-matrix.html">Corr Matrix</a>
+                        <a href="volatility.html">Volatility</a>
+            </nav>
+            <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">🌙</button>
+        </div>
+    </header>
+
+    <div class="compare-page">
+        <div class="compare-header">
+            <h1>📊 Sector Compare</h1>
+            <p>Select 2-4 sectors to compare performance, valuation, and momentum</p>
+        </div>
+
+        <div class="sector-picker" id="sector-picker"></div>
+        <div id="compare-results" style="display:none">
+            <div class="compare-chart">
+                <h3>📈 Normalized Performance (From Start Date)</h3>
+                <canvas id="compare-canvas" class="compare-canvas"></canvas>
+            </div>
+            <div class="compare-section-title">📋 Comparison Metrics</div>
+            <table class="compare-table" id="compare-table"></table>
+        </div>
+        <div id="compare-placeholder" class="empty-state" style="padding:60px">
+            <h3>Select sectors above to compare them</h3>
+        </div>
+    </div>
+
+    <script>
+    const API = window.location.origin;
+    const SECTORS = [
+        { ticker: 'XLF',  name: 'Financials',      color: '#3b82f6' },
+        { ticker: 'XLK',  name: 'Technology',       color: '#8b5cf6' },
+        { ticker: 'XLE',  name: 'Energy',           color: '#f59e0b' },
+        { ticker: 'XLV',  name: 'Healthcare',       color: '#10b981' },
+        { ticker: 'XLY',  name: 'Consumer Disc.',   color: '#ec4899' },
+        { ticker: 'XLP',  name: 'Consumer Staples', color: '#14b8a6' },
+        { ticker: 'XLI',  name: 'Industrials',      color: '#f97316' },
+        { ticker: 'XLB',  name: 'Materials',        color: '#a78bfa' },
+        { ticker: 'XLRE', name: 'Real Estate',      color: '#fb923c' },
+        { ticker: 'XLC',  name: 'Comm. Services',   color: '#06b6d4' },
+        { ticker: 'XLU',  name: 'Utilities',        color: '#84cc16' },
+    ];
+    const COLORS = ['#1a73e8','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'];
+
+    let selectedSectors = new Set();
+    let sectorPrices = {};
+
+    function init() {
+        renderPicker();
+        (function() {
+            var btn = document.getElementById('theme-toggle');
+            var KEY = 'oobir_theme';
+            function getPreferredTheme() { return localStorage.getItem(KEY) || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+            function applyTheme(theme) {
+                document.documentElement.setAttribute('data-theme', theme);
+                localStorage.setItem(KEY, theme);
+                if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+            }
+            if (btn) btn.addEventListener('click', () => applyTheme(getPreferredTheme() === 'dark' ? 'light' : 'dark'));
+            applyTheme(getPreferredTheme());
+        })();
+    }
+
+    function renderPicker() {
+        const container = document.getElementById('sector-picker');
+        container.innerHTML = SECTORS.map(s => `
+            <button class="chip" id="chip-${s.ticker}" onclick="toggleSector('${s.ticker}')">${s.ticker} — ${s.name}</button>
+        `).join('');
+    }
+
+    function toggleSector(ticker) {
+        if (selectedSectors.has(ticker)) { selectedSectors.delete(ticker); }
+        else {
+            if (selectedSectors.size >= 4) return;
+            selectedSectors.add(ticker);
+        }
+        document.getElementById('chip-' + ticker).classList.toggle('selected', selectedSectors.has(ticker));
+        if (selectedSectors.size >= 2) loadAndCompare();
+        else {
+            document.getElementById('compare-results').style.display = 'none';
+            document.getElementById('compare-placeholder').style.display = '';
+        }
+    }
+
+    async function loadAndCompare() {
+        document.getElementById('compare-placeholder').style.display = 'none';
+        document.getElementById('compare-results').style.display = '';
+        await Promise.all([...selectedSectors].map(t => fetchSector(t)));
+        drawCompareChart();
+        renderCompareTable();
+    }
+
+    async function fetchSector(ticker) {
+        try {
+            const res = await fetch(`${API}/api/price-history/${ticker}?days=365`);
+            if (!res.ok) return;
+            const json = await res.json();
+            const data = json.data ? json.data : json;
+            if (!data || !data.length) return;
+            const closes = data.map(d => d.Close);
+            const first = closes[0];
+            const normalized = closes.map(c => (c - first) / first * 100);
+            const volumes = data.map(d => d.Volume);
+            const highs = data.map(d => d.High);
+            const lows = data.map(d => d.Low);
+            const latest = closes[closes.length - 1];
+            const change1m = closes.length > 22 ? (closes[closes.length-1] - closes[closes.length-22]) / closes[closes.length-22] * 100 : null;
+            const change3m = closes.length > 65 ? (closes[closes.length-1] - closes[closes.length-65]) / closes[closes.length-65] * 100 : null;
+            const change6m = closes.length > 130 ? (closes[closes.length-1] - closes[closes.length-130]) / closes[closes.length-130] * 100 : null;
+            const change1y = closes.length > 252 ? (closes[closes.length-1] - closes[252]) / closes[252] * 100 : closes.length > 22 ? (closes[closes.length-1] - closes[0]) / closes[0] * 100 : null;
+            const avgVol = volumes.slice(-20).reduce((a, b) => a + b, 0) / Math.min(20, volumes.length);
+            const todayVol = volumes[volumes.length - 1];
+            sectorPrices[ticker] = {
+                data, normalized, closes, latest, change1m, change3m, change6m, change1y,
+                high52w: Math.max(...highs), low52w: Math.min(...lows),
+                pct52w: ((latest - Math.min(...lows)) / (Math.max(...highs) - Math.min(...lows) || 1)) * 100,
+                avgVol, todayVol, volRatio: todayVol / avgVol,
+            };
+        } catch {}
+    }
+
+    function drawCompareChart() {
+        const canvas = document.getElementById('compare-canvas');
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width = canvas.offsetWidth * 2;
+        const H = canvas.height = canvas.offsetHeight * 2;
+        ctx.clearRect(0, 0, W, H);
+        const tickers = [...selectedSectors];
+        if (tickers.length < 2) return;
+
+        const allLens = tickers.map(t => sectorPrices[t]?.normalized?.length || 0);
+        const minLen = Math.min(...allLens);
+        const pad = { l: 60, r: 20, t: 20, b: 36 };
+        const cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
+
+        let minV = 0, maxV = 0;
+        tickers.forEach(t => {
+            const norm = sectorPrices[t]?.normalized || [];
+            for (let i = 0; i < minLen; i++) {
+                minV = Math.min(minV, norm[i]);
+                maxV = Math.max(maxV, norm[i]);
+            }
+        });
+        const range = maxV - minV || 1;
+
+        const toX = i => pad.l + (i / (minLen - 1)) * cw;
+        const toY = v => pad.t + ch - ((v - minV) / range) * ch;
+
+        // Grid
+        ctx.strokeStyle = '#f3f4f6'; ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+            const y = pad.t + (i / 4) * ch;
+            ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cw, y); ctx.stroke();
+            const val = maxV - (i / 4) * range;
+            ctx.fillStyle = '#94a3b8'; ctx.font = '18px system-ui'; ctx.textAlign = 'right';
+            ctx.fillText(val.toFixed(1) + '%', pad.l - 6, y + 5);
+        }
+        // Zero line
+        if (minV < 0 && maxV > 0) {
+            const zeroY = toY(0);
+            ctx.setLineDash([4, 4]); ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(pad.l, zeroY); ctx.lineTo(pad.l + cw, zeroY); ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        tickers.forEach((t, idx) => {
+            const norm = sectorPrices[t].normalized;
+            const color = COLORS[idx % COLORS.length];
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            for (let i = 0; i < minLen; i++) {
+                const x = toX(i), y = toY(norm[i]);
+                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        });
+
+        // Legend
+        ctx.font = '20px system-ui'; ctx.textAlign = 'left';
+        tickers.forEach((t, idx) => {
+            const sec = SECTORS.find(s => s.ticker === t);
+            ctx.fillStyle = COLORS[idx % COLORS.length];
+            ctx.fillText('■', pad.l + idx * 120, H - 4);
+            ctx.fillStyle = '#1f2937';
+            ctx.fillText(`${t} (${sec?.name || ''})`, pad.l + idx * 120 + 16, H - 4);
+        });
+    }
+
+    function renderCompareTable() {
+        const tickers = [...selectedSectors];
+        const table = document.getElementById('compare-table');
+        table.innerHTML = `
+            <thead>
+                <tr>
+                    <th>Sector</th>
+                    <th>Price</th>
+                    <th>1M</th>
+                    <th>3M</th>
+                    <th>6M</th>
+                    <th>1Y</th>
+                    <th>52w Range</th>
+                    <th>Vol Ratio</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${tickers.map((t, i) => {
+                    const d = sectorPrices[t] || {};
+                    const sec = SECTORS.find(s => s.ticker === t);
+                    const up = (val) => val >= 0 ? 'up' : 'down';
+                    return `<tr>
+                        <td class="ticker-cell" style="color:${COLORS[i % COLORS.length]}">${t} — ${sec?.name || ''}</td>
+                        <td>$${d.latest ? d.latest.toFixed(2) : '—'}</td>
+                        <td class="${up(d.change1m)}">${d.change1m != null ? (d.change1m >= 0 ? '+' : '') + d.change1m.toFixed(1) + '%' : '—'}</td>
+                        <td class="${up(d.change3m)}">${d.change3m != null ? (d.change3m >= 0 ? '+' : '') + d.change3m.toFixed(1) + '%' : '—'}</td>
+                        <td class="${up(d.change6m)}">${d.change6m != null ? (d.change6m >= 0 ? '+' : '') + d.change6m.toFixed(1) + '%' : '—'}</td>
+                        <td class="${up(d.change1y)}">${d.change1y != null ? (d.change1y >= 0 ? '+' : '') + d.change1y.toFixed(1) + '%' : '—'}</td>
+                        <td class="${d.pct52w > 50 ? 'up' : 'down'}">${d.pct52w != null ? d.pct52w.toFixed(0) + '%' : '—'}</td>
+                        <td class="${d.volRatio > 1.2 ? 'up' : d.volRatio < 0.8 ? 'down' : 'neutral'}">${d.volRatio != null ? d.volRatio.toFixed(2) + 'x' : '—'}</td>
+                    </tr>`;
+                }).join('')}
+            </tbody>`;
+    }
+
+    window.addEventListener('resize', () => { if (selectedSectors.size >= 2) drawCompareChart(); });
+    init();
+    </script>
+</body>
+</html>

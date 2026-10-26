@@ -16,7 +16,7 @@ import os
 
 import pandas as pd
 import psycopg2
-from psycopg2.extras import execute_values, RealDictCursor
+from psycopg2.extras import RealDictCursor, execute_values
 
 
 def get_conn():

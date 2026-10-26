@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Correlation Matrix — OOBIR</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <style>
+        :root {
+            --bg-primary: #0d1117; --bg-secondary: #161b22; --bg-card: #1c2128;
+            --bg-input: #0d1117; --border: #30363d; --text-primary: #e6edf3;
+            --text-secondary: #8b949e; --text-muted: #484f58; --accent: #58a6ff;
+            --accent-dim: #1f3a5c; --green: #3fb950; --green-dim: #0f2a1a;
+            --red: #f85149; --red-dim: #2a1214; --yellow: #d29922; --yellow-dim: #2a200a;
+            --purple: #bc8cff; --radius: 8px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg-primary); color: var(--text-primary); font-family: system-ui, -apple-system, sans-serif; min-height: 100vh; }
+
+        .cm-page { max-width: 1600px; margin: 0 auto; padding: 0 0 40px; }
+
+        .cm-topbar {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            height: 56px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .cm-topbar-brand {
+            font-size: 1.1rem;
+            font-weight: 900;
+            color: var(--accent);
+            letter-spacing: -0.02em;
+            text-decoration: none;
+        }
+        .cm-topbar h1 { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+        .cm-topbar-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; flex: 1; justify-content: flex-end; }
+        .cm-topbar input, .cm-topbar select {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 0.82rem;
+            outline: none;
+        }
+        .cm-topbar input:focus, .cm-topbar select:focus { border-color: var(--accent); }
+        .cm-topbar input[type="date"] { color-scheme: dark; }
+        .cm-topbar input[type="text"] { width: 320px; }
+        .btn-analyze {
+            background: var(--green);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 7px 16px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-analyze:hover { opacity: 0.9; }
+        .btn-analyze:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .cm-content { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+
+        .cm-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+        .cm-section-header {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+        }
+
+        .heatmap-wrapper { overflow-x: auto; padding: 14px; }
+        .heatmap-table { border-collapse: collapse; font-size: 0.75rem; }
+        .heatmap-table th, .heatmap-table td {
+            padding: 6px 8px;
+            text-align: center;
+            min-width: 56px;
+            border: 1px solid var(--border);
+        }
+        .heatmap-table th { background: var(--bg-secondary); color: var(--text-secondary); font-weight: 700; position: sticky; top: 0; z-index: 2; }
+        .heatmap-table th.row-header { position: sticky; left: 0; z-index: 3; }
+        .heatmap-table td.corner { background: var(--bg-secondary); position: sticky; left: 0; top: 0; z-index: 4; }
+        .heatmap-table td { font-weight: 600; transition: opacity 0.15s; }
+        .heatmap-table tr:hover td { opacity: 0.85; }
+        .heatmap-table td.diagonal { background: var(--bg-secondary); color: var(--text-muted); }
+
+        .clustered-section { display: flex; }
+        .clustered-canvas-wrapper { flex: 1; overflow-x: auto; padding: 14px; position: relative; }
+        #clustered-canvas { display: block; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+            padding: 14px;
+        }
+        .stat-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px 14px;
+        }
+        .stat-card .sc-label { font-size: 0.65rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+        .stat-card .sc-value { font-size: 1rem; font-weight: 900; }
+        .stat-card .sc-sub { font-size: 0.68rem; color: var(--text-secondary); margin-top: 2px; }
+        .stat-card.high-risk { border-color: var(--red); background: var(--red-dim); }
+        .stat-card.good-hedge { border-color: var(--green); background: var(--green-dim); }
+
+        .cm-loading { display: flex; align-items: center; justify-content: center; min-height: 300px; gap: 12px; color: var(--text-secondary); }
+        .cm-loading .spinner {
+            width: 20px; height: 20px; border: 2px solid var(--border);
+            border-top-color: var(--accent); border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .cm-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 300px;
+            color: var(--text-muted);
+            text-align: center;
+            gap: 12px;
+        }
+
+        .error-msg { color: var(--red); font-size: 0.82rem; padding: 8px 14px; }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        @media (max-width: 768px) {
+            .cm-topbar input[type="text"] { width: 200px; }
+            .stats-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+        }
+        .cm-topbar .app-nav { display: flex; flex-wrap: wrap; gap: 4px; margin-left: 16px; }
+        .cm-topbar .app-nav a { color: var(--text-secondary); text-decoration: none; font-size: 0.8rem; padding: 4px 8px; border-radius: 4px; transition: all 0.15s; }
+        .cm-topbar .app-nav a:hover { color: var(--text-primary); background: var(--bg-card); }
+        .cm-topbar .app-nav a.active { color: var(--accent); font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="cm-page">
+        <div class="cm-topbar">
+            <a class="cm-topbar-brand" href="index.html">OOBIR</a>
+            <h1>Correlation Matrix</h1>
+            <nav class="app-nav" aria-label="Primary navigation">
+                <a href="search.html">Search</a>
+                <a href="index.html">Stock Screen</a>
+                <a href="screener.html">Fundamentals</a>
+                <a href="markets.html">Markets</a>
+                <a href="sectors.html">Sectors</a>
+                <a href="stocks.html">AI Picks</a>
+                <a href="predictions.html">AI Predictions</a>
+                <a href="money-flow.html">Money Flow</a>
+                <a href="dividends.html">Dividends</a>
+                <a href="crypto.html">Crypto</a>
+                <a href="metals.html">Metals</a>
+                <a href="portfolio.html">Portfolio</a>
+                <a href="watchlist.html">Watchlist</a>
+                <a href="options.html">Options</a>
+                <a href="backtest.html">Backtest</a>
+                <a href="correlations.html">Correlations</a>
+                <a href="compare-sectors.html">Compare</a>
+                <a href="news-timeline.html">News</a>
+                <a href="calendar.html">Calendar</a>
+                <a href="commodities.html">Commodities</a>
+                <a href="optimizer.html">Optimizer</a>
+                <a href="correlation-matrix.html" class="active">Corr Matrix</a>
+                <a href="volatility.html">Volatility</a>
+            </nav>
+            <div class="cm-topbar-controls">
+                <input type="text" id="tickers" value="AAPL,MSFT,GOOGL,NVDA,AMZN,META,JPM,JNJ,UNH,XOM,BRK-B,PG,V,JPM,HD,MA,CVX,AVGO,LLY" placeholder="TICKERS">
+                <input type="date" id="start-date" value="2026-04-29">
+                <input type="date" id="end-date" value="2026-10-22">
+                <select id="lookback">
+                    <option value="20">20-day</option>
+                    <option value="50" selected>50-day</option>
+                    <option value="100">100-day</option>
+                    <option value="200">200-day</option>
+                </select>
+                <button class="btn-analyze" id="analyze-btn" onclick="runAnalysis()">
+                    ▶ Analyze
+                </button>
+            </div>
+        </div>
+
+        <div class="cm-content">
+            <div id="loading-state" class="cm-loading" style="display:none">
+                <div class="spinner"></div>
+                <span>Fetching price data…</span>
+            </div>
+
+            <div id="empty-state" class="cm-empty">
+                <div style="font-size:2.5rem">📊</div>
+                <h3 style="font-size:1rem;font-weight:700;color:var(--text-secondary);">No correlation data</h3>
+                <p style="font-size:0.82rem;max-width:400px;line-height:1.5;">Enter tickers and date range, then click <strong style="color:var(--green)">▶ Analyze</strong> to compute rolling correlations.</p>
+            </div>
+
+            <div id="error-state" class="cm-empty" style="display:none">
+                <div style="font-size:2.5rem">⚠️</div>
+                <h3 id="error-text" style="font-size:1rem;font-weight:700;color:var(--red);"></h3>
+            </div>
+
+            <div id="results" style="display:none">
+                <div class="cm-section">
+                    <div class="cm-section-header">
+                        <span>📊 Rolling Correlation Heatmap</span>
+                        <span id="heatmap-info" style="font-size:0.68rem;color:var(--text-muted);font-weight:400;"></span>
+                    </div>
+                    <div class="heatmap-wrapper">
+                        <table class="heatmap-table" id="heatmap-table"></table>
+                    </div>
+                </div>
+
+                <div class="cm-section">
+                    <div class="cm-section-header">
+                        <span>🌳 Clustered Correlation View</span>
+                        <span style="font-size:0.68rem;color:var(--text-muted);font-weight:400;">Hierarchical clustering + dendrogram</span>
+                    </div>
+                    <div class="clustered-section">
+                        <canvas id="clustered-canvas" width="900" height="500"></canvas>
+                    </div>
+                </div>
+
+                <div class="cm-section">
+                    <div class="cm-section-header">
+                        <span>📈 Summary Statistics</span>
+                    </div>
+                    <div class="stats-grid" id="stats-grid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const API = window.location.origin;
+    const $ = id => document.getElementById(id);
+
+    let priceData = {};
+    let correlationMatrix = [];
+    let tickers = [];
+
+    async function runAnalysis() {
+        const tickersStr = $('tickers').value.trim();
+        const startDate = $('start-date').value;
+        const endDate = $('end-date').value;
+        const lookback = parseInt($('lookback').value);
+
+        if (!tickersStr) {
+            showError('Need at least 2 tickers');
+            return;
+        }
+
+        tickers = tickersStr.split(',').map(t => t.trim().toUpperCase()).filter(t => t);
+        if (tickers.length < 2) {
+            showError('Need at least 2 tickers');
+            return;
+        }
+
+        showLoading(true);
+        $('results').style.display = 'none';
+        $('empty-state').style.display = 'none';
+        $('error-state').style.display = 'none';
+        $('analyze-btn').disabled = true;
+
+        try {
+            const fetchPromises = tickers.map(ticker =>
+                fetch(`${API}/api/price-history/${ticker}?start=${startDate}&end=${endDate}`)
+                    .then(res => {
+                        if (!res.ok) throw new Error(`Failed to load data for ${ticker}`);
+                        return res.json();
+                    })
+                    .then(json => {
+                        const data = json.data || json;
+                        if (!data || data.length < lookback + 5) {
+                            throw new Error(`Insufficient data for ${ticker} (need ${lookback + 5}+ days)`);
+                        }
+                        return { ticker, data };
+                    })
+            );
+
+            const results = await Promise.all(fetchPromises);
+            priceData = {};
+            results.forEach(r => { priceData[r.ticker] = r.data; });
+
+            correlationMatrix = computeCorrelationMatrix(tickers, lookback);
+
+            showLoading(false);
+            $('results').style.display = 'flex';
+            $('results').style.flexDirection = 'column';
+            $('analyze-btn').disabled = false;
+
+            renderHeatmap(tickers, correlationMatrix);
+            renderClusteredView(tickers, correlationMatrix);
+            renderStats(tickers, correlationMatrix);
+
+        } catch (err) {
+            showLoading(false);
+            showError(err.message);
+            $('analyze-btn').disabled = false;
+        }
+    }
+
+    function computeCorrelationMatrix(tickerList, windowSize) {
+        const n = tickerList.length;
+        const matrix = Array.from({ length: n }, () => new Array(n).fill(0));
+
+        for (let i = 0; i < n; i++) {
+            for (let j = 0; j < n; j++) {
+                if (i === j) {
+                    matrix[i][j] = 1.0;
+                    continue;
+                }
+                if (j < i) {
+                    matrix[i][j] = matrix[j][i];
+                    continue;
+                }
+
+                const corr = computeRollingCorrelation(
+                    priceData[tickerList[i]],
+                    priceData[tickerList[j]],
+                    windowSize
+                );
+                matrix[i][j] = isFinite(corr) ? corr : 0;
+            }
+        }
+        return matrix;
+    }
+
+    function computeRollingCorrelation(data1, data2, windowSize) {
+        const closes1 = data1.map(d => d.Close);
+        const closes2 = data2.map(d => d.Close);
+        const dates1 = data1.map(d => d.Date);
+        const dates2 = data2.map(d => d.Date);
+
+        const commonDates = [...new Set(dates1)].filter(d => dates2.includes(d));
+        if (commonDates.length < windowSize + 5) return 0;
+
+        const idx1 = dates1.map((d, i) => commonDates.includes(d) ? i : -1).filter(i => i >= 0);
+        const idx2 = dates2.map((d, i) => commonDates.includes(d) ? i : -1).filter(i => i >= 0);
+
+        const aligned1 = idx1.map(i => closes1[i]);
+        const aligned2 = idx2.map(i => closes2[i]);
+
+        const rets1 = [];
+        const rets2 = [];
+        for (let k = 1; k < aligned1.length; k++) {
+            rets1.push((aligned1[k] - aligned1[k-1]) / aligned1[k-1]);
+            rets2.push((aligned2[k] - aligned2[k-1]) / aligned2[k-1]);
+        }
+
+        if (rets1.length < windowSize + 5) return 0;
+
+        const rollingCorrs = [];
+        for (let w = 0; w <= rets1.length - windowSize; w++) {
+            const windowRets1 = rets1.slice(w, w + windowSize);
+            const windowRets2 = rets2.slice(w, w + windowSize);
+
+            const mean1 = windowRets1.reduce((a, b) => a + b, 0) / windowSize;
+            const mean2 = windowRets2.reduce((a, b) => a + b, 0) / windowSize;
+
+            let cov = 0, var1 = 0, var2 = 0;
+            for (let k = 0; k < windowSize; k++) {
+                const d1 = windowRets1[k] - mean1;
+                const d2 = windowRets2[k] - mean2;
+                cov += d1 * d2;
+                var1 += d1 * d1;
+                var2 += d2 * d2;
+            }
+
+            const std1 = Math.sqrt(var1 / windowSize);
+            const std2 = Math.sqrt(var2 / windowSize);
+
+            if (std1 > 0 && std2 > 0) {
+                rollingCorrs.push(cov / (windowSize * std1 * std2));
+            }
+        }
+
+        if (rollingCorrs.length === 0 || !isFinite(rollingCorrs[0])) return 0;
+        const result = rollingCorrs.reduce((a, b) => a + b, 0) / rollingCorrs.length;
+        return isFinite(result) ? result : 0;
+    }
+
+    function correlationColor(corr) {
+        if (corr >= 0) {
+            const r = Math.round(16 + (1 - corr) * (32 - 16));
+            const g = Math.round(32 + corr * (185 - 32));
+            const b = Math.round(24 + corr * (80 - 24));
+            return `rgb(${r},${g},${b})`;
+        } else {
+            const intensity = Math.abs(corr);
+            const r = Math.round(32 + intensity * (248 - 32));
+            const g = Math.round(24 + intensity * (81 - 24));
+            const b = Math.round(20 + intensity * (73 - 20));
+            return `rgb(${r},${g},${b})`;
+        }
+    }
+
+    function textColorForBackground(corr) {
+        const bg = correlationColor(corr);
+        const match = bg.match(/rgb\((\d+),(\d+),(\d+)\)/);
+        if (!match) return '#e6edf3';
+        const [, r, g, b] = match.map(Number);
+        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        return luminance > 0.5 ? '#0d1117' : '#e6edf3';
+    }
+
+    function renderHeatmap(tickerList, matrix) {
+        const table = $('heatmap-table');
+        const n = tickerList.length;
+
+        let html = '<thead><tr><th class="corner">Ticker</th>';
+        for (let j = 0; j < n; j++) {
+            html += `<th>${tickerList[j]}</th>`;
+        }
+        html += '</tr></thead><tbody>';
+
+        for (let i = 0; i < n; i++) {
+            html += `<tr><th class="row-header">${tickerList[i]}</th>`;
+            for (let j = 0; j < n; j++) {
+                const corr = matrix[i][j];
+                const bg = correlationColor(corr);
+                const fg = textColorForBackground(corr);
+                const isDiag = i === j;
+                html += `<td class="${isDiag ? 'diagonal' : ''}" style="background:${bg};color:${fg};${isDiag ? 'font-style:italic;' : ''}">${corr.toFixed(2)}</td>`;
+            }
+            html += '</tr>';
+        }
+        html += '</tbody>';
+        table.innerHTML = html;
+
+        $('heatmap-info').textContent = `${n}×${n} matrix · ${$('lookback').value}-day rolling window`;
+    }
+
+    function renderClusteredView(tickerList, matrix) {
+        const canvas = $('clustered-canvas');
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        const n = tickerList.length;
+
+        const cellSize = 36;
+        const labelWidth = 70;
+        const dendroWidth = 100;
+        const margin = { top: 10, right: 10, bottom: 10, left: 10 };
+
+        const order = hierarchicalClusterOrder(tickerList, matrix) || tickerList.map((_, i) => i);
+
+        const width = labelWidth + dendroWidth + n * cellSize + margin.left + margin.right;
+        const height = labelWidth + dendroWidth + n * cellSize + margin.top + margin.bottom;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+        ctx.scale(dpr, dpr);
+
+        ctx.fillStyle = '#1c2128';
+        ctx.fillRect(0, 0, width, height);
+
+        const orderedTickers = order.map(idx => tickerList[idx]);
+        const orderedMatrix = order.map(i => order.map(j => matrix[i][j]));
+
+        ctx.font = '600 11px system-ui';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        for (let i = 0; i < n; i++) {
+            const x = labelWidth + dendroWidth + i * cellSize + cellSize / 2;
+            const y = labelWidth + dendroWidth + n * cellSize + 6;
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(-Math.PI / 4);
+            ctx.fillStyle = '#8b949e';
+            ctx.fillText(orderedTickers[i], 0, 0);
+            ctx.restore();
+
+            ctx.fillStyle = '#8b949e';
+            ctx.textAlign = 'right';
+            ctx.fillText(orderedTickers[i], labelWidth - 6, labelWidth + dendroWidth + i * cellSize + cellSize / 2);
+        }
+
+        for (let i = 0; i < n; i++) {
+            for (let j = 0; j < n; j++) {
+                const corr = orderedMatrix[i][j];
+                const bg = correlationColor(corr);
+                const x = labelWidth + dendroWidth + j * cellSize;
+                const y = labelWidth + dendroWidth + i * cellSize;
+                ctx.fillStyle = bg;
+                ctx.fillRect(x, y, cellSize, cellSize);
+
+                ctx.fillStyle = textColorForBackground(corr);
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.font = '600 10px system-ui';
+                ctx.fillText(corr.toFixed(2), x + cellSize / 2, y + cellSize / 2);
+            }
+        }
+
+        const dendro = buildDendrogram(order, matrix);
+        drawDendrogram(ctx, dendro, labelWidth, labelWidth, dendroWidth, dendroWidth + n * cellSize);
+
+        for (let i = 0; i < n; i++) {
+            ctx.strokeStyle = 'rgba(48,54,61,0.8)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            const x = labelWidth + dendroWidth + i * cellSize;
+            ctx.moveTo(x, labelWidth);
+            ctx.lineTo(x, labelWidth + dendroWidth + n * cellSize);
+            ctx.stroke();
+
+            ctx.beginPath();
+            const y = labelWidth + dendroWidth + i * cellSize;
+            ctx.moveTo(labelWidth, y);
+            ctx.lineTo(labelWidth + dendroWidth + n * cellSize, y);
+            ctx.stroke();
+        }
+    }
+
+    function hierarchicalClusterOrder(tickerList, matrix) {
+        const n = tickerList.length;
+        if (n <= 1) return [0];
+
+        const dist = (i, j) => {
+            const row = matrix[i];
+            if (!row) return Infinity;
+            const v = row[j];
+            return (v === undefined || v === null || isNaN(v)) ? Infinity : 1 - Math.abs(v);
+        };
+
+        let clusters = tickerList.map((_, i) => ({ leaf: i, height: 0, left: null, right: null, members: [i] }));
+        let active = [...Array(n).keys()];
+
+        while (active.length > 1) {
+            let minDist = Infinity, bestI = 0, bestJ = 1;
+            for (let a = 0; a < active.length; a++) {
+                for (let b = a + 1; b < active.length; b++) {
+                    const d = dist(active[a], active[b]);
+                    if (d < minDist) { minDist = d; bestI = a; bestJ = b; }
+                }
+            }
+
+            if (!isFinite(minDist)) return null;
+
+            const i = active[bestI], j = active[bestJ];
+            const ci = clusters[i], cj = clusters[j];
+            if (!ci || !cj) return null;
+
+            const merged = {
+                leaf: -1,
+                height: minDist,
+                left: ci,
+                right: cj,
+                members: [...ci.members, ...cj.members]
+            };
+            clusters.push(merged);
+
+            active = active.filter(idx => idx !== i && idx !== j);
+            active.push(clusters.length - 1);
+        }
+
+        const root = clusters[clusters.length - 1];
+        if (!root) return null;
+        return extractLeafOrder(root);
+    }
+
+    function extractLeafOrder(node) {
+        if (node.left === null && node.right === null) return node.members;
+        if (node.left === null) return extractLeafOrder(node.right);
+        if (node.right === null) return extractLeafOrder(node.left);
+        const left = extractLeafOrder(node.left);
+        const right = extractLeafOrder(node.right);
+        return [...left, ...right];
+    }
+
+    function buildDendrogram(order, matrix) {
+        const n = order.length;
+        if (n <= 1) return null;
+
+        const dist = (i, j) => {
+            const row = matrix[i];
+            if (!row) return Infinity;
+            const v = row[j];
+            return (v === undefined || v === null || isNaN(v)) ? Infinity : 1 - Math.abs(v);
+        };
+        let clusters = order.map((origIdx, leaf) => ({ leaf: origIdx, height: 0, left: null, right: null, members: [leaf] }));
+        let active = [...Array(n).keys()];
+
+        while (active.length > 1) {
+            let minDist = Infinity, bestI = 0, bestJ = 1;
+            for (let a = 0; a < active.length; a++) {
+                for (let b = a + 1; b < active.length; b++) {
+                    const d = dist(active[a], active[b]);
+                    if (d < minDist) { minDist = d; bestI = a; bestJ = b; }
+                }
+            }
+
+            if (!isFinite(minDist)) return null;
+
+            const i = active[bestI], j = active[bestJ];
+            const ci = clusters[i], cj = clusters[j];
+            if (!ci || !cj) return null;
+            const merged = { leaf: -1, height: minDist, left: ci, right: cj, members: [...ci.members, ...cj.members] };
+            clusters.push(merged);
+            active = active.filter((_, idx) => idx !== bestI && idx !== bestJ);
+            active.push(clusters.length - 1);
+        }
+
+        return clusters[clusters.length - 1];
+    }
+
+    function drawDendrogram(ctx, node, x, y, w, h) {
+        if (!node) return;
+        if (node.left === null && node.right === null) {
+            const leafIdx = node.members[0];
+            const leafY = y + leafIdx * (h / node.members.length || 30) + (h / (node.members.length || 1)) / 2;
+            ctx.strokeStyle = '#58a6ff';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(x + w, leafY);
+            ctx.lineTo(x + w - 20, leafY);
+            ctx.stroke();
+            return;
+        }
+
+        const leftY = y + node.left.members.reduce((sum, m) => sum + m, 0) / node.left.members.length * (h / (node.members.length || 1));
+        const rightY = y + node.right.members.reduce((sum, m) => sum + m, 0) / node.right.members.length * (h / (node.members.length || 1));
+
+        ctx.strokeStyle = '#58a6ff';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(x + w - 20, leftY);
+        ctx.lineTo(x + w - 20, rightY);
+        ctx.lineTo(x + w, rightY);
+        ctx.stroke();
+
+        drawDendrogram(ctx, node.left, x, y, w - 20, h);
+        drawDendrogram(ctx, node.right, x, y, w - 20, h);
+    }
+
+    function renderStats(tickerList, matrix) {
+        const n = tickerList.length;
+        const pairs = [];
+        let sumCorr = 0, count = 0;
+        let highCorrCount = 0, negCorrCount = 0;
+        let maxCorr = -Infinity, minCorr = Infinity;
+        let maxPair = null, minPair = null;
+
+        for (let i = 0; i < n; i++) {
+            for (let j = i + 1; j < n; j++) {
+                const corr = matrix[i][j];
+                pairs.push({ i, j, corr });
+                sumCorr += corr;
+                count++;
+                if (corr > maxCorr) { maxCorr = corr; maxPair = [tickerList[i], tickerList[j]]; }
+                if (corr < minCorr) { minCorr = corr; minPair = [tickerList[i], tickerList[j]]; }
+                if (corr > 0.7) highCorrCount++;
+                if (corr < 0) negCorrCount++;
+            }
+        }
+
+        const avgCorr = count > 0 ? sumCorr / count : 0;
+
+        const grid = $('stats-grid');
+        grid.innerHTML = `
+            <div class="stat-card">
+                <div class="sc-label">Most Correlated Pair</div>
+                <div class="sc-value" style="color:var(--red)">${maxPair ? maxPair.join(' / ') : '—'}</div>
+                <div class="sc-sub">r = ${maxCorr.toFixed(3)} (diversification risk)</div>
+            </div>
+            <div class="stat-card ${minCorr < 0 ? 'good-hedge' : ''}">
+                <div class="sc-label">Least Correlated Pair</div>
+                <div class="sc-value" style="color:${minCorr < 0 ? 'var(--green)' : 'var(--text-primary)'}">${minPair ? minPair.join(' / ') : '—'}</div>
+                <div class="sc-sub">r = ${minCorr.toFixed(3)} ${minCorr < 0 ? '(good hedge)' : ''}</div>
+            </div>
+            <div class="stat-card">
+                <div class="sc-label">Average Correlation</div>
+                <div class="sc-value">${avgCorr.toFixed(3)}</div>
+                <div class="sc-sub">across ${count} pairs</div>
+            </div>
+            <div class="stat-card ${highCorrCount > 5 ? 'high-risk' : ''}">
+                <div class="sc-label">Highly Correlated (&gt;0.7)</div>
+                <div class="sc-value" style="color:${highCorrCount > 5 ? 'var(--red)' : 'var(--text-primary)'}">${highCorrCount}</div>
+                <div class="sc-sub">pairs with diversification risk</div>
+            </div>
+            <div class="stat-card ${negCorrCount > 0 ? 'good-hedge' : ''}">
+                <div class="sc-label">Negatively Correlated</div>
+                <div class="sc-value" style="color:${negCorrCount > 0 ? 'var(--green)' : 'var(--text-primary)'}">${negCorrCount}</div>
+                <div class="sc-sub">pairs good for hedging</div>
+            </div>
+        `;
+    }
+
+    function showLoading(show) {
+        $('loading-state').style.display = show ? 'flex' : 'none';
+    }
+
+    function showError(msg) {
+        $('empty-state').style.display = 'none';
+        $('results').style.display = 'none';
+        $('error-state').style.display = 'flex';
+        $('error-text').textContent = msg;
+    }
+
+    window.addEventListener('load', () => {
+        $('empty-state').style.display = 'flex';
+    });
+    </script>
+</body>
+</html>

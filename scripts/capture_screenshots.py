@@ -2,6 +2,7 @@
 """Capture screenshots of the OOBIR web UI for README documentation."""
 
 import time
+
 from playwright.sync_api import sync_playwright
 
 SCREENSHOTS_DIR = "docs/screenshots"

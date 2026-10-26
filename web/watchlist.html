@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watchlist — OOBIR</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="tooltip.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <style>
+        .watchlist-page { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
+        .watchlist-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+        .watchlist-header h1 { font-size: 1.8rem; font-weight: 800; color: #1f2937; }
+        .watchlist-header p { color: #64748b; font-size: 0.85rem; margin-top: 2px; }
+        .watchlist-actions { display: flex; gap: 10px; align-items: center; }
+        .btn-primary {
+            background: #1a73e8; color: white; border: none; border-radius: 999px;
+            padding: 9px 20px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-primary:hover { background: #1557b0; transform: translateY(-1px); }
+        .btn-secondary {
+            background: white; color: #334155; border: 1.5px solid #dbe2ea; border-radius: 999px;
+            padding: 9px 20px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-secondary:hover { border-color: #1a73e8; color: #1a73e8; }
+        .alert-count-badge {
+            background: #ef4444; color: white; border-radius: 999px; padding: 2px 8px;
+            font-size: 0.72rem; font-weight: 700; margin-left: 6px;
+        }
+        .watchlist-summary {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px;
+            margin-bottom: 28px;
+        }
+        .summary-card {
+            background: white; border: 1.5px solid #e5e7eb; border-radius: 14px;
+            padding: 16px; text-align: center;
+        }
+        .summary-card .value { font-size: 1.5rem; font-weight: 800; color: #1f2937; }
+        .summary-card .label { font-size: 0.75rem; color: #64748b; margin-top: 4px; font-weight: 600; }
+        .summary-card.up .value { color: #15803d; }
+        .summary-card.down .value { color: #b91c1c; }
+        .watchlist-grid { display: grid; gap: 12px; }
+        .watchlist-item {
+            background: white; border: 1.5px solid #e5e7eb; border-radius: 14px;
+            padding: 16px; display: grid; grid-template-columns: 1fr auto auto auto; gap: 16px;
+            align-items: center; transition: all 0.2s;
+        }
+        .watchlist-item:hover { box-shadow: 0 4px 16px rgba(15,23,42,.08); transform: translateY(-1px); }
+        .watchlist-item .ticker-info { display: flex; flex-direction: column; gap: 4px; }
+        .watchlist-item .ticker-symbol { font-weight: 800; font-size: 1.1rem; color: #1f2937; }
+        .watchlist-item .ticker-name { font-size: 0.78rem; color: #64748b; }
+        .watchlist-item .ticker-price { text-align: right; }
+        .watchlist-item .price-current { font-weight: 800; font-size: 1.1rem; color: #1f2937; }
+        .watchlist-item .price-change { font-size: 0.8rem; font-weight: 600; }
+        .watchlist-item .price-change.up { color: #15803d; }
+        .watchlist-item .price-change.down { color: #b91c1c; }
+        .watchlist-item .sparkline-wrap { width: 80px; height: 36px; display: flex; align-items: flex-end; }
+        .watchlist-item .item-actions { display: flex; gap: 6px; }
+        .watchlist-item .item-actions button {
+            background: #f1f5f9; border: none; border-radius: 8px; padding: 7px 10px;
+            cursor: pointer; font-size: 0.8rem; transition: all 0.18s; color: #475569;
+        }
+        .watchlist-item .item-actions button:hover { background: #e8eef5; }
+        .watchlist-item .item-actions button.danger:hover { background: #fef2f2; color: #b91c1c; }
+        .watchlist-item .alert-flags { display: flex; gap: 4px; flex-wrap: wrap; }
+        .alert-flag {
+            font-size: 0.68rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;
+            background: #fef3c7; color: #92400e; border: 1px solid #fcd34d;
+        }
+        .alert-flag.fired { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; animation: pulse-red 2s infinite; }
+        @keyframes pulse-red { 0%,100%{opacity:1} 50%{opacity:0.6} }
+        .empty-state { text-align: center; padding: 60px 20px; color: #94a3b8; }
+        .empty-state h3 { font-size: 1.2rem; color: #64748b; margin-bottom: 8px; }
+        .alert-panel { background: white; border: 1.5px solid #e5e7eb; border-radius: 14px; margin-top: 24px; }
+        .alert-panel-header { padding: 14px 16px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; }
+        .alert-panel-header h3 { font-size: 0.95rem; font-weight: 700; color: #1f2937; }
+        .alert-list { max-height: 400px; overflow-y: auto; }
+        .alert-row {
+            padding: 10px 16px; display: flex; align-items: center; gap: 12px;
+            border-bottom: 1px solid #f9fafb; transition: background 0.15s;
+        }
+        .alert-row:hover { background: #f8fafc; }
+        .alert-row:last-child { border-bottom: none; }
+        .alert-row .alert-ticker { font-weight: 800; font-size: 0.9rem; min-width: 60px; }
+        .alert-row .alert-desc { flex: 1; font-size: 0.8rem; color: #475569; }
+        .alert-row .alert-desc .threshold { font-weight: 700; color: #1f2937; }
+        .alert-row .alert-toggle { position: relative; width: 36px; height: 20px; }
+        .alert-row .alert-toggle input { opacity: 0; width: 0; height: 0; }
+        .alert-row .alert-slider {
+            position: absolute; cursor: pointer; inset: 0; background: #cbd5e1;
+            border-radius: 999px; transition: 0.2s;
+        }
+        .alert-row .alert-slider:before {
+            position: absolute; content: ""; height: 14px; width: 14px;
+            left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.2s;
+        }
+        .alert-row .alert-toggle input:checked + .alert-slider { background: #1a73e8; }
+        .alert-row .alert-toggle input:checked + .alert-slider:before { transform: translateX(16px); }
+        .alert-row .alert-delete { background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 1rem; padding: 2px; }
+        .alert-row .alert-delete:hover { color: #ef4444; }
+        /* Add ticker modal */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(15,23,42,.4); backdrop-filter: blur(4px);
+            display: flex; align-items: center; justify-content: center; z-index: 1000;
+        }
+        .modal-overlay.hidden { display: none; }
+        .modal-card {
+            background: white; border-radius: 18px; padding: 28px; width: 400px;
+            max-width: 90vw; box-shadow: 0 20px 60px rgba(15,23,42,.2);
+        }
+        .modal-card h3 { font-size: 1.1rem; font-weight: 800; margin-bottom: 6px; color: #1f2937; }
+        .modal-card p { font-size: 0.8rem; color: #64748b; margin-bottom: 20px; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 0.78rem; font-weight: 700; color: #475569; margin-bottom: 5px; }
+        .form-group input, .form-group select {
+            width: 100%; padding: 9px 12px; border: 1.5px solid #dbe2ea; border-radius: 9px;
+            font-size: 0.85rem; box-sizing: border-box; transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #1a73e8; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .modal-actions button { flex: 1; }
+        /* Alert config inline */
+        .alert-config-list { margin-top: 8px; }
+        .alert-config-item {
+            display: flex; align-items: center; gap: 8px; padding: 6px 0;
+            border-bottom: 1px solid #f3f4f6; font-size: 0.8rem;
+        }
+        .alert-config-item:last-child { border-bottom: none; }
+        .alert-config-item .alert-type-badge {
+            padding: 2px 7px; border-radius: 4px; font-size: 0.68rem; font-weight: 700;
+            background: #f1f5f9; color: #475569;
+        }
+        .alert-config-item .alert-value { font-weight: 700; color: #1f2937; }
+        .alert-config-item button { background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 0.9rem; padding: 0 2px; }
+        .alert-config-item button:hover { color: #ef4444; }
+        /* Toast notifications */
+        .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 2000; display: flex; flex-direction: column; gap: 8px; }
+        .toast {
+            background: #1e293b; color: white; padding: 12px 18px; border-radius: 10px;
+            font-size: 0.82rem; font-weight: 600; box-shadow: 0 4px 20px rgba(0,0,0,.3);
+            display: flex; align-items: center; gap: 10px; animation: slideIn 0.3s ease;
+            max-width: 320px;
+        }
+        .toast.alert-fire { border-left: 4px solid #ef4444; }
+        .toast.success { border-left: 4px solid #10b981; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        [data-theme="dark"] .summary-card { background: #1e293b; border-color: #334155; }
+        [data-theme="dark"] .watchlist-item { background: #1e293b; border-color: #334155; }
+        [data-theme="dark"] .watchlist-item .ticker-symbol { color: #f1f5f9; }
+        [data-theme="dark"] .watchlist-header h1 { color: #f1f5f9; }
+        [data-theme="dark"] .alert-panel { background: #1e293b; border-color: #334155; }
+        [data-theme="dark"] .alert-panel-header { border-color: #334155; }
+        [data-theme="dark"] .alert-row:hover { background: #0f172a; }
+        [data-theme="dark"] .modal-card { background: #1e293b; }
+        [data-theme="dark"] .form-group label { color: #94a3b8; }
+        [data-theme="dark"] .form-group input, [data-theme="dark"] .form-group select { background: #0f172a; border-color: #334155; color: #f1f5f9; }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="app-header-content">
+            <div class="app-header-left">
+                <a class="app-brand" href="search.html">OOBIR</a>
+                <span class="app-page-label">Watchlist</span>
+                <span id="alert-badge" class="alert-count-badge" style="display:none">0</span>
+            </div>
+            <nav class="app-nav" aria-label="Primary navigation">
+                <a href="search.html">Search</a>
+                <a href="index.html">Stock Screen</a>
+                <a href="screener.html">Fundamentals</a>
+                <a href="markets.html">Markets</a>
+                <a href="sectors.html">Sectors</a>
+                <a href="stocks.html">AI Picks</a>
+                <a href="predictions.html">AI Predictions</a>
+                <a href="money-flow.html">Money Flow</a>
+                <a href="dividends.html">Dividends</a>
+                <a href="crypto.html">Crypto</a>
+                <a href="metals.html">Metals</a>
+                <a href="portfolio.html">Portfolio</a>
+                <a href="watchlist.html">Watchlist</a>
+                <a href="options.html">Options</a>
+                <a href="backtest.html">Backtest</a>
+                <a href="correlations.html">Correlations</a>
+                <a href="compare-sectors.html">Compare</a>
+                <a href="news-timeline.html">News</a>
+                <a href="calendar.html">Calendar</a>
+                <a href="commodities.html">Commodities</a>
+                <a href="optimizer.html">Optimizer</a>
+                <a href="correlation-matrix.html">Corr Matrix</a>
+                <a href="volatility.html">Volatility</a>
+            </nav>
+            <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">🌙</button>
+        </div>
+    </header>
+
+    <div class="watchlist-page">
+        <div class="watchlist-header">
+            <div>
+                <h1>📋 Watchlist</h1>
+                <p>Track stocks and get alerted on price, percent, or indicator moves</p>
+            </div>
+            <div class="watchlist-actions">
+                <button class="btn-secondary" onclick="openAlertConfig()">⚙️ Manage Alerts</button>
+                <button class="btn-primary" onclick="openAddTicker()">+ Add Ticker</button>
+            </div>
+        </div>
+
+        <div id="watchlist-summary" class="watchlist-summary"></div>
+        <div id="watchlist-grid" class="watchlist-grid"></div>
+    </div>
+
+    <!-- Add Ticker Modal -->
+    <div id="add-ticker-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h3>Add to Watchlist</h3>
+            <p>Enter a ticker symbol to track</p>
+            <div class="form-group">
+                <label>Ticker Symbol</label>
+                <input type="text" id="add-ticker-input" placeholder="e.g. AAPL, MSFT, TSLA" style="text-transform:uppercase">
+            </div>
+            <div id="add-ticker-error" style="color:#ef4444;font-size:0.78rem;margin-bottom:8px;display:none;"></div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="closeAddTicker()">Cancel</button>
+                <button class="btn-primary" onclick="confirmAddTicker()">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Config Modal -->
+    <div id="alert-config-modal" class="modal-overlay hidden">
+        <div class="modal-card" style="width:500px;">
+            <h3>⚙️ Alert Configuration</h3>
+            <p>Manage all your watchlist alerts in one place</p>
+            <div id="alert-config-list" class="alert-config-list"></div>
+            <div class="modal-actions">
+                <button class="btn-primary" onclick="closeAlertConfig()">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Set Alert Modal -->
+    <div id="set-alert-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h3 id="set-alert-title">Set Alert</h3>
+            <p id="set-alert-subtitle"></p>
+            <div class="form-group">
+                <label>Alert Type</label>
+                <select id="alert-type-select">
+                    <option value="price_above">Price Above</option>
+                    <option value="price_below">Price Below</option>
+                    <option value="pct_change_up">% Change Up (today)</option>
+                    <option value="pct_change_down">% Change Down (today)</option>
+                    <option value="rsi_above">RSI Above</option>
+                    <option value="rsi_below">RSI Below</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Threshold Value</label>
+                <input type="number" id="alert-threshold-input" placeholder="e.g. 200 (for price) or -5 (for % down)">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="closeSetAlert()">Cancel</button>
+                <button class="btn-primary" onclick="confirmSetAlert()">Save Alert</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="toast-container"></div>
+
+    <script>
+    const API = window.location.origin;
+    const STORAGE_KEY = 'oobir_watchlist';
+    const ALERT_CHECK_INTERVAL = 5 * 60 * 1000;
+
+    let watchlist = [];
+    let prices = {};
+    let alertModalTicker = null;
+
+    function uuid() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0;
+            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+    }
+
+    function loadWatchlist() {
+        try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+        catch { return []; }
+    }
+
+    function saveWatchlist(data) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        watchlist = data;
+    }
+
+    function getWatchlist() {
+        return loadWatchlist();
+    }
+
+    function getPriceData(ticker) {
+        return prices[ticker] || null;
+    }
+
+    async function fetchPrices() {
+        const wl = getWatchlist();
+        if (!wl.length) return;
+        const tickers = wl.map(w => w.ticker).join(',');
+        try {
+            const res = await fetch(`${API}/api/batch/fundamentals?symbols=${tickers}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.results) {
+                data.results.forEach(s => {
+                    if (s && s.symbol) {
+                        prices[s.symbol] = {
+                            price: s.currentPrice || s.regularMarketPrice,
+                            change: s.regularMarketChangePercent,
+                            name: s.shortName || s.longName || s.symbol,
+                        };
+                    }
+                });
+            }
+        } catch {}
+    }
+
+    async function fetchSparklines() {
+        const wl = getWatchlist();
+        const days = 30;
+        await Promise.all(wl.map(async w => {
+            try {
+                const res = await fetch(`${API}/api/price-history/${w.ticker}?days=${days}`);
+                if (!res.ok) return;
+                const json = await res.json();
+                const data = json.data ? json.data : json;
+                if (data && data.length > 1) {
+                    prices[w.ticker] = prices[w.ticker] || {};
+                    prices[w.ticker].sparkline = data.map(d => d.Close);
+                }
+            } catch {}
+        }));
+    }
+
+    function drawSparkline(canvas, closes, color) {
+        if (!closes || closes.length < 5) return;
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width;
+        const h = canvas.height;
+        const min = Math.min(...closes);
+        const max = Math.max(...closes);
+        const range = max - min || 1;
+        const step = w / (closes.length - 1);
+        ctx.clearRect(0, 0, w, h);
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        closes.forEach((v, i) => {
+            const x = i * step;
+            const y = h - ((v - min) / range) * (h - 4) - 2;
+            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+    }
+
+    async function loadAndRender() {
+        const wl = getWatchlist();
+        renderSummary();
+        renderWatchlist();
+        await fetchPrices();
+        await fetchSparklines();
+        renderWatchlist();
+        checkAlerts();
+    }
+
+    function renderSummary() {
+        const wl = getWatchlist();
+        const el = document.getElementById('watchlist-summary');
+        const totalAlerts = wl.reduce((s, w) => s + (w.alerts || []).filter(a => a.enabled).length, 0);
+        el.innerHTML = `
+            <div class="summary-card">
+                <div class="value">${wl.length}</div>
+                <div class="label">Watching</div>
+            </div>
+            <div class="summary-card">
+                <div class="value" style="color:#1a73e8">${totalAlerts}</div>
+                <div class="label">Active Alerts</div>
+            </div>
+            <div class="summary-card">
+                <div class="value">—</div>
+                <div class="label">Avg % Change</div>
+            </div>
+        `;
+        const badge = document.getElementById('alert-badge');
+        if (totalAlerts > 0) {
+            badge.textContent = totalAlerts;
+            badge.style.display = 'inline';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    function renderWatchlist() {
+        const wl = getWatchlist();
+        const grid = document.getElementById('watchlist-grid');
+        if (!wl.length) {
+            grid.innerHTML = `
+                <div class="empty-state">
+                    <h3>No tickers in watchlist</h3>
+                    <p>Click "+ Add Ticker" to start tracking stocks</p>
+                </div>`;
+            return;
+        }
+        grid.innerHTML = wl.map(w => {
+            const pd = prices[w.ticker] || {};
+            const changeUp = (pd.change || 0) >= 0;
+            const changeColor = changeUp ? '#15803d' : '#b91c1c';
+            const changeSign = changeUp ? '+' : '';
+            const sparkColor = changeUp ? '#10b981' : '#ef4444';
+            const alertFlags = (w.alerts || []).filter(a => a.enabled);
+            return `
+                <div class="watchlist-item" id="wl-item-${w.ticker}">
+                    <div class="ticker-info">
+                        <span class="ticker-symbol">${w.ticker}</span>
+                        <span class="ticker-name">${pd.name || ''}</span>
+                        ${alertFlags.length ? `<div class="alert-flags">${alertFlags.map(a => `<span class="alert-flag">${formatAlertType(a)}</span>`).join('')}</div>` : ''}
+                    </div>
+                    <div class="ticker-price">
+                        <div class="price-current">$${(pd.price || '—').toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                        <div class="price-change ${changeUp ? 'up' : 'down'}" style="color:${changeColor}">${changeSign}${(pd.change || 0).toFixed(2)}%</div>
+                    </div>
+                    <div class="sparkline-wrap">
+                        <canvas id="spark-${w.ticker}" width="80" height="36"></canvas>
+                    </div>
+                    <div class="item-actions">
+                        <button onclick="openSetAlert('${w.ticker}')" title="Set alert">🔔</button>
+                        <button onclick="removeTicker('${w.ticker}')" class="danger" title="Remove">✕</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        wl.forEach(w => {
+            const pd = prices[w.ticker];
+            if (pd && pd.sparkline && pd.sparkline.length > 1) {
+                const canvas = document.getElementById(`spark-${w.ticker}`);
+                if (canvas) {
+                    const up = (pd.change || 0) >= 0;
+                    drawSparkline(canvas, pd.sparkline, up ? '#10b981' : '#ef4444');
+                }
+            }
+        });
+    }
+
+    function formatAlertType(a) {
+        const map = {
+            price_above: `🔔>$${a.threshold}`,
+            price_below: `🔻<$${a.threshold}`,
+            pct_change_up: `📈+${a.threshold}%`,
+            pct_change_down: `📉${a.threshold}%`,
+            rsi_above: `RSI>${a.threshold}`,
+            rsi_below: `RSI<${a.threshold}`,
+        };
+        return map[a.type] || a.type;
+    }
+
+    function openAddTicker() {
+        document.getElementById('add-ticker-modal').classList.remove('hidden');
+        document.getElementById('add-ticker-input').value = '';
+        document.getElementById('add-ticker-error').style.display = 'none';
+        document.getElementById('add-ticker-input').focus();
+    }
+
+    function closeAddTicker() {
+        document.getElementById('add-ticker-modal').classList.add('hidden');
+    }
+
+    async function confirmAddTicker() {
+        const input = document.getElementById('add-ticker-input');
+        const ticker = input.value.trim().toUpperCase();
+        const error = document.getElementById('add-ticker-error');
+        if (!ticker) {
+            error.textContent = 'Please enter a ticker symbol';
+            error.style.display = 'block';
+            return;
+        }
+        const wl = getWatchlist();
+        if (wl.find(w => w.ticker === ticker)) {
+            error.textContent = `${ticker} is already in your watchlist`;
+            error.style.display = 'block';
+            return;
+        }
+        // Verify ticker exists
+        try {
+            const res = await fetch(`${API}/api/fundamentals/${ticker}`);
+            if (!res.ok) throw new Error('Not found');
+            wl.push({ ticker, addedAt: new Date().toISOString(), alerts: [] });
+            saveWatchlist(wl);
+            closeAddTicker();
+            showToast(`Added ${ticker} to watchlist`, 'success');
+            await loadAndRender();
+        } catch {
+            error.textContent = `Ticker "${ticker}" not found. Check the symbol and try again.`;
+            error.style.display = 'block';
+        }
+    }
+
+    function removeTicker(ticker) {
+        let wl = getWatchlist();
+        wl = wl.filter(w => w.ticker !== ticker);
+        saveWatchlist(wl);
+        showToast(`Removed ${ticker} from watchlist`, 'success');
+        loadAndRender();
+    }
+
+    function openSetAlert(ticker) {
+        alertModalTicker = ticker;
+        document.getElementById('set-alert-title').textContent = `🔔 Alert for ${ticker}`;
+        document.getElementById('set-alert-subtitle').textContent = 'Get notified when your condition is met';
+        document.getElementById('alert-threshold-input').value = '';
+        document.getElementById('set-alert-modal').classList.remove('hidden');
+    }
+
+    function closeSetAlert() {
+        document.getElementById('set-alert-modal').classList.add('hidden');
+        alertModalTicker = null;
+    }
+
+    function confirmSetAlert() {
+        if (!alertModalTicker) return;
+        const type = document.getElementById('alert-type-select').value;
+        const threshold = parseFloat(document.getElementById('alert-threshold-input').value);
+        if (isNaN(threshold)) {
+            showToast('Please enter a valid threshold value', 'error');
+            return;
+        }
+        const wl = getWatchlist();
+        const item = wl.find(w => w.ticker === alertModalTicker);
+        if (!item) return;
+        if (!item.alerts) item.alerts = [];
+        item.alerts.push({ id: uuid(), type, threshold, enabled: true, createdAt: new Date().toISOString() });
+        saveWatchlist(wl);
+        closeSetAlert();
+        showToast(`Alert set for ${ticker}: ${formatAlertType({type, threshold})}`, 'success');
+        loadAndRender();
+    }
+
+    function openAlertConfig() {
+        renderAlertConfig();
+        document.getElementById('alert-config-modal').classList.remove('hidden');
+    }
+
+    function closeAlertConfig() {
+        document.getElementById('alert-config-modal').classList.add('hidden');
+    }
+
+    function renderAlertConfig() {
+        const wl = getWatchlist();
+        const allAlerts = [];
+        wl.forEach(w => {
+            (w.alerts || []).forEach(a => {
+                allAlerts.push({ ...a, ticker: w.ticker });
+            });
+        });
+        const container = document.getElementById('alert-config-list');
+        if (!allAlerts.length) {
+            container.innerHTML = '<div style="color:#94a3b8;font-size:0.82rem;text-align:center;padding:12px;">No alerts configured. Add tickers and set alerts from the watchlist.</div>';
+            return;
+        }
+        container.innerHTML = allAlerts.map(a => `
+            <div class="alert-config-item">
+                <span class="alert-type-badge">${a.ticker}</span>
+                <span>${formatAlertType(a)}</span>
+                <button onclick="deleteAlert('${a.ticker}','${a.id}')" title="Delete">✕</button>
+            </div>
+        `).join('');
+    }
+
+    function deleteAlert(ticker, alertId) {
+        const wl = getWatchlist();
+        const item = wl.find(w => w.ticker === ticker);
+        if (item) {
+            item.alerts = item.alerts.filter(a => a.id !== alertId);
+            saveWatchlist(wl);
+            renderAlertConfig();
+            loadAndRender();
+        }
+    }
+
+    async function checkAlerts() {
+        const wl = getWatchlist();
+        const fired = [];
+        await fetchPrices();
+        for (const w of wl) {
+            const pd = prices[w.ticker];
+            if (!pd) continue;
+            for (const a of (w.alerts || [])) {
+                if (!a.enabled) continue;
+                let fired_now = false;
+                if (a.type === 'price_above' && pd.price > a.threshold) fired_now = true;
+                if (a.type === 'price_below' && pd.price < a.threshold) fired_now = true;
+                if (a.type === 'pct_change_up' && pd.change > a.threshold) fired_now = true;
+                if (a.type === 'pct_change_down' && pd.change < a.threshold) fired_now = true;
+                if (fired_now) fired.push({ ticker: w.ticker, alert: a, price: pd.price });
+            }
+        }
+        fired.forEach(f => showToast(`🔔 ${f.ticker}: ${formatAlertType(f.alert)} triggered at $${f.price.toFixed(2)}`, 'alert-fire'));
+    }
+
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 5000);
+    }
+
+    // Theme init
+    (function() {
+        var themeToggle = document.getElementById('theme-toggle');
+        var THEME_KEY = 'oobir_theme';
+        function getPreferredTheme() {
+            return localStorage.getItem(THEME_KEY) ||
+                (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        }
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem(THEME_KEY, theme);
+            if (themeToggle) themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+        }
+        function toggleTheme() {
+            var current = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
+            applyTheme(current === 'dark' ? 'light' : 'dark');
+        }
+        if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
+        applyTheme(getPreferredTheme());
+    })();
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+            closeAddTicker();
+            closeSetAlert();
+            closeAlertConfig();
+        }
+        if (e.key === 'Enter' && !document.getElementById('add-ticker-modal').classList.contains('hidden')) {
+            confirmAddTicker();
+        }
+    });
+
+    loadAndRender();
+    setInterval(checkAlerts, ALERT_CHECK_INTERVAL);
+    </script>
+</body>
+</html>

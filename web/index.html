@@ -4,7 +4,7 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>OOBIR - Stock Analysis Platform</title>
-        <link rel="stylesheet" href="styles.css">
+        <link rel="stylesheet" href="styles.css?v=3">
         <link rel="stylesheet" href="tooltip.css">
         <link rel="icon" href="favicon.svg" type="image/svg+xml">
         <style>
@@ -113,6 +113,216 @@
         }
         .ml-prediction-card-body {
             padding: 18px;
+        }
+        .ml-lab-running-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(3px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            z-index: 50;
+            border-radius: 16px;
+        }
+        .ml-lab-spinner {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 4px solid #e0e7ff;
+            border-top-color: #4f46e5;
+            animation: mlLabsSpin 0.9s linear infinite;
+        }
+        .ml-lab-running-text {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #3730a3;
+        }
+        .ml-lab-running-sub {
+            font-size: 0.85rem;
+            color: #64748b;
+            text-align: center;
+            max-width: 260px;
+        }
+        @keyframes mlLabsSpin { to { transform: rotate(360deg); } }
+        .ml-lab-pulse {
+            animation: labPulse 1.5s ease-in-out infinite;
+        }
+        @keyframes labPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        /* Quick presets */
+        .ml-presets-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+        .ml-preset-chip {
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            border: 1.5px solid #c7d2fe;
+            background: #eef2ff;
+            color: #4338ca;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .ml-preset-chip:hover {
+            background: #c7d2fe;
+            border-color: #818cf8;
+        }
+        .ml-preset-chip.active {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        /* Confidence gauge */
+        .ml-gauge-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            padding: 10px 0;
+        }
+        .ml-gauge-svg { overflow: visible; }
+        .ml-gauge-track { fill: none; stroke: #e5e7eb; stroke-width: 8; }
+        .ml-gauge-fill {
+            fill: none;
+            stroke-width: 8;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.8s ease, stroke 0.4s ease;
+        }
+        .ml-gauge-label {
+            font-size: 0.75rem;
+            fill: #64748b;
+            text-anchor: middle;
+        }
+        .ml-gauge-value {
+            font-size: 1.4rem;
+            font-weight: 900;
+            text-anchor: middle;
+        }
+        .ml-gauge-conf-text {
+            font-size: 0.9rem;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        /* Signal alignment */
+        .ml-alignment-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: #f8fafc;
+            border-radius: 10px;
+            margin-top: 8px;
+        }
+        .ml-align-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .ml-align-text {
+            font-size: 0.82rem;
+            flex: 1;
+        }
+
+        /* Horizon sweep */
+        .ml-horizon-sweep {
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+            height: 60px;
+            margin: 8px 0;
+        }
+        .ml-horizon-bar {
+            flex: 1;
+            border-radius: 4px 4px 0 0;
+            min-width: 8px;
+            transition: height 0.3s ease;
+            position: relative;
+        }
+        .ml-horizon-bar:hover { filter: brightness(0.9); }
+        .ml-horizon-bar::after {
+            content: attr(data-horizon);
+            position: absolute;
+            bottom: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.6rem;
+            color: #94a3b8;
+            white-space: nowrap;
+        }
+
+        /* Experiment history */
+        .ml-history-row {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding: 4px 0;
+            margin-top: 10px;
+        }
+        .ml-history-item {
+            flex-shrink: 0;
+            padding: 6px 12px;
+            border-radius: 10px;
+            border: 1.5px solid #e5e7eb;
+            font-size: 0.78rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            background: white;
+        }
+        .ml-history-item:hover { border-color: #818cf8; }
+        .ml-history-item.current { border-color: #4f46e5; background: #eef2ff; }
+        .ml-history-time { color: #94a3b8; font-size: 0.7rem; }
+
+        /* Auto-tune button */
+        .ml-autotune-btn {
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            color: #166534;
+            border: 1px solid #86efac;
+            cursor: pointer;
+        }
+        .ml-autotune-btn:hover { background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); }
+
+        /* Model comparison panel */
+        .ml-model-compare {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .ml-model-compare-item {
+            padding: 10px;
+            border-radius: 10px;
+            border: 1.5px solid #e5e7eb;
+            background: #fafafa;
+        }
+        .ml-model-compare-item.winner {
+            border-color: #86efac;
+            background: #f0fdf4;
+        }
+        .ml-model-compare-name {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #374151;
+        }
+        .ml-model-compare-acc {
+            font-size: 1.1rem;
+            font-weight: 900;
         }
 
         /* Model Lab knobs */
@@ -276,8 +486,47 @@
         .conf-HIGH { background: #dcfce7; color: #15803d; }
         .conf-MEDIUM { background: #fef3c7; color: #b45309; }
         .conf-LOW { background: #f1f5f9; color: #64748b; }
-        .ml-chart-wrap { position: relative; }
-        .ml-chart { width: 100%; height: 260px; display: block; }
+        .ml-chart-wrap {
+            position: relative;
+            background: linear-gradient(180deg, #fafbff 0%, #f0f4ff 100%);
+            border-radius: 14px;
+            padding: 16px 16px 10px;
+            border: 1px solid #e0e7ff;
+        }
+        .ml-chart { width: 100%; height: 300px; display: block; cursor: crosshair; }
+        .ml-chart-legend {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-top: 8px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #64748b;
+        }
+        .ml-chart-legend-item { display: flex; align-items: center; gap: 5px; }
+        .ml-chart-legend-dot { width: 10px; height: 3px; border-radius: 2px; }
+        .ml-chart-tooltip {
+            position: absolute;
+            background: #1f2937;
+            color: #f3f4f6;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            pointer-events: none;
+            z-index: 100;
+            display: none;
+            white-space: nowrap;
+        }
+        .ml-chart-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: #1f2937;
+        }
         .metric-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
@@ -384,6 +633,35 @@
             border-radius: 20px;
             font-weight: 600;
             font-size: 0.95em;
+        }
+
+        .stock-key-stats {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+        .stock-key-stats .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .stock-key-stats .stat-label {
+            color: #94a3b8;
+            font-weight: 500;
+        }
+        .stock-key-stats .stat-value {
+            font-weight: 600;
+            color: #374151;
+        }
+        .stock-key-stats .stat-value.up { color: #10b981; }
+        .stock-key-stats .stat-value.down { color: #ef4444; }
+        .stock-key-stats .stat-divider {
+            width: 1px;
+            background: #e5e7eb;
+            align-self: stretch;
         }
 
         .stock-card-chart {
@@ -537,11 +815,25 @@
                         <a href="index.html" class="active">Stock Screen</a>
                         <a href="screener.html">Fundamentals</a>
                         <a href="markets.html">Markets</a>
+                        <a href="sectors.html">Sectors</a>
                         <a href="stocks.html">AI Picks</a>
                         <a href="predictions.html">AI Predictions</a>
+                        <a href="money-flow.html">Money Flow</a>
+                        <a href="dividends.html">Dividends</a>
                         <a href="crypto.html">Crypto</a>
                         <a href="metals.html">Metals</a>
+                        <a href="portfolio.html">Portfolio</a>
+                        <a href="watchlist.html">Watchlist</a>
+                        <a href="options.html">Options</a>
+                        <a href="backtest.html">Backtest</a>
+                        <a href="correlations.html">Correlations</a>
+                        <a href="compare-sectors.html">Compare</a>
+                        <a href="news-timeline.html">News</a>
+                        <a href="calendar.html">Calendar</a>
                         <a href="commodities.html">Commodities</a>
+                        <a href="optimizer.html">Optimizer</a>
+                        <a href="correlation-matrix.html">Corr Matrix</a>
+                        <a href="volatility.html">Volatility</a>
                     </nav>
                 </div>
             </header>
@@ -617,6 +909,28 @@
                             title="Export page to PDF">Export PDF</button>
                 </div>
             </header>
+            <nav class="results-top-nav" aria-label="Primary navigation">
+                <a href="search.html">Search</a>
+                <a href="index.html">Stock Screen</a>
+                <a href="screener.html">Fundamentals</a>
+                <a href="markets.html">Markets</a>
+                <a href="sectors.html">Sectors</a>
+                <a href="stocks.html">AI Picks</a>
+                <a href="predictions.html">AI Predictions</a>
+                <a href="money-flow.html">Money Flow</a>
+                        <a href="dividends.html">Dividends</a>
+                <a href="crypto.html">Crypto</a>
+                <a href="metals.html">Metals</a>
+                        <a href="portfolio.html">Portfolio</a>
+                        <a href="watchlist.html">Watchlist</a>
+                        <a href="options.html">Options</a>
+                        <a href="backtest.html">Backtest</a>
+                        <a href="correlations.html">Correlations</a>
+                        <a href="compare-sectors.html">Compare</a>
+                        <a href="news-timeline.html">News</a>
+                        <a href="calendar.html">Calendar</a>
+                <a href="commodities.html">Commodities</a>
+            </nav>
             <div class="results-content">
                 <div id="loading-spinner" class="loading-spinner">
                     <div class="spinner"></div>
@@ -638,6 +952,7 @@
                                         color: #999;
                                         margin-top: 4px"></div>
                             <div id="stock-price" class="stock-price"></div>
+                            <div id="stock-key-stats" class="stock-key-stats"></div>
                             <div id="since-last-view" class="since-last-view"></div>
                             <label class="revisit-marker-toggle" for="revisit-marker-toggle">
                                 <input id="revisit-marker-toggle" type="checkbox" checked>
@@ -684,9 +999,14 @@
                         </div>
                     </div>
                     <!-- ML Prediction Card - Full Model Lab -->
-                    <div id="ml-prediction-card" class="ml-prediction-card section-anchor" data-tooltip="Train ML models to predict stock direction with walk-forward validation">
+                    <div id="ml-prediction-card" class="ml-prediction-card section-anchor" data-tooltip="Train ML models to predict stock direction with walk-forward validation" style="position:relative;">
                         <div class="ml-prediction-card-header">🎛️ AI Prediction Lab</div>
                         <div class="ml-prediction-card-body">
+                            <div id="ml-lab-overlay" class="ml-lab-running-overlay hidden">
+                                <div class="ml-lab-spinner"></div>
+                                <div class="ml-lab-running-text ml-lab-pulse" id="ml-overlay-title">Running experiment…</div>
+                                <div class="ml-lab-running-sub" id="ml-overlay-sub">Training model & computing predictions</div>
+                            </div>
                             <div id="ml-error-slot"></div>
 
                             <!-- Model Lab: tunable knobs -->
@@ -744,7 +1064,16 @@
                                         <button type="button" class="lab-btn" id="ml-lab-preset-baseline">Baseline</button>
                                         <button type="button" class="lab-btn" id="ml-lab-preset-trend">Trend</button>
                                         <button type="button" class="lab-btn" id="ml-lab-preset-long">Long-horizon</button>
+                                        <button type="button" class="ml-autotune-btn" id="ml-lab-autotune" title="Find best horizon based on historical accuracy">🎯 Auto-tune</button>
                                         <span class="lab-hint" id="lab-status">Tune the knobs, then run.</span>
+                                    </div>
+                                    <div class="ml-presets-row">
+                                        <span style="font-size:0.75rem; color:#64748b; font-weight:600; align-self:center;">Quick:</span>
+                                        <button class="ml-preset-chip" data-preset="intraday">Intraday</button>
+                                        <button class="ml-preset-chip" data-preset="conservative">Conservative</button>
+                                        <button class="ml-preset-chip" data-preset="balanced" >Balanced</button>
+                                        <button class="ml-preset-chip" data-preset="aggressive">Aggressive</button>
+                                        <button class="ml-preset-chip" data-preset="macro">Macro</button>
                                     </div>
                                 </div>
                             </details>
@@ -789,8 +1118,27 @@
                                     <div class="ml-card-body">
                                         <div class="badge-row" id="ml-run-badges"></div>
                                         <div class="ml-chart-wrap" style="margin-top:12px;">
+                                            <div id="ml-chart-tooltip" class="ml-chart-tooltip"></div>
                                             <canvas id="ml-chart" class="ml-chart"></canvas>
                                             <div id="ml-chart-empty" class="ml-empty">Price chart + projection appears here</div>
+                                        </div>
+                                        <div class="ml-chart-legend">
+                                            <div class="ml-chart-legend-item">
+                                                <div class="ml-chart-legend-dot" style="background:#1a73e8;"></div>
+                                                Price
+                                            </div>
+                                            <div class="ml-chart-legend-item">
+                                                <div class="ml-chart-legend-dot" style="background:#3b82f6;"></div>
+                                                SMA 20
+                                            </div>
+                                            <div class="ml-chart-legend-item">
+                                                <div class="ml-chart-legend-dot" style="background:#f59e0b;"></div>
+                                                SMA 50
+                                            </div>
+                                            <div class="ml-chart-legend-item" id="legend-proj" style="display:none;">
+                                                <div class="ml-chart-legend-dot" id="legend-proj-dot" style="background:#10b981;"></div>
+                                                <span id="legend-proj-label">ML Projection</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -824,6 +1172,32 @@
                                     <div class="ml-card-header">⚖️ ML vs Technical Signals</div>
                                     <div class="ml-card-body">
                                         <div id="ml-compare" class="ml-empty">Compare the ML call to a heuristic RSI/MACD read</div>
+                                    </div>
+                                </div>
+
+                                <!-- Signal alignment card -->
+                                <div class="ml-card" data-tooltip="How aligned is the ML model with technical indicators?">
+                                    <div class="ml-card-header">🔗 Signal Alignment</div>
+                                    <div class="ml-card-body">
+                                        <div id="ml-alignment" class="ml-empty">Run an experiment to see alignment</div>
+                                    </div>
+                                </div>
+
+                                <!-- Horizon sweep card -->
+                                <div class="ml-card" data-tooltip="Prediction direction at every horizon 1-30 days">
+                                    <div class="ml-card-header">📊 Horizon Sweep</div>
+                                    <div class="ml-card-body">
+                                        <div id="ml-horizon-sweep" class="ml-empty">Run an experiment to see horizon sweep</div>
+                                        <div id="ml-horizon-sweep-chart" class="ml-horizon-sweep" style="display:none;"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Experiment history -->
+                                <div class="ml-card" style="grid-column: span 2;" data-tooltip="Compare your last 5 experiments">
+                                    <div class="ml-card-header">📜 Experiment History</div>
+                                    <div class="ml-card-body">
+                                        <div id="ml-history" class="ml-empty">Run experiments to build history</div>
+                                        <div id="ml-history-list" class="ml-history-row" style="display:none;"></div>
                                     </div>
                                 </div>
                             </div>
@@ -920,7 +1294,7 @@
     <script src="config.js?v=8"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="predictions.js?v=1"></script>
-    <script src="app.js?v=31"></script>
+    <script src="predictions.js?v=2"></script>
+    <script src="app.js?v=32"></script>
 </body>
 </html>

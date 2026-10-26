@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Volatility Dashboard - OOBIR</title>
+  <style>
+    :root {
+      --bg-primary: #0d1117; --bg-secondary: #161b22; --bg-card: #1c2128;
+      --bg-input: #0d1117; --border: #30363d; --text-primary: #e6edf3;
+      --text-secondary: #8b949e; --text-muted: #484f58; --accent: #58a6ff;
+      --accent-dim: #1f3a5c; --green: #3fb950; --green-dim: #0f2a1a;
+      --red: #f85149; --red-dim: #2a1214; --yellow: #d29922; --yellow-dim: #2a200a;
+      --purple: #bc8cff; --radius: 8px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+    .bt-topbar {
+      position: sticky;
+      top: 0;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      z-index: 100;
+    }
+    .bt-topbar-brand {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 1.1rem;
+      letter-spacing: 0.5px;
+    }
+    .bt-topbar-brand:hover { text-decoration: underline; }
+    .bt-topbar .app-nav { display: flex; flex-wrap: wrap; gap: 4px; margin-left: 16px; }
+    .bt-topbar .app-nav a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.8rem;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+    .bt-topbar .app-nav a:hover { color: var(--text-primary); background: var(--bg-card); }
+    .bt-topbar .app-nav a.active { color: var(--accent); font-weight: 600; }
+    .input-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+    }
+    .input-group label {
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+    }
+    input[type="text"], input[type="date"] {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 6px 10px;
+      border-radius: var(--radius);
+      font-size: 0.85rem;
+      outline: none;
+    }
+    input[type="text"]:focus, input[type="date"]:focus {
+      border-color: var(--accent);
+    }
+    input[type="text"] { width: 80px; }
+    input[type="date"] { width: 130px; }
+    .btn-analyze {
+      background: var(--green);
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-analyze:hover { opacity: 0.85; }
+    .main-content { padding: 24px; max-width: 1600px; margin: 0 auto; }
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 1200px) { .metrics-row { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 700px) { .metrics-row { grid-template-columns: repeat(2, 1fr); } }
+    .metric-tile {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      text-align: center;
+    }
+    .metric-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .metric-value.green { color: var(--green); }
+    .metric-value.red { color: var(--red); }
+    .metric-value.yellow { color: var(--yellow); }
+    .metric-value.accent { color: var(--accent); }
+    .metric-label {
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .metric-sub {
+      color: var(--text-muted);
+      font-size: 0.7rem;
+    }
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+    .chart-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .chart-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .chart-container { position: relative; width: 100%; }
+    canvas { display: block; width: 100%; }
+    .methodology {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-top: 24px;
+    }
+    .methodology h3 {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .methodology pre {
+      background: var(--bg-primary);
+      padding: 16px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      overflow-x: auto;
+      line-height: 1.6;
+    }
+    .methodology code { color: var(--accent); }
+    .loading { text-align: center; padding: 40px; color: var(--text-secondary); }
+    .error { text-align: center; padding: 20px; color: var(--red); background: var(--red-dim); border-radius: var(--radius); margin: 20px 0; }
+  </style>
+</head>
+<body>
+  <div class="bt-topbar">
+    <a href="index.html" class="bt-topbar-brand">OOBIR</a>
+    <nav class="app-nav" aria-label="Primary navigation">
+      <a href="search.html">Search</a>
+      <a href="index.html">Stock Screen</a>
+      <a href="screener.html">Fundamentals</a>
+      <a href="markets.html">Markets</a>
+      <a href="sectors.html">Sectors</a>
+      <a href="stocks.html">AI Picks</a>
+      <a href="predictions.html">AI Predictions</a>
+      <a href="money-flow.html">Money Flow</a>
+      <a href="dividends.html">Dividends</a>
+      <a href="crypto.html">Crypto</a>
+      <a href="metals.html">Metals</a>
+      <a href="portfolio.html">Portfolio</a>
+      <a href="watchlist.html">Watchlist</a>
+      <a href="options.html">Options</a>
+      <a href="backtest.html">Backtest</a>
+      <a href="correlations.html">Correlations</a>
+      <a href="compare-sectors.html">Compare</a>
+      <a href="news-timeline.html">News</a>
+      <a href="calendar.html">Calendar</a>
+      <a href="commodities.html">Commodities</a>
+      <a href="optimizer.html">Optimizer</a>
+      <a href="correlation-matrix.html">Corr Matrix</a>
+      <a href="volatility.html" class="active">Volatility</a>
+    </nav>
+    <div class="input-group">
+      <label>Ticker:</label>
+      <input type="text" id="ticker" value="SPY" placeholder="SPY">
+      <label>Start:</label>
+      <input type="date" id="startDate" value="2026-04-29">
+      <label>End:</label>
+      <input type="date" id="endDate" value="2026-10-22">
+      <button class="btn-analyze" id="analyzeBtn">▶ Analyze</button>
+    </div>
+  </div>
+
+  <div class="main-content" id="mainContent">
+    <div class="loading">Enter a ticker and click Analyze to load volatility data</div>
+  </div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    const API_BASE = window.location.origin;
+
+    function stddev(arr) {
+      if (arr.length < 2) return 0;
+      const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
+      const squaredDiffs = arr.map(x => Math.pow(x - mean, 2));
+      return Math.sqrt(squaredDiffs.reduce((a, b) => a + b, 0) / (arr.length - 1));
+    }
+
+    function percentile(arr, p) {
+      if (!arr.length) return 0;
+      const sorted = [...arr].sort((a, b) => a - b);
+      const idx = (p / 100) * (sorted.length - 1);
+      const lower = Math.floor(idx);
+      const upper = Math.ceil(idx);
+      if (lower === upper) return sorted[lower];
+      return sorted[lower] * (upper - idx) + sorted[upper] * (idx - lower);
+    }
+
+    function calculateDailyReturns(closes) {
+      const returns = [];
+      for (let i = 1; i < closes.length; i++) {
+        returns.push((closes[i] - closes[i - 1]) / closes[i - 1]);
+      }
+      return returns;
+    }
+
+    function calculateRollingVol(returns, window = 20) {
+      const vols = [];
+      for (let i = window; i <= returns.length; i++) {
+        const windowReturns = returns.slice(i - window, i);
+        const vol = stddev(windowReturns) * Math.sqrt(252) * 100;
+        vols.push(vol);
+      }
+      return vols;
+    }
+
+    function calculateVolCone(closes, windows = [10, 20, 30, 60, 90]) {
+      const returns = calculateDailyReturns(closes);
+      const results = [];
+      for (const window of windows) {
+        if (returns.length >= window) {
+          const rollingVols = calculateRollingVol(returns, window);
+          const sorted = [...rollingVols].sort((a, b) => a - b);
+          results.push({
+            window,
+            min: sorted[0],
+            p10: percentile(sorted, 10),
+            p25: percentile(sorted, 25),
+            median: percentile(sorted, 50),
+            p75: percentile(sorted, 75),
+            p90: percentile(sorted, 90),
+            max: sorted[sorted.length - 1],
+            current: rollingVols[rollingVols.length - 1]
+          });
+        }
+      }
+      return results;
+    }
+
+    function calculateIVRank(currentIV, ivSeries) {
+      if (!ivSeries.length) return 0;
+      const below = ivSeries.filter(v => v < currentIV).length;
+      return (below / ivSeries.length) * 100;
+    }
+
+    function calculateIVPercentile(currentIV, ivSeries) {
+      if (!ivSeries.length) return 0;
+      const below = ivSeries.filter(v => v <= currentIV).length;
+      return (below / ivSeries.length) * 100;
+    }
+
+    async function fetchPriceHistory(ticker, start, end) {
+      const url = `${API_BASE}/api/price-history/${ticker}?start=${start}&end=${end}`;
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`API error: ${resp.status}`);
+      return resp.json();
+    }
+
+    function renderMetrics(metrics) {
+      return `
+        <div class="metrics-row">
+          <div class="metric-tile">
+            <div class="metric-value accent">${metrics.currentIV.toFixed(1)}%</div>
+            <div class="metric-label">Current IV</div>
+            <div class="metric-sub">20-day realized vol</div>
+          </div>
+          <div class="metric-tile">
+            <div class="metric-value ${metrics.ivRank < 30 ? 'green' : metrics.ivRank > 70 ? 'red' : 'yellow'}">${metrics.ivRank.toFixed(1)}%</div>
+            <div class="metric-label">IV Rank</div>
+            <div class="metric-sub">vs 252-day range</div>
+          </div>
+          <div class="metric-tile">
+            <div class="metric-value ${metrics.ivPercentile < 30 ? 'green' : metrics.ivPercentile > 70 ? 'red' : 'yellow'}">${metrics.ivPercentile.toFixed(1)}%</div>
+            <div class="metric-label">IV Percentile</div>
+            <div class="metric-sub">% below current</div>
+          </div>
+          <div class="metric-tile">
+            <div class="metric-value">${metrics.maxIV.toFixed(1)}%</div>
+            <div class="metric-label">Max IV</div>
+            <div class="metric-sub">over lookback</div>
+          </div>
+          <div class="metric-tile">
+            <div class="metric-value">${metrics.minIV.toFixed(1)}%</div>
+            <div class="metric-label">Min IV</div>
+            <div class="metric-sub">over lookback</div>
+          </div>
+          <div class="metric-tile">
+            <div class="metric-value ${metrics.ivHistVolRatio > 1 ? 'red' : 'green'}">${metrics.ivHistVolRatio.toFixed(2)}</div>
+            <div class="metric-label">IV/Hist Vol</div>
+            <div class="metric-sub">implied vs realized</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function drawHistoricalIVChart(canvas, ivSeries, dates, currentIV) {
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+
+      const w = rect.width;
+      const h = rect.height;
+      const padding = { top: 20, right: 30, bottom: 40, left: 50 };
+      const chartW = w - padding.left - padding.right;
+      const chartH = h - padding.top - padding.bottom;
+
+      ctx.clearRect(0, 0, w, h);
+
+      if (!ivSeries.length) return;
+
+      const p25 = percentile(ivSeries, 25);
+      const p50 = percentile(ivSeries, 50);
+      const p75 = percentile(ivSeries, 75);
+      const min = Math.min(...ivSeries);
+      const max = Math.max(...ivSeries);
+
+      const xScale = (i) => padding.left + (i / (ivSeries.length - 1)) * chartW;
+      const yScale = (v) => padding.top + chartH - ((v - min * 0.9) / (max * 1.1 - min * 0.9)) * chartH;
+
+      ctx.strokeStyle = '#484f58';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([5, 5]);
+
+      [p25, p50, p75].forEach((p, i) => {
+        ctx.beginPath();
+        ctx.moveTo(padding.left, yScale(p));
+        ctx.lineTo(w - padding.right, yScale(p));
+        ctx.stroke();
+      });
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#484f58';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(`P25: ${p25.toFixed(1)}%`, w - padding.right - 5, yScale(p25) - 3);
+      ctx.fillText(`P50: ${p50.toFixed(1)}%`, w - padding.right - 5, yScale(p50) - 3);
+      ctx.fillText(`P75: ${p75.toFixed(1)}%`, w - padding.right - 5, yScale(p75) - 3);
+
+      for (let i = 1; i < ivSeries.length; i++) {
+        const prevV = ivSeries[i - 1];
+        const currV = ivSeries[i];
+        const p25_ = percentile(ivSeries.slice(Math.max(0, i - 100), i), 25);
+        const p75_ = percentile(ivSeries.slice(Math.max(0, i - 100), i), 75);
+
+        if (currV < p25_) ctx.strokeStyle = '#3fb950';
+        else if (currV > p75_) ctx.strokeStyle = '#f85149';
+        else ctx.strokeStyle = '#d29922';
+
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(xScale(i - 1), yScale(prevV));
+        ctx.lineTo(xScale(i), yScale(currV));
+        ctx.stroke();
+      }
+
+      const lastX = xScale(ivSeries.length - 1);
+      const lastY = yScale(currentIV);
+      ctx.fillStyle = currentIV < p25 ? '#3fb950' : currentIV > p75 ? '#f85149' : '#d29922';
+      ctx.beginPath();
+      ctx.arc(lastX, lastY, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#30363d';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padding.left, padding.top);
+      ctx.lineTo(padding.left, h - padding.bottom);
+      ctx.lineTo(w - padding.right, h - padding.bottom);
+      ctx.stroke();
+
+      ctx.fillStyle = '#8b949e';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      const step = Math.ceil(dates.length / 6);
+      for (let i = 0; i < dates.length; i += step) {
+        ctx.fillText(dates[i].slice(5), xScale(i), h - padding.bottom + 15);
+      }
+
+      ctx.textAlign = 'right';
+      ctx.fillText(max.toFixed(1) + '%', padding.left - 5, padding.top + 4);
+      ctx.fillText(min.toFixed(1) + '%', padding.left - 5, h - padding.bottom + 4);
+    }
+
+    function drawVolConeChart(canvas, coneData) {
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+
+      const w = rect.width;
+      const h = rect.height;
+      const padding = { top: 30, right: 30, bottom: 50, left: 60 };
+      const chartW = w - padding.left - padding.right;
+      const chartH = h - padding.top - padding.bottom;
+
+      ctx.clearRect(0, 0, w, h);
+
+      if (!coneData.length) return;
+
+      const allValues = coneData.flatMap(d => [d.min, d.p10, d.p25, d.median, d.p75, d.p90, d.max, d.current]);
+      const min = Math.min(...allValues) * 0.9;
+      const max = Math.max(...allValues) * 1.1;
+
+      const barWidth = chartW / coneData.length * 0.6;
+      const xScale = (i) => padding.left + (i + 0.5) * (chartW / coneData.length);
+      const yScale = (v) => padding.top + chartH - ((v - min) / (max - min)) * chartH;
+
+      for (let i = 0; i < coneData.length; i++) {
+        const d = coneData[i];
+        const x = xScale(i);
+
+        ctx.strokeStyle = '#484f58';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, yScale(d.p10));
+        ctx.lineTo(x, yScale(d.p90));
+        ctx.stroke();
+
+        ctx.fillStyle = '#1c2128';
+        ctx.strokeStyle = '#bc8cff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.rect(x - barWidth / 2, yScale(d.p75), barWidth, yScale(d.p25) - yScale(d.p75));
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#bc8cff';
+        ctx.fillRect(x - barWidth / 2, yScale(d.median) - 2, barWidth, 4);
+
+        const currentY = yScale(d.current);
+        ctx.fillStyle = d.current > d.p90 ? '#f85149' : d.current < d.p10 ? '#3fb950' : '#d29922';
+        ctx.beginPath();
+        ctx.moveTo(x, currentY - 6);
+        ctx.lineTo(x + 6, currentY);
+        ctx.lineTo(x, currentY + 6);
+        ctx.lineTo(x - 6, currentY);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#8b949e';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${d.window}d`, x, h - padding.bottom + 15);
+      }
+
+      ctx.strokeStyle = '#30363d';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padding.left, padding.top);
+      ctx.lineTo(padding.left, h - padding.bottom);
+      ctx.lineTo(w - padding.right, h - padding.bottom);
+      ctx.stroke();
+
+      ctx.fillStyle = '#8b949e';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(max.toFixed(1) + '%', padding.left - 5, padding.top + 4);
+      ctx.fillText(min.toFixed(1) + '%', padding.left - 5, h - padding.bottom + 4);
+
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#bc8cff';
+      ctx.fillRect(w - padding.right - 80, padding.top + 10, 10, 10);
+      ctx.fillStyle = '#8b949e';
+      ctx.fillText('Range', w - padding.right - 65, padding.top + 18);
+
+      ctx.fillStyle = '#3fb950';
+      ctx.beginPath();
+      ctx.moveTo(w - padding.right - 80, padding.top + 35);
+      ctx.lineTo(w - padding.right - 74, padding.top + 29);
+      ctx.lineTo(w - padding.right - 68, padding.top + 35);
+      ctx.lineTo(w - padding.right - 74, padding.top + 41);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#8b949e';
+      ctx.fillText('Current', w - padding.right - 65, padding.top + 38);
+    }
+
+    function drawReturnsDistribution(canvas, returns) {
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+
+      const w = rect.width;
+      const h = rect.height;
+      const padding = { top: 20, right: 30, bottom: 50, left: 60 };
+      const chartW = w - padding.left - padding.right;
+      const chartH = h - padding.top - padding.bottom;
+
+      ctx.clearRect(0, 0, w, h);
+
+      if (!returns.length) return;
+
+      const minR = Math.min(...returns);
+      const maxR = Math.max(...returns);
+      const n_bins = 40;
+      const binWidth = (maxR - minR) / n_bins;
+      const bins = new Array(n_bins).fill(0);
+      const binCenters = [];
+
+      for (let i = 0; i < n_bins; i++) {
+        binCenters.push(minR + (i + 0.5) * binWidth);
+      }
+
+      for (const r of returns) {
+        const idx = Math.min(Math.floor((r - minR) / binWidth), n_bins - 1);
+        bins[idx]++;
+      }
+
+      const maxCount = Math.max(...bins);
+      const xScale = (v) => padding.left + ((v - minR) / (maxR - minR)) * chartW;
+      const yScale = (c) => padding.top + chartH - (c / maxCount) * chartH;
+
+      ctx.fillStyle = '#1f3a5c';
+      for (let i = 0; i < n_bins; i++) {
+        const x = xScale(minR + i * binWidth);
+        const barW = chartW / n_bins - 1;
+        ctx.fillRect(x, yScale(bins[i]), barW, yScale(0) - yScale(bins[i]));
+      }
+
+      const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+      const std = stddev(returns);
+      if (std === 0 || !isFinite(std)) return;
+      const normalCurve = binCenters.map(x => (1 / (std * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - mean) / std, 2)));
+
+      ctx.strokeStyle = '#f85149';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      const scale = maxCount * binWidth * 2;
+      for (let i = 0; i < binCenters.length; i++) {
+        const y = yScale(normalCurve[i] * scale);
+        if (i === 0) ctx.moveTo(xScale(binCenters[i]), y);
+        else ctx.lineTo(xScale(binCenters[i]), y);
+      }
+      ctx.stroke();
+
+      ctx.strokeStyle = '#30363d';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padding.left, padding.top);
+      ctx.lineTo(padding.left, h - padding.bottom);
+      ctx.lineTo(w - padding.right, h - padding.bottom);
+      ctx.stroke();
+
+      ctx.fillStyle = '#8b949e';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText((minR * 100).toFixed(1) + '%', padding.left, h - padding.bottom + 15);
+      ctx.fillText((maxR * 100).toFixed(1) + '%', w - padding.right, h - padding.bottom + 15);
+      ctx.fillText('0%', xScale(0), h - padding.bottom + 15);
+
+      ctx.textAlign = 'right';
+      ctx.fillText(maxCount.toString(), padding.left - 5, padding.top + 4);
+
+      const kurtosis = calculateKurtosis(returns);
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#8b949e';
+      ctx.fillText(`Kurtosis: ${kurtosis.toFixed(2)}`, padding.left, h - padding.bottom + 30);
+      ctx.fillText('(Red = Normal Dist.)', padding.left + 150, h - padding.bottom + 30);
+    }
+
+    function calculateKurtosis(returns) {
+      const n = returns.length;
+      if (n < 4) return 0;
+      const mean = returns.reduce((a, b) => a + b, 0) / n;
+      const m2 = returns.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / n;
+      const m4 = returns.reduce((a, b) => a + Math.pow(b - mean, 4), 0) / n;
+      if (m2 === 0) return 0;
+      return (n * m4) / (m2 * m2) - 3;
+    }
+
+    async function runAnalysis() {
+      const ticker = $('ticker').value.trim().toUpperCase();
+      const start = $('startDate').value;
+      const end = $('endDate').value;
+
+      if (!ticker) {
+        $('mainContent').innerHTML = '<div class="error">Please enter a ticker symbol</div>';
+        return;
+      }
+
+      $('mainContent').innerHTML = '<div class="loading">Loading volatility data...</div>';
+
+      try {
+        const data = await fetchPriceHistory(ticker, start, end);
+        const priceData = data.data || data;
+        const closes = priceData.map(d => d.Close);
+        const timestamps = priceData.map(d => d.Date);
+
+        if (closes.length < 30) {
+          $('mainContent').innerHTML = '<div class="error">Insufficient data for analysis</div>';
+          return;
+        }
+
+        const dates = timestamps.map(t => t.split('T')[0]);
+        const returns = calculateDailyReturns(closes);
+        const ivSeries = calculateRollingVol(returns, 20);
+        const currentIV = ivSeries[ivSeries.length - 1];
+
+        const ivSeriesFull252 = ivSeries.slice(-Math.min(ivSeries.length, 252));
+        const ivRank = calculateIVRank(currentIV, ivSeriesFull252);
+        const ivPercentile = calculateIVPercentile(currentIV, ivSeriesFull252);
+        const maxIV = Math.max(...ivSeries);
+        const minIV = Math.min(...ivSeries);
+
+        const currentHistVol = stddev(returns.slice(-20)) * Math.sqrt(252) * 100;
+        const ivHistVolRatio = currentHistVol && currentHistVol > 0 ? currentIV / currentHistVol : 0;
+
+        const volCone = calculateVolCone(closes, [10, 20, 30, 60, 90]);
+
+        const metrics = { currentIV, ivRank, ivPercentile, maxIV, minIV, ivHistVolRatio };
+
+        $('mainContent').innerHTML = `
+          ${renderMetrics(metrics)}
+          <div class="charts-grid">
+            <div class="chart-card">
+              <div class="chart-title">Historical IV (20-Day Realized Volatility)</div>
+              <div class="chart-container">
+                <canvas id="ivChart"></canvas>
+              </div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Volatility Cone (Distribution at Different Lookbacks)</div>
+              <div class="chart-container">
+                <canvas id="coneChart"></canvas>
+              </div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Returns Distribution (Daily % Returns)</div>
+              <div class="chart-container">
+                <canvas id="returnsChart"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="methodology">
+            <h3>IV Calculation Methodology</h3>
+            <pre>
+<b>Realized Volatility (annualized)</b> = stddev(daily_returns) * sqrt(252) * 100
+<b>Daily returns</b> = (close[t] - close[t-1]) / close[t-1]
+<b>Rolling window</b> = 20 days (default)
+
+<b>IV Rank</b> = % of historical IV readings <b>BELOW</b> current IV (over 252-day window)
+<b>IV Percentile</b> = % of historical IV readings <b>≤</b> current IV
+
+<b>IV/Hist Vol Ratio</b> = current IV / current historical vol
+  Ratio > 1 means implied volatility exceeds realized volatility (potential overpricing)
+  Ratio < 1 means implied volatility below realized (potential underpricing)
+
+<b>Color Coding:</b>
+  Green = low IV Rank (<30%) - mean reversion opportunity
+  Yellow = moderate IV Rank (30-70%)
+  Red = elevated IV Rank (>70%) - elevated premiums
+            </pre>
+          </div>
+        `;
+
+        setTimeout(() => {
+          drawHistoricalIVChart($('ivChart'), ivSeries, dates, currentIV);
+          drawVolConeChart($('coneChart'), volCone);
+          drawReturnsDistribution($('returnsChart'), returns);
+        }, 10);
+
+      } catch (err) {
+        $('mainContent').innerHTML = `<div class="error">Error: ${err.message}</div>`;
+      }
+    }
+
+    $('analyzeBtn').addEventListener('click', runAnalysis);
+    $('ticker').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') runAnalysis();
+    });
+  </script>
+</body>
+</html>

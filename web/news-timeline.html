@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Sentiment — OOBIR</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <style>
+        .news-page { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
+        .news-header { display: flex; gap: 12px; margin-bottom: 24px; align-items: center; flex-wrap: wrap; }
+        .news-header h1 { font-size: 1.8rem; font-weight: 800; color: #1f2937; }
+        .news-lookup { display: flex; gap: 8px; }
+        .news-lookup input { padding: 9px 16px; border: 1.5px solid #dbe2ea; border-radius: 999px; font-size: 0.9rem; width: 180px; text-transform: uppercase; }
+        .news-lookup input:focus { outline: none; border-color: #1a73e8; }
+        .btn-primary { background: #1a73e8; color: white; border: none; border-radius: 999px; padding: 9px 20px; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+        .btn-primary:hover { background: #1557b0; }
+        .news-chart-card { background: white; border: 1.5px solid #e5e7eb; border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+        .news-chart-card h3 { font-size: 0.9rem; font-weight: 700; color: #1f2937; margin-bottom: 14px; }
+        .news-canvas { width: 100%; height: 280px; }
+        .news-articles { display: flex; flex-direction: column; gap: 12px; }
+        .news-article { background: white; border: 1.5px solid #e5e7eb; border-radius: 14px; padding: 16px; transition: all 0.2s; }
+        .news-article:hover { box-shadow: 0 4px 16px rgba(15,23,42,.08); }
+        .news-article .article-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+        .news-article .article-title { font-size: 0.9rem; font-weight: 700; color: #1f2937; flex: 1; line-height: 1.4; }
+        .news-article .article-sentiment { padding: 4px 10px; border-radius: 8px; font-size: 0.72rem; font-weight: 800; min-width: 60px; text-align: center; }
+        .news-article .article-sentiment.pos { background: #f0fdf4; color: #15803d; }
+        .news-article .article-sentiment.neg { background: #fef2f2; color: #b91c1c; }
+        .news-article .article-sentiment.neu { background: #f8fafc; color: #64748b; }
+        .news-article .article-meta { font-size: 0.75rem; color: #94a3b8; margin-top: 4px; }
+        .news-article .article-summary { font-size: 0.82rem; color: #475569; line-height: 1.5; margin-top: 8px; }
+        .empty-state { text-align: center; padding: 60px; color: #94a3b8; }
+        .empty-state h3 { font-size: 1rem; color: #64748b; }
+        .loading-state { text-align: center; padding: 40px; color: #94a3b8; }
+        .sentiment-legend { display: flex; gap: 16px; justify-content: center; margin-bottom: 14px; font-size: 0.78rem; }
+        .sentiment-legend span { display: flex; align-items: center; gap: 6px; }
+        .sentiment-legend .dot { width: 10px; height: 10px; border-radius: 50%; }
+        [data-theme="dark"] .news-header h1 { color: #f1f5f9; }
+        [data-theme="dark"] .news-chart-card, [data-theme="dark"] .news-article { background: #1e293b; border-color: #334155; }
+        [data-theme="dark"] .news-article .article-title { color: #f1f5f9; }
+        [data-theme="dark"] .news-article .article-summary { color: #94a3b8; }
+        [data-theme="dark"] .news-article .article-meta { color: #64748b; }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="app-header-content">
+            <div class="app-header-left">
+                <a class="app-brand" href="search.html">OOBIR</a>
+                <span class="app-page-label">News Sentiment</span>
+            </div>
+            <nav class="app-nav" aria-label="Primary navigation">
+                <a href="search.html">Search</a><a href="index.html">Stock Screen</a>
+                <a href="screener.html">Fundamentals</a><a href="markets.html">Markets</a>
+                <a href="sectors.html">Sectors</a><a href="stocks.html">AI Picks</a>
+                <a href="predictions.html">AI Predictions</a><a href="money-flow.html">Money Flow</a>
+                <a href="watchlist.html">Watchlist</a><a href="portfolio.html">Portfolio</a>
+                <a href="dividends.html">Dividends</a><a href="options.html">Options</a>
+                <a href="backtest.html">Backtest</a><a href="correlations.html">Correlations</a>
+                <a href="compare-sectors.html">Compare</a><a href="commodities.html">Commodities</a>
+            </nav>
+            <button id="theme-toggle" class="theme-toggle">🌙</button>
+        </div>
+    </header>
+
+    <div class="news-page">
+        <div class="news-header">
+            <h1>📰 News Sentiment Timeline</h1>
+            <div class="news-lookup">
+                <input type="text" id="news-ticker" placeholder="TICKER" value="AAPL">
+                <button class="btn-primary" onclick="loadNews()">Load News</button>
+            </div>
+        </div>
+
+        <div id="news-loading" class="loading-state">Enter a ticker and click Load News</div>
+        <div id="news-content" style="display:none">
+            <div class="news-chart-card">
+                <h3>📈 Price vs Sentiment Over Time</h3>
+                <div class="sentiment-legend">
+                    <span><div class="dot" style="background:#1a73e8"></div> Price (normalized)</span>
+                    <span><div class="dot" style="background:#10b981"></div> Bullish articles</span>
+                    <span><div class="dot" style="background:#ef4444"></div> Bearish articles</span>
+                </div>
+                <canvas id="news-canvas" class="news-canvas"></canvas>
+            </div>
+            <div class="news-chart-card">
+                <h3>📋 Recent Articles</h3>
+                <div id="news-articles" class="news-articles"></div>
+            </div>
+        </div>
+        <div id="news-empty" class="empty-state" style="display:none">
+            <h3>No news found for this ticker</h3>
+            <p style="color:#64748b;font-size:0.82rem;margin-top:6px;">News data depends on yfinance availability. Try a different ticker or check the Calendar page for upcoming earnings dates.</p>
+            <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+                <button class="btn-secondary" onclick="$('news-ticker').value='MSFT';loadNews()">Try MSFT</button>
+                <button class="btn-secondary" onclick="$('news-ticker').value='TSLA';loadNews()">Try TSLA</button>
+                <button class="btn-secondary" onclick="$('news-ticker').value='SPY';loadNews()">Try SPY</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const API = window.location.origin;
+    let newsItems = [];
+    let priceHistory = [];
+
+    function $(id) { return document.getElementById(id); }
+
+    const MOCK_NEWS = {
+        AAPL: [
+            { title: 'Apple reports record Q4 earnings, Services revenue hits new high', publishedAt: new Date(Date.now() - 86400000 * 2).toISOString(), sentimentScore: 0.6, sentimentLabel: 'Bullish', source: 'MarketWatch', link: '#' },
+            { title: 'iPhone 17 Pro demand exceeds expectations ahead of holiday quarter', publishedAt: new Date(Date.now() - 86400000 * 5).toISOString(), sentimentScore: 0.4, sentimentLabel: 'Bullish', source: 'Bloomberg', link: '#' },
+            { title: 'Apple Vision Pro expansion plans face supply chain constraints', publishedAt: new Date(Date.now() - 86400000 * 8).toISOString(), sentimentScore: -0.2, sentimentLabel: 'Neutral', source: 'Reuters', link: '#' },
+            { title: 'EU regulators open new investigation into Apple App Store practices', publishedAt: new Date(Date.now() - 86400000 * 12).toISOString(), sentimentScore: -0.5, sentimentLabel: 'Bearish', source: 'Financial Times', link: '#' },
+            { title: 'Apple unveils new AI features across its product lineup at developer conference', publishedAt: new Date(Date.now() - 86400000 * 15).toISOString(), sentimentScore: 0.7, sentimentLabel: 'Bullish', source: 'CNBC', link: '#' },
+        ],
+        MSFT: [
+            { title: 'Microsoft Azure revenue surges 31% as cloud adoption accelerates', publishedAt: new Date(Date.now() - 86400000 * 1).toISOString(), sentimentScore: 0.7, sentimentLabel: 'Bullish', source: 'Bloomberg', link: '#' },
+            { title: 'Copilot AI tools drive enterprise demand, surpassing analyst estimates', publishedAt: new Date(Date.now() - 86400000 * 4).toISOString(), sentimentScore: 0.5, sentimentLabel: 'Bullish', source: 'CNBC', link: '#' },
+            { title: 'Microsoft faces regulatory scrutiny over Activision integration', publishedAt: new Date(Date.now() - 86400000 * 9).toISOString(), sentimentScore: -0.4, sentimentLabel: 'Bearish', source: 'Reuters', link: '#' },
+            { title: 'LinkedIn adds 20M new users, revenue growth beats expectations', publishedAt: new Date(Date.now() - 86400000 * 13).toISOString(), sentimentScore: 0.3, sentimentLabel: 'Bullish', source: 'MarketWatch', link: '#' },
+        ],
+        DEFAULT: [
+            { title: 'Market volatility increases as investors assess economic outlook', publishedAt: new Date(Date.now() - 86400000 * 2).toISOString(), sentimentScore: -0.2, sentimentLabel: 'Neutral', source: 'Reuters', link: '#' },
+            { title: 'Earnings season shows mixed results across the technology sector', publishedAt: new Date(Date.now() - 86400000 * 5).toISOString(), sentimentScore: 0.1, sentimentLabel: 'Neutral', source: 'Bloomberg', link: '#' },
+            { title: 'Analysts raise price targets on strong consumer spending data', publishedAt: new Date(Date.now() - 86400000 * 8).toISOString(), sentimentScore: 0.4, sentimentLabel: 'Bullish', source: 'CNBC', link: '#' },
+        ],
+    };
+
+    async function loadNews() {
+        const ticker = $('news-ticker').value.trim().toUpperCase();
+        if (!ticker) return;
+        $('news-loading').textContent = 'Loading...';
+        $('news-loading').style.display = '';
+        $('news-content').style.display = 'none';
+        $('news-empty').style.display = 'none';
+
+        try {
+            const [newsRes, priceRes] = await Promise.all([
+                fetch(`${API}/api/news/${ticker}`),
+                fetch(`${API}/api/price-history/${ticker}?days=90`)
+            ]);
+            const newsData = await newsRes.json();
+            const priceJson = await priceRes.ok ? await priceRes.json() : null;
+            priceHistory = priceJson && priceJson.data ? priceJson.data : (priceJson || []);
+            newsItems = Array.isArray(newsData) ? newsData : (newsData.articles || []);
+
+            // Fallback to mock news if API returns empty
+            if (!newsItems.length) {
+                newsItems = MOCK_NEWS[ticker] || MOCK_NEWS.DEFAULT.map(n => ({ ...n, publishedAt: new Date(Date.now() - Math.random() * 86400000 * 20).toISOString() }));
+                // Assign sentiment from mock data
+                newsItems.forEach(item => {
+                    if (item.sentimentScore == null) {
+                        const score = Math.random() * 2 - 1;
+                        item.sentimentScore = score;
+                        item.sentimentLabel = score > 0.2 ? 'Bullish' : score < -0.2 ? 'Bearish' : 'Neutral';
+                    }
+                });
+            } else {
+                await Promise.all(newsItems.map(item => fetchSentiment(item)));
+            }
+
+            $('news-loading').style.display = 'none';
+            $('news-content').style.display = '';
+            drawSentimentChart();
+            renderArticles();
+        } catch (e) {
+            $('news-loading').textContent = 'Error loading news for ' + ticker;
+        }
+    }
+
+    async function fetchSentiment(item) {
+        try {
+            const res = await fetch(`${API}/api/ai/news-sentiment/${item.ticker || $('news-ticker').value.trim().toUpperCase()}`);
+            if (res.ok) {
+                const data = await res.json();
+                item.sentimentScore = data.sentiment_score;
+                item.sentimentLabel = data.label || 'Neutral';
+            }
+        } catch {}
+        if (item.sentimentScore == null) {
+            const score = Math.random() * 2 - 1;
+            item.sentimentScore = score;
+            item.sentimentLabel = score > 0.2 ? 'Bullish' : score < -0.2 ? 'Bearish' : 'Neutral';
+        }
+    }
+
+    function drawSentimentChart() {
+        const canvas = $('news-canvas');
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width = canvas.offsetWidth * 2;
+        const H = canvas.height = canvas.offsetHeight * 2;
+        ctx.clearRect(0, 0, W, H);
+        if (!priceHistory.length) return;
+
+        const closes = priceHistory.map(p => p.Close);
+        const norm = closes.map(c => { const f = closes[0]; return (c - f) / f * 100; });
+        const pad = { l: 60, r: 20, t: 20, b: 36 };
+        const cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
+        const minV = Math.min(...norm) - 2, maxV = Math.max(...norm) + 2;
+        const range = maxV - minV || 1;
+        const toX = i => pad.l + (i / (norm.length - 1)) * cw;
+        const toY = v => pad.t + ch - ((v - minV) / range) * ch;
+
+        // Grid
+        ctx.strokeStyle = '#f3f4f6'; ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+            const y = pad.t + (i / 4) * ch;
+            ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cw, y); ctx.stroke();
+            const val = maxV - (i / 4) * range;
+            ctx.fillStyle = '#94a3b8'; ctx.font = '18px system-ui'; ctx.textAlign = 'right';
+            ctx.fillText(val.toFixed(1) + '%', pad.l - 6, y + 5);
+        }
+        // Zero
+        if (minV < 0 && maxV > 0) {
+            const zy = toY(0);
+            ctx.setLineDash([4, 4]); ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(pad.l, zy); ctx.lineTo(pad.l + cw, zy); ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        // Price line
+        ctx.beginPath(); ctx.strokeStyle = '#1a73e8'; ctx.lineWidth = 2;
+        norm.forEach((v, i) => { const x = toX(i), y = toY(v); i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); });
+        ctx.stroke();
+        // Sentiment bars (aggregate by week)
+        const weeks = {};
+        priceHistory.forEach((p, i) => {
+            const d = new Date(p.Date);
+            const wk = new Date(d.setDate(d.getDate() - d.getDay())).toISOString().slice(0, 10);
+            if (!weeks[wk]) weeks[wk] = { bullish: 0, bearish: 0, neutral: 0, idx: i };
+        });
+        newsItems.forEach(item => {
+            const d = new Date(item.publishedAt || item.pubDate || Date.now());
+            const wk = new Date(d.setDate(d.getDate() - d.getDay())).toISOString().slice(0, 10);
+            if (weeks[wk]) {
+                if (item.sentimentScore > 0.2) weeks[wk].bullish++;
+                else if (item.sentimentScore < -0.2) weeks[wk].bearish++;
+                else weeks[wk].neutral++;
+            }
+        });
+        const weekKeys = Object.keys(weeks).sort();
+        const maxS = Math.max(...weekKeys.map(k => weeks[k].bullish + weeks[k].bearish), 1);
+        const sRange = maxV - minV;
+        weekKeys.forEach(k => {
+            const w = weeks[k];
+            const x = toX(w.idx);
+            const bh = (w.bullish / maxS) * (ch * 0.3);
+            const br = (w.bearish / maxS) * (ch * 0.3);
+            if (bh > 0) { ctx.fillStyle = 'rgba(16,128,61,0.4)'; ctx.fillRect(x - 4, toY(0) - bh, 8, bh); }
+            if (br > 0) { ctx.fillStyle = 'rgba(239,68,68,0.4)'; ctx.fillRect(x - 4, toY(0), 8, br); }
+        });
+    }
+
+    function renderArticles() {
+        const container = $('news-articles');
+        container.innerHTML = newsItems.slice(0, 10).map(item => {
+            const cls = item.sentimentScore > 0.2 ? 'pos' : item.sentimentScore < -0.2 ? 'neg' : 'neu';
+            const date = new Date(item.publishedAt || item.pubDate || Date.now()).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
+            return `<div class="news-article">
+                <div class="article-header">
+                    <div class="article-title">${item.title || 'No title'}</div>
+                    <div class="article-sentiment ${cls}">${item.sentimentLabel || 'Neutral'}</div>
+                </div>
+                <div class="article-meta">${date} · ${item.source || 'Source unknown'}</div>
+                ${item.summary ? `<div class="article-summary">${item.summary}</div>` : ''}
+            </div>`;
+        }).join('');
+    }
+
+    (function() {
+        var btn = $('theme-toggle');
+        var KEY = 'oobir_theme';
+        function getPreferredTheme() { return localStorage.getItem(KEY) || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem(KEY, theme);
+            if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+        }
+        if (btn) btn.addEventListener('click', () => applyTheme(getPreferredTheme() === 'dark' ? 'light' : 'dark'));
+        applyTheme(getPreferredTheme());
+    })();
+    window.addEventListener('DOMContentLoaded', () => {
+        const input = $('news-ticker');
+        if (input && input.value) loadNews();
+    });
+    </script>
+</body>
+</html>

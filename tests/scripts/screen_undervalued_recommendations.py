@@ -13,8 +13,9 @@ Examples:
 
 import sys
 import time
-import requests
 from urllib.parse import urljoin
+
+import requests
 
 DEFAULT_URLS = [
     "http://192.168.1.248:8000",

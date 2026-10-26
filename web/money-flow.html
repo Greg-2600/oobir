@@ -200,20 +200,33 @@
             color: #6b7280;
         }
 
-        .control-group select {
-            padding: 8px 12px;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            font-size: 0.95em;
-            background: white;
-            cursor: pointer;
-            min-width: 140px;
+        .period-buttons {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
         }
 
-        .control-group select:focus {
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        .period-btn {
+            padding: 6px 12px;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 0.82em;
+            font-weight: 700;
+            background: white;
+            color: #374151;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .period-btn:hover {
+            border-color: #818cf8;
+            background: #eef2ff;
+        }
+
+        .period-btn.active {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
         }
 
         .direction-tabs {
@@ -276,12 +289,25 @@
                         <a href="index.html">Stock Screen</a>
                         <a href="screener.html">Fundamentals</a>
                         <a href="markets.html">Markets</a>
+                        <a href="sectors.html">Sectors</a>
                         <a href="stocks.html">AI Picks</a>
                         <a href="predictions.html">AI Predictions</a>
                         <a href="money-flow.html" class="active">Money Flow</a>
+                        <a href="dividends.html">Dividends</a>
                         <a href="crypto.html">Crypto</a>
                         <a href="metals.html">Metals</a>
+                        <a href="portfolio.html">Portfolio</a>
+                        <a href="watchlist.html">Watchlist</a>
+                        <a href="options.html">Options</a>
+                        <a href="backtest.html">Backtest</a>
+                          <a href="correlations.html">Correlations</a>
+                        <a href="compare-sectors.html">Compare</a>
+                        <a href="news-timeline.html">News</a>
+                        <a href="calendar.html">Calendar</a>
                         <a href="commodities.html">Commodities</a>
+                        <a href="optimizer.html">Optimizer</a>
+                        <a href="correlation-matrix.html">Corr Matrix</a>
+                        <a href="volatility.html">Volatility</a>
                     </nav>
                     <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">🌙</button>
                 </div>
@@ -293,15 +319,15 @@
 
             <div class="controls-bar">
                 <div class="control-group">
-                    <label for="period-select">Time Period</label>
-                    <select id="period-select">
-                        <option value="day">Today</option>
-                        <option value="week">This Week</option>
-                        <option value="month" selected>This Month</option>
-                        <option value="3month">3 Months</option>
-                        <option value="6month">6 Months</option>
-                        <option value="year">This Year</option>
-                    </select>
+                    <label>Time Period</label>
+                    <div class="period-buttons">
+                        <button class="period-btn active" id="period-day" onclick="setPeriod('day')">Today</button>
+                        <button class="period-btn" id="period-week" onclick="setPeriod('week')">Week</button>
+                        <button class="period-btn" id="period-month" onclick="setPeriod('month')">Month</button>
+                        <button class="period-btn" id="period-3month" onclick="setPeriod('3month')">3M</button>
+                        <button class="period-btn" id="period-6month" onclick="setPeriod('6month')">6M</button>
+                        <button class="period-btn" id="period-year" onclick="setPeriod('year')">Year</button>
+                    </div>
                 </div>
 
                 <div class="direction-tabs">
@@ -329,7 +355,15 @@
             : window.location.origin;
 
         let currentDirection = 'in';
-        let currentPeriod = 'month';
+        let currentPeriod = 'day';
+
+        function setPeriod(period) {
+            currentPeriod = period;
+            document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+            const btn = document.getElementById('period-' + period);
+            if (btn) btn.classList.add('active');
+            loadMoneyFlow();
+        }
 
         function escapeHtml(text) {
             if (text === null || text === undefined) return '';
@@ -428,8 +462,8 @@
 
         async function loadMoneyFlow() {
             const container = document.getElementById('stocks-container');
-            const period = document.getElementById('period-select').value;
-            currentPeriod = period;
+            const period = currentPeriod;
+            const url = `${API_BASE_URL}/api/screener/money-flow?period=${encodeURIComponent(period)}&direction=${encodeURIComponent(currentDirection)}&limit=50`;
 
             container.innerHTML = `
                 <div class="loading-state">
@@ -480,8 +514,6 @@
             }
         }
 
-        document.getElementById('period-select').addEventListener('change', loadMoneyFlow);
-
         document.addEventListener('DOMContentLoaded', loadMoneyFlow);
 
         // Theme toggle
@@ -503,27 +535,7 @@
             }
             if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
             applyTheme(getPreferredTheme());
-        })();        </script>
-
-        // Theme toggle
-        (function() {
-            var themeToggle = document.getElementById('theme-toggle');
-            var THEME_KEY = 'oobir_theme';
-            function getPreferredTheme() {
-                return localStorage.getItem(THEME_KEY) ||
-                    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            }
-            function applyTheme(theme) {
-                document.documentElement.setAttribute('data-theme', theme);
-                localStorage.setItem(THEME_KEY, theme);
-                if (themeToggle) themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
-            }
-            function toggleTheme() {
-                var current = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
-                applyTheme(current === 'dark' ? 'light' : 'dark');
-            }
-            if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
-            applyTheme(getPreferredTheme());
         })();
+        </script>
     </body>
 </html>

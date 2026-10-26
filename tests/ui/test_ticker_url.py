@@ -8,10 +8,9 @@ Tests cover:
 - API base URL resolution (2010 vs 8000 mismatch fix)
 """
 
-import pytest
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 
 class TestLandingPageLoads:
@@ -68,7 +67,7 @@ class TestTickerURLEDParameter:
         wait.until(
             lambda d: "hidden"
             not in d.find_element(By.ID, "results-container").get_attribute("class"),
-            message="Results container should be visible after auto-search"
+            message="Results container should be visible after auto-search",
         )
 
         symbol = wait.until(
@@ -147,8 +146,12 @@ class TestAPIConnection:
             not in d.find_element(By.ID, "results-container").get_attribute("class")
         )
 
-        api_base = browser.execute_script("return window.OOBIR_API_BASE || window.CONFIG?.API_BASE_URL || window.API_BASE_URL;")
-        assert api_base is not None and len(api_base) > 0, f"API_BASE_URL should be configured, got: {api_base}"
+        api_base = browser.execute_script(
+            "return window.OOBIR_API_BASE || window.CONFIG?.API_BASE_URL || window.API_BASE_URL;"
+        )
+        assert (
+            api_base is not None and len(api_base) > 0
+        ), f"API_BASE_URL should be configured, got: {api_base}"
 
     def test_fundamentals_section_exists(self, browser, base_url):
         """Fundamentals section should exist and render on results page."""
@@ -191,8 +194,9 @@ class TestSearchFromResultsPage:
         submit.click()
 
         wait.until(
-            lambda d: d.find_element(By.ID, "stock-symbol").text.strip().upper() == "AAPL",
-            message="Stock symbol should update to AAPL after search"
+            lambda d: d.find_element(By.ID, "stock-symbol").text.strip().upper()
+            == "AAPL",
+            message="Stock symbol should update to AAPL after search",
         )
 
         stock_symbol = browser.find_element(By.ID, "stock-symbol")
@@ -208,10 +212,12 @@ class TestSearchFromResultsPage:
             not in d.find_element(By.ID, "results-container").get_attribute("class")
         )
 
-        logo = wait.until(
-            EC.element_to_be_clickable((By.CLASS_NAME, "logo-small"))
-        )
+        logo = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "logo-small")))
         logo.click()
 
-        wait.until(lambda d: "index.html" in d.current_url or "search.html" in d.current_url)
-        assert "index.html" in browser.current_url or "search.html" in browser.current_url
+        wait.until(
+            lambda d: "index.html" in d.current_url or "search.html" in d.current_url
+        )
+        assert (
+            "index.html" in browser.current_url or "search.html" in browser.current_url
+        )

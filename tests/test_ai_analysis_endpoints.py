@@ -1,16 +1,17 @@
 """Unit tests for AI analysis endpoints."""
 
-import unittest
-from unittest.mock import patch, MagicMock
-from fastapi.testclient import TestClient
-import sys
 import os
+import sys
+import unittest
+from unittest.mock import MagicMock, patch
+
+from fastapi.testclient import TestClient
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import flow_api
 import flow
+import flow_api
 
 
 class TestAIAnalysisEndpoints(unittest.TestCase):
@@ -660,6 +661,179 @@ class TestNewsSentimentAPI(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         mock_get_sentiment.assert_called_with("BRK.B")
+
+
+class TestExploreParamsValidators(unittest.TestCase):
+    """Test cases for ExploreParams validators on /api/predict/{symbol}/explore endpoint."""
+
+    def setUp(self):
+        """Set up test client."""
+        self.client = TestClient(flow_api.app)
+
+    def test_explore_invalid_model_name(self):
+        """ExploreParams should reject invalid model_name."""
+        response = self.client.get(
+            "/api/predict/AAPL/explore",
+            params={"model_name": "invalid_model", "horizon": 5},
+        )
+        self.assertEqual(response.status_code, 422)
+
+    def test_explore_invalid_horizon_too_low(self):
+        """ExploreParams should reject horizon below 1."""
+        response = self.client.get(
+            "/api/predict/AAPL/explore",
+            params={"model_name": "hist_gbm", "horizon": 0},
+        )
+        self.assertEqual(response.status_code, 422)
+
+    def test_explore_invalid_horizon_too_high(self):
+        """ExploreParams should reject horizon above 60."""
+        response = self.client.get(
+            "/api/predict/AAPL/explore",
+            params={"model_name": "hist_gbm", "horizon": 100},
+        )
+        self.assertEqual(response.status_code, 422)
+
+    def test_explore_invalid_margin_too_low(self):
+        """ExploreParams should reject margin below 0.0."""
+        response = self.client.get(
+            "/api/predict/AAPL/explore",
+            params={"model_name": "hist_gbm", "horizon": 5, "margin": -0.1},
+        )
+        self.assertEqual(response.status_code, 422)
+
+    def test_explore_invalid_margin_too_high(self):
+        """ExploreParams should reject margin above 0.10."""
+        response = self.client.get(
+            "/api/predict/AAPL/explore",
+            params={"model_name": "hist_gbm", "horizon": 5, "margin": 0.15},
+        )
+        self.assertEqual(response.status_code, 422)
+
+    def test_explore_invalid_folds_too_low(self):
+        """ExploreParams should reject folds below 2."""
+        response = self.client.get(
+            "/api/predict/AAPL/explore",
+            params={"model_name": "hist_gbm", "horizon": 5, "folds": 1},
+        )
+        self.assertEqual(response.status_code, 422)
+
+    def test_explore_invalid_folds_too_high(self):
+        """ExploreParams should reject folds above 10."""
+        response = self.client.get(
+            "/api/predict/AAPL/explore",
+            params={"model_name": "hist_gbm", "horizon": 5, "folds": 20},
+        )
+        self.assertEqual(response.status_code, 422)
+
+    def test_explore_invalid_max_train_too_low(self):
+        """ExploreParams should reject max_train below 60."""
+        response = self.client.get(
+            "/api/predict/AAPL/explore",
+            params={"model_name": "hist_gbm", "horizon": 5, "max_train": 10},
+        )
+        self.assertEqual(response.status_code, 422)
+
+    def test_explore_invalid_max_train_too_high(self):
+        """ExploreParams should reject max_train above 2000."""
+        response = self.client.get(
+            "/api/predict/AAPL/explore",
+            params={"model_name": "hist_gbm", "horizon": 5, "max_train": 3000},
+        )
+        self.assertEqual(response.status_code, 422)
+
+
+class TestAICacheHitPath(unittest.TestCase):
+    """Test cases for AI endpoint cache hit path."""
+
+    def setUp(self):
+        """Set up test client."""
+        self.client = TestClient(flow_api.app)
+
+    @patch("flow.ensure_ollama")
+    def test_fundamental_analysis_returns_cached_data(self, mock_ensure):
+        """AI endpoint should return cached data on cache hit without calling Ollama."""
+        cached = '{"summary": "Cached analysis"}'
+        with patch("db.get_cached_data", return_value=cached):
+            response = self.client.get(
+                "/api/ai/fundamental-analysis/AAPL",
+            )
+            self.assertEqual(response.status_code, 200)
+            mock_ensure.assert_not_called()
+
+    @patch("flow.ensure_ollama")
+    def test_balance_sheet_analysis_returns_cached_data(self, mock_ensure):
+        """AI endpoint should return cached balance sheet data on cache hit."""
+        cached = '{"summary": "Strong balance sheet"}'
+        with patch("db.get_cached_data", return_value=cached):
+            response = self.client.get(
+                "/api/ai/balance-sheet-analysis/AAPL",
+            )
+            self.assertEqual(response.status_code, 200)
+            mock_ensure.assert_not_called()
+
+    @patch("flow.ensure_ollama")
+    def test_income_stmt_analysis_returns_cached_data(self, mock_ensure):
+        """AI endpoint should return cached income stmt data on cache hit."""
+        cached = '{"summary": "Strong earnings"}'
+        with patch("db.get_cached_data", return_value=cached):
+            response = self.client.get(
+                "/api/ai/income-stmt-analysis/AAPL",
+            )
+            self.assertEqual(response.status_code, 200)
+            mock_ensure.assert_not_called()
+
+    @patch("flow.ensure_ollama")
+    def test_technical_analysis_returns_cached_data(self, mock_ensure):
+        """AI endpoint should return cached technical analysis on cache hit."""
+        cached = '{"summary": "Bullish indicators"}'
+        with patch("db.get_cached_data", return_value=cached):
+            response = self.client.get(
+                "/api/ai/technical-analysis/AAPL",
+            )
+            self.assertEqual(response.status_code, 200)
+            mock_ensure.assert_not_called()
+
+
+class TestNormalizePriceHistoryPayload(unittest.TestCase):
+    """Test cases for normalize_price_history_payload function."""
+
+    def test_normalize_price_history_payload_list(self):
+        """normalize_price_history_payload should trim list payloads to 121 items."""
+        data = [{"Close": i} for i in range(200)]
+        result = flow_api.normalize_price_history_payload(data)
+        self.assertEqual(len(result), 121)
+
+    def test_normalize_price_history_payload_dict(self):
+        """normalize_price_history_payload should trim dict payloads to 121 items."""
+        data = {"data": [{"Close": i} for i in range(200)]}
+        result = flow_api.normalize_price_history_payload(data)
+        self.assertEqual(len(result["data"]), 121)
+
+    def test_normalize_price_history_payload_preserves_short_list(self):
+        """normalize_price_history_payload should not trim short payloads."""
+        data = [{"Close": i} for i in range(50)]
+        result = flow_api.normalize_price_history_payload(data)
+        self.assertEqual(len(result), 50)
+
+    def test_normalize_price_history_payload_preserves_short_dict(self):
+        """normalize_price_history_payload should not trim short dict payloads."""
+        data = {"data": [{"Close": i} for i in range(50)]}
+        result = flow_api.normalize_price_history_payload(data)
+        self.assertEqual(len(result["data"]), 50)
+
+    def test_normalize_price_history_payload_exact_window(self):
+        """normalize_price_history_payload should handle exactly 121 items."""
+        data = [{"Close": i} for i in range(121)]
+        result = flow_api.normalize_price_history_payload(data)
+        self.assertEqual(len(result), 121)
+
+    def test_normalize_price_history_payload_keeps_most_recent(self):
+        """normalize_price_history_payload should keep most recent items."""
+        data = [{"Close": i} for i in range(200)]
+        result = flow_api.normalize_price_history_payload(data)
+        self.assertEqual(result[0]["Close"], 79)
+        self.assertEqual(result[-1]["Close"], 199)
 
 
 if __name__ == "__main__":

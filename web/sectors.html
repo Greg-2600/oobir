@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Sectors - OOBIR</title>
+        <link rel="stylesheet" href="styles.css">
+        <link rel="icon" href="favicon.svg" type="image/svg+xml">
+        <style>
+        body { background: #f9fafb; min-height: 100vh; }
+        .sectors-page { max-width: 1600px; margin: 0 auto; padding: 24px; }
+
+        .sector-macro-header {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 14px;
+            margin-bottom: 28px;
+        }
+        .macro-stat-card {
+            background: white;
+            border-radius: 14px;
+            padding: 18px 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            border: 1px solid #e5e7eb;
+        }
+        .macro-stat-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+        }
+        .macro-stat-value {
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: #1f2937;
+        }
+        .macro-stat-sub {
+            font-size: 0.78rem;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+        .macro-stat-value.up { color: #10b981; }
+        .macro-stat-value.down { color: #ef4444; }
+
+        .sector-section-title {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: #1f2937;
+            margin: 28px 0 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sector-overview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .sector-card {
+            background: white;
+            border-radius: 14px;
+            padding: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            border: 1px solid #e5e7eb;
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .sector-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+        }
+        .sector-card.trend-up { border-left: 4px solid #10b981; }
+        .sector-card.trend-down { border-left: 4px solid #ef4444; }
+        .sector-card.trend-neutral { border-left: 4px solid #94a3b8; }
+
+        .sector-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 14px;
+        }
+        .sector-name {
+            font-size: 1rem;
+            font-weight: 800;
+            color: #1f2937;
+        }
+        .sector-ticker {
+            font-size: 0.78rem;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+        .sector-price {
+            font-size: 1.3rem;
+            font-weight: 900;
+            color: #1f2937;
+        }
+        .sector-change {
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-top: 2px;
+        }
+        .sector-change.up { color: #10b981; }
+        .sector-change.down { color: #ef4444; }
+        .sector-change.flat { color: #64748b; }
+
+        .sector-chart {
+            height: 80px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            margin: 10px 0;
+            display: flex;
+            align-items: flex-end;
+            padding: 6px;
+            gap: 2px;
+            overflow: hidden;
+        }
+        .sector-bar {
+            flex: 1;
+            border-radius: 2px 2px 0 0;
+            min-width: 4px;
+            transition: height 0.3s ease;
+        }
+
+        .sector-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .sector-metric {
+            text-align: center;
+            padding: 6px 4px;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+        .sector-metric-label {
+            font-size: 0.65rem;
+            color: #94a3b8;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .sector-metric-value {
+            font-size: 0.9rem;
+            font-weight: 800;
+            color: #374151;
+            margin-top: 2px;
+        }
+
+        .heatmap-grid {
+            display: grid;
+            gap: 3px;
+            margin: 16px 0;
+        }
+        .heatmap-cell {
+            border-radius: 6px;
+            padding: 8px 6px;
+            text-align: center;
+            font-size: 0.78rem;
+            font-weight: 700;
+            min-height: 52px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 2px;
+        }
+        .heatmap-cell .ticker { font-size: 0.7rem; opacity: 0.8; }
+        .heatmap-cell .pct { font-size: 0.95rem; }
+        .heatmap-cell .label { font-size: 0.6rem; opacity: 0.7; }
+
+        .rotation-rankings {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 8px 0;
+            margin: 12px 0;
+        }
+        .rotation-item {
+            flex-shrink: 0;
+            width: 130px;
+            padding: 12px;
+            border-radius: 12px;
+            background: white;
+            border: 1.5px solid #e5e7eb;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .rotation-item.rank-1 { border-color: #fbbf24; background: #fffbeb; }
+        .rotation-item.rank-last { border-color: #fca5a5; background: #fef2f2; }
+        .rotation-rank {
+            font-size: 0.65rem;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+        .rotation-info { text-align: left; }
+        .rotation-ticker {
+            font-size: 0.8rem;
+            font-weight: 800;
+            color: #1f2937;
+        }
+        .rotation-metrics {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            border-top: 1px solid #f3f4f6;
+            padding-top: 6px;
+        }
+        .rotation-metric {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+        }
+        .rotation-metric-label {
+            color: #94a3b8;
+            font-weight: 500;
+        }
+        .rotation-pct {
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        .sector-detail-panel {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-top: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e5e7eb;
+            display: none;
+        }
+        .sector-detail-panel.visible { display: block; }
+        .sector-detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .sector-detail-close {
+            background: #f1f5f9;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .sector-holdings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 10px;
+            margin-top: 16px;
+        }
+        .holding-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            background: #f9fafb;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            cursor: pointer;
+        }
+        .holding-card:hover { border-color: #818cf8; }
+        .holding-ticker { font-weight: 800; font-size: 0.9rem; color: #1f2937; }
+        .holding-weight { font-size: 0.78rem; color: #94a3b8; }
+        .holding-change { font-size: 0.85rem; font-weight: 700; }
+
+        .loading-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: #94a3b8;
+        }
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #e5e7eb;
+            border-top-color: #4f46e5;
+            animation: spin 0.7s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        [data-theme="dark"] body { background: #0f172a; }
+        [data-theme="dark"] .macro-stat-card { background: #1e293b; border-color: #334155; }
+        [data-theme="dark"] .macro-stat-label { color: #94a3b8; }
+        [data-theme="dark"] .macro-stat-value { color: #f1f5f9; }
+        [data-theme="dark"] .sector-card { background: #1e293b; border-color: #334155; }
+        [data-theme="dark"] .sector-name { color: #f1f5f9; }
+        [data-theme="dark"] .sector-price { color: #f1f5f9; }
+        [data-theme="dark"] .sector-metric { background: #0f172a; }
+        [data-theme="dark"] .sector-metric-value { color: #e2e8f0; }
+        [data-theme="dark"] .sector-chart { background: #0f172a; }
+        [data-theme="dark"] .holding-card { background: #0f172a; border-color: #334155; }
+        [data-theme="dark"] .sector-detail-panel { background: #1e293b; border-color: #334155; }
+        [data-theme="dark"] .rotation-item { background: #1e293b; border-color: #334155; }
+        [data-theme="dark"] .sector-detail-close { background: #334155; color: #e2e8f0; }
+        </style>
+    </head>
+    <body>
+        <div class="sectors-page">
+            <header class="app-header">
+                <div class="app-header-content">
+                    <div class="app-header-left">
+                        <a class="app-brand" href="search.html">OOBIR</a>
+                        <span class="app-page-label">Sectors</span>
+                    </div>
+                    <nav class="app-nav" aria-label="Primary navigation">
+                        <a href="search.html">Search</a><a href="index.html">Stock Screen</a>
+                        <a href="screener.html">Fundamentals</a><a href="markets.html">Markets</a>
+                        <a href="sectors.html" class="active">Sectors</a><a href="stocks.html">AI Picks</a>
+                        <a href="predictions.html">AI Predictions</a><a href="money-flow.html">Money Flow</a>
+                        <a href="watchlist.html">Watchlist</a><a href="portfolio.html">Portfolio</a>
+                        <a href="dividends.html">Dividends</a><a href="options.html">Options</a>
+                        <a href="backtest.html">Backtest</a><a href="correlations.html">Correlations</a>
+                        <a href="news-timeline.html">News</a>
+                        <a href="calendar.html">Calendar</a>
+                        <a href="commodities.html">Commodities</a>
+                        <a href="optimizer.html">Optimizer</a>
+                        <a href="correlation-matrix.html">Corr Matrix</a>
+                        <a href="volatility.html">Volatility</a>
+                    </nav>
+                    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">🌙</button>
+                </div>
+            </header>
+
+            <div style="margin: 16px 0 10px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                <div>
+                    <h1>📊 Sector Analysis</h1>
+                    <p class="hero-subtitle">Macro market insights across all S&P 500 sectors</p>
+                </div>
+                <a href="compare-sectors.html" class="btn-secondary" style="padding: 9px 18px; border-radius: 999px; font-size: 0.82rem; font-weight: 700; text-decoration: none; border: 1.5px solid #dbe2ea; color: #334155;">⚖️ Compare Sectors</a>
+            </div>
+
+            <!-- Macro Stats Row -->
+            <div class="sector-macro-header" id="macro-stats">
+                <div class="macro-stat-card">
+                    <div class="macro-stat-label">Broad Market (SPY)</div>
+                    <div class="macro-stat-value" id="macro-spy">—</div>
+                    <div class="macro-stat-sub" id="macro-spy-change">Loading…</div>
+                </div>
+                <div class="macro-stat-card">
+                    <div class="macro-stat-label">Avg Sector Momentum</div>
+                    <div class="macro-stat-value" id="macro-avg-mom">—</div>
+                    <div class="macro-stat-sub">1-month avg change</div>
+                </div>
+                <div class="macro-stat-card">
+                    <div class="macro-stat-label">Leadership Trend</div>
+                    <div class="macro-stat-value" id="macro-lead">—</div>
+                    <div class="macro-stat-sub" id="macro-lead-sub">Top vs bottom spread</div>
+                </div>
+                <div class="macro-stat-card">
+                    <div class="macro-stat-label">Risk Appetite</div>
+                    <div class="macro-stat-value" id="macro-risk">—</div>
+                    <div class="macro-stat-sub" id="macro-risk-sub">Growth vs defensive spread</div>
+                </div>
+                <div class="macro-stat-card">
+                    <div class="macro-stat-label">Market Breadth</div>
+                    <div class="macro-stat-value" id="macro-breadth">—</div>
+                    <div class="macro-stat-sub">Sectors above 20 SMA</div>
+                </div>
+            </div>
+
+            <!-- Sector Rotation Rankings -->
+            <div class="sector-section-title">🏆 Sector Rotation — 1 Month Performance</div>
+            <div class="rotation-rankings" id="rotation-rankings">
+                <div class="loading-state"><div class="spinner"></div>Loading rankings…</div>
+            </div>
+
+            <!-- Sector Heatmap -->
+            <div class="sector-section-title">🔥 Performance Heatmap — 1 Month</div>
+            <div id="heatmap-container" style="background: white; border-radius: 14px; padding: 20px; border: 1px solid #e5e7eb; overflow-x: auto;">
+                <div class="heatmap-grid" id="heatmap-grid" style="grid-template-columns: repeat(11, minmax(80px, 1fr));">
+                    <div class="loading-state"><div class="spinner"></div>Loading heatmap…</div>
+                </div>
+            </div>
+
+            <!-- Sector Detail Panel -->
+            <div class="sector-detail-panel" id="sector-detail">
+                <div class="sector-detail-header">
+                    <div>
+                        <h2 id="detail-sector-name">—</h2>
+                        <p id="detail-sector-desc" style="color: #64748b; font-size: 0.85rem; margin: 4px 0 0;">—</p>
+                    </div>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <span id="detail-sector-price" style="font-size:1.4rem; font-weight:900;">—</span>
+                        <button class="sector-detail-close" onclick="closeSectorDetail()">✕ Close</button>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;">
+                    <div style="background:#f8fafc; border-radius:10px; padding:14px;">
+                        <div style="font-size:0.72rem; color:#94a3b8; font-weight:700; text-transform:uppercase;">1-Week</div>
+                        <div style="font-size:1.2rem; font-weight:900; margin-top:4px;" id="detail-1w">—</div>
+                    </div>
+                    <div style="background:#f8fafc; border-radius:10px; padding:14px;">
+                        <div style="font-size:0.72rem; color:#94a3b8; font-weight:700; text-transform:uppercase;">1-Month</div>
+                        <div style="font-size:1.2rem; font-weight:900; margin-top:4px;" id="detail-1m">—</div>
+                    </div>
+                    <div style="background:#f8fafc; border-radius:10px; padding:14px;">
+                        <div style="font-size:0.72rem; color:#94a3b8; font-weight:700; text-transform:uppercase;">3-Month</div>
+                        <div style="font-size:1.2rem; font-weight:900; margin-top:4px;" id="detail-3m">—</div>
+                    </div>
+                    <div style="background:#f8fafc; border-radius:10px; padding:14px;">
+                        <div style="font-size:0.72rem; color:#94a3b8; font-weight:700; text-transform:uppercase;">YTD</div>
+                        <div style="font-size:1.2rem; font-weight:900; margin-top:4px;" id="detail-ytd">—</div>
+                    </div>
+                </div>
+                <div id="detail-chart" style="height:200px; background:#f8fafc; border-radius:10px; margin-bottom:16px; display:flex; align-items:flex-end; padding:12px; gap:3px;"></div>
+                <h3 style="font-size:0.9rem; font-weight:700; color:#374151; margin:16px 0 10px;">Top Holdings</h3>
+                <div class="sector-holdings-grid" id="detail-holdings"></div>
+            </div>
+        </div>
+
+        <script src="sectors.js?v=5"></script>
+    </body>
+</html>

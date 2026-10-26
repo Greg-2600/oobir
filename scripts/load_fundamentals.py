@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import psycopg2
@@ -90,14 +90,14 @@ def _parse_timestamp(info: dict) -> datetime:
     raw = info.get("_fetched_at")
     if raw:
         return datetime.fromisoformat(raw)
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _convert_epoch(val):
     """Convert epoch seconds to datetime if applicable (e.g. exDividendDate)."""
     if isinstance(val, (int, float)) and val > 0:
         try:
-            return datetime.fromtimestamp(val, tz=timezone.utc)
+            return datetime.fromtimestamp(val, tz=UTC)
         except (OSError, OverflowError, ValueError):
             return None
     return None

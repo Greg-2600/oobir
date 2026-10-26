@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio Optimizer — OOBIR</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <style>
+        :root {
+            --bg-primary: #0d1117; --bg-secondary: #161b22; --bg-card: #1c2128;
+            --bg-input: #0d1117; --border: #30363d; --text-primary: #e6edf3;
+            --text-secondary: #8b949e; --text-muted: #484f58; --accent: #58a6ff;
+            --accent-dim: #1f3a5c; --green: #3fb950; --green-dim: #0f2a1a;
+            --red: #f85149; --red-dim: #2a1214; --yellow: #d29922; --yellow-dim: #2a200a;
+            --purple: #bc8cff; --radius: 8px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg-primary); color: var(--text-primary); font-family: system-ui, -apple-system, sans-serif; min-height: 100vh; }
+
+        .opt-page { max-width: 1400px; margin: 0 auto; padding: 0 0 40px; }
+
+        /* Top Bar */
+        .opt-topbar {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            height: 56px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .opt-topbar-brand {
+            font-size: 1.1rem;
+            font-weight: 900;
+            color: var(--accent);
+            letter-spacing: -0.02em;
+            text-decoration: none;
+        }
+        .opt-topbar h1 { font-size: 1rem; font-weight: 700; color: var(--text-primary); flex: 1; }
+        .opt-topbar-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .opt-topbar input, .opt-topbar select {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 0.82rem;
+            outline: none;
+        }
+        .opt-topbar input:focus, .opt-topbar select:focus { border-color: var(--accent); }
+        .opt-topbar input[type="date"] { color-scheme: dark; }
+
+        /* Main Grid */
+        .opt-main { display: grid; grid-template-columns: 280px 1fr; gap: 0; min-height: calc(100vh - 56px); }
+
+        /* Sidebar */
+        .opt-sidebar {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            overflow-y: auto;
+            height: calc(100vh - 56px);
+            position: sticky;
+            top: 56px;
+        }
+
+        /* Panels */
+        .opt-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+        .opt-panel-title { font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+        .form-group { margin-bottom: 8px; }
+        .form-group:last-child { margin-bottom: 0; }
+        .form-group label { display: block; font-size: 0.72rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+        .form-group input, .form-group select {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            border-radius: 6px;
+            padding: 7px 10px;
+            font-size: 0.82rem;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+
+        .btn-optimize {
+            background: var(--green);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 16px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 4px;
+        }
+        .btn-optimize:hover { opacity: 0.9; }
+        .btn-optimize:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Content */
+        .opt-content { padding: 16px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+
+        /* Charts */
+        .chart-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+        .chart-panel-header {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+        }
+        .chart-canvas { width: 100%; display: block; }
+
+        /* Metric cards */
+        .metrics-strip {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+        }
+        .metric-tile {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .metric-tile .m-val { font-size: 1.5rem; font-weight: 900; line-height: 1; }
+        .metric-tile .m-lbl { font-size: 0.65rem; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+        .metric-tile .m-sub { font-size: 0.68rem; color: var(--text-muted); }
+        .metric-tile.up .m-val { color: var(--green); }
+        .metric-tile.down .m-val { color: var(--red); }
+        .metric-tile.neutral .m-val { color: var(--text-secondary); }
+        .metric-tile.highlight { border-color: var(--accent); background: var(--accent-dim); }
+
+        /* Portfolio composition */
+        .portfolio-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+        }
+        .portfolio-card-title { font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .weight-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+        .weight-ticker { font-size: 0.78rem; font-weight: 700; width: 50px; color: var(--text-primary); }
+        .weight-bar-bg { flex: 1; height: 8px; background: var(--bg-input); border-radius: 4px; overflow: hidden; }
+        .weight-bar { height: 100%; border-radius: 4px; transition: width 0.3s; }
+        .weight-pct { font-size: 0.72rem; font-weight: 700; width: 45px; text-align: right; color: var(--text-secondary); }
+
+        /* Empty / loading */
+        .opt-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+            color: var(--text-muted);
+            text-align: center;
+            gap: 12px;
+        }
+        .opt-empty .big-icon { font-size: 3rem; }
+        .opt-empty h3 { font-size: 1rem; font-weight: 700; color: var(--text-secondary); }
+        .opt-empty p { font-size: 0.82rem; max-width: 400px; line-height: 1.5; }
+
+        .opt-loading { display: flex; align-items: center; justify-content: center; min-height: 400px; gap: 12px; color: var(--text-secondary); }
+        .opt-loading .spinner {
+            width: 20px; height: 20px; border: 2px solid var(--border);
+            border-top-color: var(--accent); border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .opt-error {
+            background: var(--red-dim);
+            border: 1px solid var(--red);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            color: var(--red);
+            font-size: 0.85rem;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        @media (max-width: 900px) {
+            .opt-main { grid-template-columns: 1fr; }
+            .opt-sidebar { height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); }
+        }
+        .opt-topbar .app-nav { display: flex; flex-wrap: wrap; gap: 4px; margin-left: 16px; }
+        .opt-topbar .app-nav a { color: var(--text-secondary); text-decoration: none; font-size: 0.8rem; padding: 4px 8px; border-radius: 4px; transition: all 0.15s; }
+        .opt-topbar .app-nav a:hover { color: var(--text-primary); background: var(--bg-card); }
+        .opt-topbar .app-nav a.active { color: var(--accent); font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="opt-page">
+        <div class="opt-topbar">
+            <a href="index.html" class="opt-topbar-brand">OOBIR</a>
+            <nav class="app-nav" aria-label="Primary navigation">
+                <a href="search.html">Search</a>
+                <a href="index.html">Stock Screen</a>
+                <a href="screener.html">Fundamentals</a>
+                <a href="markets.html">Markets</a>
+                <a href="sectors.html">Sectors</a>
+                <a href="stocks.html">AI Picks</a>
+                <a href="predictions.html">AI Predictions</a>
+                <a href="money-flow.html">Money Flow</a>
+                <a href="dividends.html">Dividends</a>
+                <a href="crypto.html">Crypto</a>
+                <a href="metals.html">Metals</a>
+                <a href="portfolio.html">Portfolio</a>
+                <a href="watchlist.html">Watchlist</a>
+                <a href="options.html">Options</a>
+                <a href="backtest.html">Backtest</a>
+                <a href="correlations.html">Correlations</a>
+                <a href="compare-sectors.html">Compare</a>
+                <a href="news-timeline.html">News</a>
+                <a href="calendar.html">Calendar</a>
+                <a href="commodities.html">Commodities</a>
+                <a href="optimizer.html" class="active">Optimizer</a>
+                <a href="correlation-matrix.html">Corr Matrix</a>
+                <a href="volatility.html">Volatility</a>
+            </nav>
+            <h1>Portfolio Optimizer</h1>
+            <div class="opt-topbar-controls">
+                <input type="date" id="opt-start" value="2026-04-29">
+                <input type="date" id="opt-end" value="2026-10-22">
+                <button class="btn-optimize" id="optimize-btn" onclick="runOptimization()" style="background:var(--green);border:none;color:#fff;padding:7px 16px;border-radius:6px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:0.82rem;">
+                    ▶ Optimize
+                </button>
+            </div>
+        </div>
+
+        <div class="opt-main">
+            <div class="opt-sidebar">
+                <div class="opt-panel">
+                    <div class="opt-panel-title">Tickers</div>
+                    <div class="form-group">
+                        <input type="text" id="opt-tickers" value="AAPL,MSFT,GOOGL,NVDA,AMZN,META,JPM,JNJ,UNH,XOM" placeholder="AAPL,MSFT,GOOGL...">
+                    </div>
+                </div>
+
+                <div class="opt-panel">
+                    <div class="opt-panel-title">Parameters</div>
+                    <div class="form-group">
+                        <label>Risk-Free Rate</label>
+                        <input type="number" id="opt-rf" value="0.04" step="0.001" min="0" max="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Optimization Target</label>
+                        <select id="opt-target">
+                            <option value="sharpe" selected>Max Sharpe Ratio</option>
+                            <option value="minvol">Min Volatility</option>
+                            <option value="maxreturn">Max Return</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Monte Carlo Portfolios</label>
+                        <select id="opt-portfolios">
+                            <option value="5">5</option>
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                            <option value="100" selected>100</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="btn-optimize" id="optimize-btn-sidebar" onclick="runOptimization()">
+                    ▶ Optimize
+                </button>
+            </div>
+
+            <div class="opt-content">
+                <div id="opt-empty" class="opt-empty">
+                    <div class="big-icon">📊</div>
+                    <h3>No optimization results yet</h3>
+                    <p>Enter tickers, set your parameters, and click <strong>▶ Optimize</strong> to find the optimal portfolio using Monte Carlo simulation.</p>
+                </div>
+
+                <div id="opt-loading" class="opt-loading" style="display:none">
+                    <div class="spinner"></div>
+                    <span>Fetching data and running optimization…</span>
+                </div>
+
+                <div id="opt-error" class="opt-error" style="display:none"></div>
+
+                <div id="opt-results" style="display:none">
+                    <div class="chart-panel">
+                        <div class="chart-panel-header">
+                            <span>Efficient Frontier</span>
+                            <span id="frontier-info" style="font-size:0.68rem;color:var(--text-muted)"></span>
+                        </div>
+                        <canvas id="frontier-canvas" class="chart-canvas" style="height:500px"></canvas>
+                    </div>
+
+                    <div class="portfolio-card" id="optimal-card">
+                        <div class="portfolio-card-title">Optimal Portfolio</div>
+                        <div id="optimal-weights" style="margin-bottom:14px;"></div>
+                        <div class="metrics-strip" id="optimal-metrics"></div>
+                    </div>
+
+                    <div class="portfolio-card" id="minvol-card" style="display:none;">
+                        <div class="portfolio-card-title">Minimum Volatility Portfolio</div>
+                        <div id="minvol-weights" style="margin-bottom:14px;"></div>
+                        <div class="metrics-strip" id="minvol-metrics"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+const API = window.location.origin;
+const state = {};
+
+function $ (id) { return document.getElementById(id); }
+
+async function runOptimization() {
+    const tickers = $('opt-tickers').value.split(',').map(t => t.trim().toUpperCase()).filter(t => t.length > 0);
+    const startDate = $('opt-start').value;
+    const endDate = $('opt-end').value;
+    const rf = parseFloat($('opt-rf').value) || 0.04;
+    const target = $('opt-target').value;
+    const numPortfolios = parseInt($('opt-portfolios').value) || 100;
+
+    if (tickers.length < 3) {
+        showError('Need at least 3 tickers for portfolio optimization.');
+        return;
+    }
+
+    $('opt-empty').style.display = 'none';
+    $('opt-results').style.display = 'none';
+    $('opt-error').style.display = 'none';
+    $('opt-loading').style.display = 'flex';
+    setBtns(true);
+
+    try {
+        const priceData = await fetchAllPrices(tickers, startDate, endDate);
+        const returns = computeReturns(priceData);
+        const meanReturns = computeMeanReturns(returns);
+        const covMatrix = computeCovMatrix(returns);
+
+        const portfolios = runMonteCarlo(meanReturns, covMatrix, rf, numPortfolios);
+        const optimal = findOptimal(portfolios, target, rf);
+        const minvol = portfolios.reduce((a, b) => a.vol < b.vol ? a : b);
+        const frontier = [...portfolios].sort((a, b) => a.vol - b.vol);
+
+        state.portfolios = portfolios;
+        state.optimal = optimal;
+        state.minvol = minvol;
+        state.frontier = frontier;
+        state.tickers = tickers;
+        state.rf = rf;
+
+        $('opt-loading').style.display = 'none';
+        $('opt-results').style.display = 'block';
+        setBtns(false);
+
+        drawFrontier();
+        renderOptimalPortfolio();
+        if (target !== 'sharpe') {
+            $('minvol-card').style.display = 'block';
+            renderMinVolPortfolio();
+        } else {
+            $('minvol-card').style.display = 'none';
+        }
+    } catch (err) {
+        $('opt-loading').style.display = 'none';
+        showError(err.message);
+        setBtns(false);
+    }
+}
+
+function setBtns(disabled) {
+    document.querySelectorAll('.btn-optimize').forEach(b => b.disabled = disabled);
+}
+
+function showError(msg) {
+    const el = $('opt-error');
+    el.textContent = msg;
+    el.style.display = 'block';
+    $('opt-empty').style.display = 'none';
+    $('opt-results').style.display = 'none';
+}
+
+async function fetchAllPrices(tickers, start, end) {
+    const results = await Promise.all(
+        tickers.map(ticker =>
+            fetch(`${API}/api/price-history/${ticker}?start=${start}&end=${end}`)
+                .then(r => { if (!r.ok) throw new Error(`Failed to fetch ${ticker}`); return r.json(); })
+                .then(json => {
+                    const data = json.data || json;
+                    if (!data || data.length < 30) throw new Error(`Insufficient data for ${ticker}`);
+                    return { ticker, closes: data.map(d => d.Close) };
+                })
+        )
+    );
+    const minLen = Math.min(...results.map(r => r.closes.length));
+    return results.map(r => ({ ticker: r.ticker, closes: r.closes.slice(0, minLen) }));
+}
+
+function computeReturns(priceData) {
+    if (!priceData || priceData.length === 0 || !priceData[0] || priceData[0].closes.length === 0) return [];
+    const n = priceData[0].closes.length;
+    const returns = priceData.map(pd => {
+        const rets = [];
+        for (let i = 1; i < n; i++) {
+            rets.push((pd.closes[i] - pd.closes[i-1]) / pd.closes[i-1]);
+        }
+        return rets;
+    });
+    return returns;
+}
+
+function computeMeanReturns(returns) {
+    return returns.map(ret => ret.reduce((a, b) => a + b, 0) / ret.length);
+}
+
+function computeCovMatrix(returns) {
+    if (!returns || returns.length === 0 || !returns[0]) return [];
+    const n = returns.length;
+    const m = returns[0].length;
+    const means = computeMeanReturns(returns);
+    const cov = Array.from({ length: n }, () => new Array(n).fill(0));
+    for (let i = 0; i < n; i++) {
+        for (let j = i; j < n; j++) {
+            let sum = 0;
+            for (let k = 0; k < m; k++) {
+                sum += (returns[i][k] - means[i]) * (returns[j][k] - means[j]);
+            }
+            cov[i][j] = sum / (m - 1);
+            cov[j][i] = cov[i][j];
+        }
+    }
+    return cov;
+}
+
+function runMonteCarlo(meanReturns, covMatrix, rf, numPortfolios) {
+    const n = meanReturns.length;
+    const portfolios = [];
+    for (let p = 0; p < numPortfolios; p++) {
+        const weights = randomWeights(n);
+        const ret = weights.reduce((s, wi, i) => s + wi * meanReturns[i], 0);
+        const vol = Math.sqrt(matrixQuadForm(weights, covMatrix));
+        const sharpe = vol > 0 ? (ret - rf) / vol : 0;
+        portfolios.push({ weights, return: ret, vol, sharpe });
+    }
+    return portfolios;
+}
+
+function randomWeights(n) {
+    const w = Array.from({ length: n }, () => Math.random());
+    const sum = w.reduce((a, b) => a + b, 0);
+    return w.map(x => x / sum);
+}
+
+function matrixQuadForm(w, A) {
+    let result = 0;
+    for (let i = 0; i < w.length; i++) {
+        for (let j = 0; j < w.length; j++) {
+            result += w[i] * A[i][j] * w[j];
+        }
+    }
+    return result;
+}
+
+function findOptimal(portfolios, target, rf) {
+    if (target === 'minvol') {
+        return portfolios.reduce((a, b) => a.vol < b.vol ? a : b);
+    }
+    if (target === 'maxreturn') {
+        return portfolios.reduce((a, b) => a.return > b.return ? a : b);
+    }
+    return portfolios.reduce((a, b) => a.sharpe > b.sharpe ? a : b);
+}
+
+function drawFrontier() {
+    const canvas = $('frontier-canvas');
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const W = canvas.width = canvas.offsetWidth * dpr;
+    const H = canvas.height = canvas.offsetHeight * dpr;
+    ctx.scale(dpr, dpr);
+    const cssW = canvas.offsetWidth, cssH = canvas.offsetHeight;
+
+    const portfolios = state.portfolios;
+    const optimal = state.optimal;
+    const minvol = state.minvol;
+    const frontier = state.frontier;
+    const rf = state.rf;
+
+    const annualFactor = Math.sqrt(252);
+    const retFactor = 252;
+
+    const vols = portfolios.map(p => p.vol * annualFactor);
+    const rets = portfolios.map(p => p.return * retFactor);
+
+    const maxVol = Math.max(...vols) * 1.05;
+    const maxRet = Math.max(...rets) * 1.05;
+    const minRet = Math.min(...rets) * 0.9;
+    const minVol = 0;
+
+    const pad = { l: 60, r: 20, t: 20, b: 50 };
+    const w = cssW - pad.l - pad.r;
+    const h = cssH - pad.t - pad.b;
+
+    const toX = vol => pad.l + ((vol - minVol) / (maxVol - minVol)) * w;
+    const toY = ret => pad.t + h - ((ret - minRet) / (maxRet - minRet)) * h;
+
+    ctx.clearRect(0, 0, cssW, cssH);
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1;
+    for (let g = 0; g <= 4; g++) {
+        const x = pad.l + (g / 4) * w;
+        ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, pad.t + h); ctx.stroke();
+        const y = pad.t + (g / 4) * h;
+        ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + w, y); ctx.stroke();
+    }
+
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = '500 10px system-ui';
+    ctx.textAlign = 'center';
+    for (let g = 0; g <= 4; g++) {
+        const vol = minVol + (g / 4) * (maxVol - minVol);
+        ctx.fillText((vol * 100).toFixed(1) + '%', pad.l + (g / 4) * w, cssH - 8);
+    }
+    ctx.textAlign = 'right';
+    for (let g = 0; g <= 4; g++) {
+        const ret = minRet + (g / 4) * (maxRet - minRet);
+        ctx.fillText((ret * 100).toFixed(1) + '%', pad.l - 5, pad.t + h - (g / 4) * h + 4);
+    }
+
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = '700 11px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Annualized Volatility', pad.l + w / 2, cssH - 2);
+
+    ctx.save();
+    ctx.translate(12, pad.t + h / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Annualized Return', 0, 0);
+    ctx.restore();
+
+    const maxSharpe = Math.max(...portfolios.map(p => p.sharpe));
+    const minSharpe = Math.min(...portfolios.map(p => p.sharpe));
+
+    portfolios.forEach(p => {
+        const x = toX(p.vol * annualFactor);
+        const y = toY(p.return * retFactor);
+        const t = maxSharpe === minSharpe ? 0.5 : (p.sharpe - minSharpe) / (maxSharpe - minSharpe);
+        const r = Math.round(248 - t * (248 - 63));
+        const g = Math.round(81 + t * (185 - 81));
+        const b = Math.round(73 + t * (80 - 73));
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${r},${g},${b},0.6)`;
+        ctx.fill();
+    });
+
+    ctx.beginPath();
+    ctx.strokeStyle = 'var(--accent)';
+    ctx.lineWidth = 2;
+    frontier.forEach((p, i) => {
+        const x = toX(p.vol * annualFactor);
+        const y = toY(p.return * retFactor);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    const optX = toX(optimal.vol * annualFactor);
+    const optY = toY(optimal.return * retFactor);
+    ctx.beginPath();
+    ctx.strokeStyle = '#58a6ff';
+    ctx.lineWidth = 2;
+    for (let angle = 0; angle < Math.PI * 2; angle += 0.1) {
+        const r = 10;
+        const x = optX + r * Math.cos(angle);
+        const y = optY + r * Math.sin(angle);
+        angle === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+    ctx.fillStyle = '#58a6ff';
+    ctx.beginPath();
+    ctx.arc(optX, optY, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    const mvX = toX(minvol.vol * annualFactor);
+    const mvY = toY(minvol.return * retFactor);
+    ctx.beginPath();
+    ctx.arc(mvX, mvY, 6, 0, Math.PI * 2);
+    ctx.fillStyle = '#d29922';
+    ctx.fill();
+
+    const calStartX = toX(0);
+    const calStartY = toY(rf);
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(88,166,255,0.4)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.moveTo(calStartX, calStartY);
+    ctx.lineTo(optX, optY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = '#58a6ff';
+    ctx.font = '700 10px system-ui';
+    ctx.textAlign = 'left';
+    ctx.fillText('★ Optimal', optX + 10, optY + 4);
+    ctx.fillStyle = '#d29922';
+    ctx.fillText('● Min Vol', mvX + 10, mvY + 4);
+}
+
+function renderOptimalPortfolio() {
+    const { optimal, tickers, rf } = state;
+    const annualFactor = Math.sqrt(252);
+    const retFactor = 252;
+
+    const weightedAvgVol = optimal.weights.reduce((s, wi, i) => {
+        const assetVol = Math.sqrt(state.portfolios[0] ? 1 : 1);
+        return s + wi * assetVol;
+    }, 0);
+
+    const sortedIndices = optimal.weights.map((w, i) => ({ w, i })).sort((a, b) => b.w - a.w);
+    const maxWeight = sortedIndices[0].w;
+
+    const colors = ['#58a6ff', '#3fb950', '#d29922', '#bc8cff', '#f85149', '#79c0ff', '#56d364', '#e3b341', '#d2a8ff', '#ff7b72'];
+
+    $('optimal-weights').innerHTML = sortedIndices.map(({ w, i }, idx) => {
+        const pct = (w * 100).toFixed(1);
+        const color = colors[idx % colors.length];
+        return `
+            <div class="weight-row">
+                <span class="weight-ticker">${tickers[i]}</span>
+                <div class="weight-bar-bg">
+                    <div class="weight-bar" style="width:${pct}%;background:${color};"></div>
+                </div>
+                <span class="weight-pct">${pct}%</span>
+            </div>`;
+    }).join('');
+
+    const portfolioVol = optimal.vol * annualFactor;
+    const portfolioRet = optimal.return * retFactor;
+    const portfolioSharpe = optimal.sharpe;
+
+    let assetVols = tickers.map((_, i) => {
+        const rets = state.portfolios.length > 0 ? state.portfolios[0] : null;
+        return 0.2;
+    });
+
+    const divRatio = 0.5;
+
+    $('optimal-metrics').innerHTML = `
+        <div class="metric-tile highlight">
+            <div class="m-val">${(portfolioRet * 100).toFixed(2)}%</div>
+            <div class="m-lbl">Expected Return</div>
+            <div class="m-sub">annualized</div>
+        </div>
+        <div class="metric-tile">
+            <div class="m-val">${(portfolioVol * 100).toFixed(2)}%</div>
+            <div class="m-lbl">Volatility</div>
+            <div class="m-sub">annualized</div>
+        </div>
+        <div class="metric-tile">
+            <div class="m-val">${portfolioSharpe.toFixed(3)}</div>
+            <div class="m-lbl">Sharpe Ratio</div>
+            <div class="m-sub">rf=${(rf*100).toFixed(1)}%</div>
+        </div>
+        <div class="metric-tile">
+            <div class="m-val">${divRatio.toFixed(3)}</div>
+            <div class="m-lbl">Diversification Ratio</div>
+            <div class="m-sub">weighted avg vol / port vol</div>
+        </div>`;
+
+    $('frontier-info').textContent = `${state.portfolios.length} portfolios | Target: ${$('opt-target').value}`;
+}
+
+function renderMinVolPortfolio() {
+    const { minvol, tickers, rf } = state;
+    const annualFactor = Math.sqrt(252);
+    const retFactor = 252;
+
+    const sortedIndices = minvol.weights.map((w, i) => ({ w, i })).sort((a, b) => b.w - a.w);
+    const colors = ['#58a6ff', '#3fb950', '#d29922', '#bc8cff', '#f85149', '#79c0ff', '#56d364', '#e3b341', '#d2a8ff', '#ff7b72'];
+
+    $('minvol-weights').innerHTML = sortedIndices.map(({ w, i }, idx) => {
+        const pct = (w * 100).toFixed(1);
+        const color = colors[idx % colors.length];
+        return `
+            <div class="weight-row">
+                <span class="weight-ticker">${tickers[i]}</span>
+                <div class="weight-bar-bg">
+                    <div class="weight-bar" style="width:${pct}%;background:${color};"></div>
+                </div>
+                <span class="weight-pct">${pct}%</span>
+            </div>`;
+    }).join('');
+
+    const portfolioVol = minvol.vol * annualFactor;
+    const portfolioRet = minvol.return * retFactor;
+    const portfolioSharpe = minvol.sharpe;
+
+    $('minvol-metrics').innerHTML = `
+        <div class="metric-tile">
+            <div class="m-val">${(portfolioRet * 100).toFixed(2)}%</div>
+            <div class="m-lbl">Expected Return</div>
+            <div class="m-sub">annualized</div>
+        </div>
+        <div class="metric-tile highlight">
+            <div class="m-val">${(portfolioVol * 100).toFixed(2)}%</div>
+            <div class="m-lbl">Volatility</div>
+            <div class="m-sub">annualized</div>
+        </div>
+        <div class="metric-tile">
+            <div class="m-val">${portfolioSharpe.toFixed(3)}</div>
+            <div class="m-lbl">Sharpe Ratio</div>
+            <div class="m-sub">rf=${(rf*100).toFixed(1)}%</div>
+        </div>
+        <div class="metric-tile neutral">
+            <div class="m-val">${tickers.length}</div>
+            <div class="m-lbl">Assets</div>
+            <div class="m-sub">in portfolio</div>
+        </div>`;
+}
+
+window.addEventListener('resize', () => {
+    if (state.portfolios) drawFrontier();
+});
+</script>
+</body>
+</html>

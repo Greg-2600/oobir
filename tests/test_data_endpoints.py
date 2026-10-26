@@ -1,10 +1,11 @@
 """Unit tests for data endpoints."""
 
-import unittest
-from unittest.mock import patch, MagicMock
-from fastapi.testclient import TestClient
-import sys
 import os
+import sys
+import unittest
+from unittest.mock import MagicMock, patch
+
+from fastapi.testclient import TestClient
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -199,6 +200,144 @@ class TestDataEndpoints(unittest.TestCase):
         data = response.json()
         self.assertIsInstance(data, list)
         mock_set_cache.assert_called_once()
+
+    @patch("db.get_cached_data", return_value=None)
+    @patch("db.set_cached_data")
+    @patch("flow.get_recommendations")
+    def test_recommendations_endpoint(
+        self, mock_get_recommendations, mock_set_cache, mock_get_cache
+    ):
+        """Test analyst recommendations endpoint."""
+        mock_get_recommendations.return_value = {
+            "period": ["0m", "-1m"],
+            "strongBuy": [6, 6],
+            "buy": [18, 19],
+            "hold": [14, 13],
+            "sell": [3, 3],
+            "strongSell": [3, 2],
+        }
+
+        response = self.client.get("/api/recommendations/AAPL")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("period", data)
+        self.assertIn("strongBuy", data)
+        mock_set_cache.assert_called_once()
+
+    @patch("db.get_cached_data", return_value=None)
+    @patch("db.set_cached_data")
+    @patch("flow.get_recommendations")
+    def test_recommendations_not_found(
+        self, mock_get_recommendations, mock_set_cache, mock_get_cache
+    ):
+        """Test recommendations returns 404 when no data."""
+        mock_get_recommendations.return_value = None
+
+        response = self.client.get("/api/recommendations/INVALID")
+
+        self.assertEqual(response.status_code, 404)
+
+    @patch("db.get_cached_data", return_value=None)
+    @patch("db.set_cached_data")
+    @patch("flow.get_institutional_holders")
+    def test_institutional_holders_endpoint(
+        self, mock_get_inst_holders, mock_set_cache, mock_get_cache
+    ):
+        """Test institutional holders endpoint."""
+        mock_get_inst_holders.return_value = {
+            "Holder": ["Blackrock Inc.", "Vanguard"],
+            "pctHeld": [0.0797, 0.0657],
+            "Shares": [1162996939, 959107911],
+        }
+
+        response = self.client.get("/api/institutional-holders/AAPL")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("Holder", data)
+        mock_set_cache.assert_called_once()
+
+    @patch("db.get_cached_data", return_value=None)
+    @patch("db.set_cached_data")
+    @patch("flow.get_institutional_holders")
+    def test_institutional_holders_not_found(
+        self, mock_get_inst_holders, mock_set_cache, mock_get_cache
+    ):
+        """Test institutional holders returns 404 when no data."""
+        mock_get_inst_holders.return_value = None
+
+        response = self.client.get("/api/institutional-holders/INVALID")
+
+        self.assertEqual(response.status_code, 404)
+
+    @patch("db.get_cached_data", return_value=None)
+    @patch("db.set_cached_data")
+    @patch("flow.get_insider_transactions")
+    def test_insider_transactions_endpoint(
+        self, mock_get_insider, mock_set_cache, mock_get_cache
+    ):
+        """Test insider transactions endpoint."""
+        mock_get_insider.return_value = {
+            "Insider": ["NEWSTEAD JENNIFER"],
+            "Shares": [2399],
+            "Value": [814748.0],
+            "Transaction": ["Sale"],
+        }
+
+        response = self.client.get("/api/insider-transactions/AAPL")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("Insider", data)
+        mock_set_cache.assert_called_once()
+
+    @patch("db.get_cached_data", return_value=None)
+    @patch("db.set_cached_data")
+    @patch("flow.get_insider_transactions")
+    def test_insider_transactions_not_found(
+        self, mock_get_insider, mock_set_cache, mock_get_cache
+    ):
+        """Test insider transactions returns 404 when no data."""
+        mock_get_insider.return_value = None
+
+        response = self.client.get("/api/insider-transactions/INVALID")
+
+        self.assertEqual(response.status_code, 404)
+
+    @patch("db.get_cached_data", return_value=None)
+    @patch("db.set_cached_data")
+    @patch("flow.get_analyst_upgrades_downgrades")
+    def test_analyst_upgrades_endpoint(
+        self, mock_get_upgrades, mock_set_cache, mock_get_cache
+    ):
+        """Test analyst upgrades/downgrades endpoint."""
+        mock_get_upgrades.return_value = {
+            "Firm": ["MoffettNathanson", "Loop Capital"],
+            "ToGrade": ["Neutral", "Hold"],
+            "FromGrade": ["Neutral", "Buy"],
+            "Action": ["main", "down"],
+        }
+
+        response = self.client.get("/api/analyst-upgrades/AAPL")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("Firm", data)
+        mock_set_cache.assert_called_once()
+
+    @patch("db.get_cached_data", return_value=None)
+    @patch("db.set_cached_data")
+    @patch("flow.get_analyst_upgrades_downgrades")
+    def test_analyst_upgrades_not_found(
+        self, mock_get_upgrades, mock_set_cache, mock_get_cache
+    ):
+        """Test analyst upgrades returns 404 when no data."""
+        mock_get_upgrades.return_value = None
+
+        response = self.client.get("/api/analyst-upgrades/INVALID")
+
+        self.assertEqual(response.status_code, 404)
 
     @patch("db.get_cached_data", return_value=None)
     @patch("db.set_cached_data")

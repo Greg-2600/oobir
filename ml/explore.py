@@ -8,7 +8,7 @@ Everything is pure scikit-learn/numpy -- no LLM calls.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pandas as pd
 
@@ -173,5 +173,5 @@ def explore(price_payload, knobs: dict | None = None) -> dict:
         "features": model.Predictor.feature_importance(predictor, top_n=8),
         "backtest": metrics,
         "knobs": knobs,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
     }

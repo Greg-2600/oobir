@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import yfinance as yf
@@ -22,7 +22,7 @@ def fetch_fundamentals(ticker: str) -> dict:
     info = yf_obj.info
     if not info or info.get("regularMarketPrice") is None:
         raise ValueError(f"No fundamental data returned for '{ticker}'")
-    info["_fetched_at"] = datetime.now(timezone.utc).isoformat()
+    info["_fetched_at"] = datetime.now(UTC).isoformat()
     return info
 
 

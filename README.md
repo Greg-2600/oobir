@@ -5,7 +5,7 @@
 ![Docker](https://img.shields.io/badge/Cloud_Native-Docker-blue?logo=docker)
 ![AI](https://img.shields.io/badge/AI-Ollama_LLM-purple?logo=ai)
 ![HTML5](https://img.shields.io/badge/Web_UI-HTML5_CSS3_JS-orange?logo=html5)
-![Tests](https://img.shields.io/badge/Tests-110_Passing-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-311_Passing-brightgreen)
 ![Status](https://img.shields.io/badge/Status-Production_Ready-success)
 
 > **Enterprise-grade stock analysis combining REST APIs, AI-powered insights, technical & fundamental analysis in a cloud-native architecture**
@@ -15,7 +15,7 @@
 **OOBIR** is a production-ready **REST API-first stock analysis platform** powered by artificial intelligence and built with modern cloud-native architecture. Developed in **Python** with **FastAPI**, containerized with **Docker**, and enhanced by **Ollama LLM**, OOBIR delivers comprehensive stock market intelligence through both **fundamental** and **technical analysis** approaches.
 
 **Key Differentiators:**
-- 🔌 **REST API First**: 30 production-ready endpoints including data, AI analysis, trading strategy, and ML prediction routes with auto-generated OpenAPI docs
+- 🔌 **REST API First**: 44 production-ready endpoints including data, AI analysis, ownership/analyst data, trading strategy, ML prediction, batch export, and screener routes with auto-generated OpenAPI docs
 - 🤖 **AI-Powered**: Local Ollama LLM (Llama 3.2) for privacy-preserving intelligent analysis
 - ☁️ **Cloud-Native**: Docker containerization for deployment anywhere (AWS, Azure, GCP, on-premises)
 - 🐍 **Python-Driven**: Modern Python 3.11+ with type hints, async support, and clean architecture
@@ -43,6 +43,7 @@
 | **Frontend** | HTML5/CSS3/JavaScript | Interactive Web dashboard |
 | **Containers** | Docker & Docker Compose | Cloud-native deployment |
 | **Data Source** | yfinance | Real-time market data |
+| **Time-Series DB** | TimescaleDB | Price history & technical indicator storage |
 
 ### Analysis Capabilities
 
@@ -51,6 +52,15 @@
 - **💼 Trading Strategy**: AI-generated entry/exit targets, stop loss, risk/reward ratios, timeframe recommendations
 - **🤖 AI-Powered Insights**: LLM-generated recommendations, sentiment analysis, pattern recognition
 - **🧠 ML Forecasts**: scikit-learn price-direction model with interactive AI Predictions lab
+- **🔄 Correlation Analysis**: N×N rolling correlation heatmap with hierarchical clustering dendrogram
+- **📉 Volatility Lab**: Implied volatility, IV Rank, IV Percentile, and volatility cone charts
+- **🎲 Monte Carlo Backtesting**: Strategy backtesting with 1K–50K simulation runs and percentile outcomes
+- **🎯 Portfolio Optimization**: Efficient frontier with tangency portfolio (maximum Sharpe ratio)
+- **📅 Earnings Calendar**: Upcoming and historical earnings with EPS surprise data
+- **💰 Dividend Tracking**: Ex-dates, pay dates, yield-on-cost and dividend income projections
+- **💼 Portfolio Tracker**: Holdings with P&L, sector allocation donut chart, and localStorage persistence
+- **⭐ Watchlist**: Sortable multi-ticker watchlist with price/volume/change data and localStorage persistence
+- **🏦 Options Analyzer**: Live option chain with calls/puts, Greeks (delta/gamma/theta/vega), and P&L builder
 - **🌐 REST API**: 30 production-ready endpoints with OpenAPI documentation
 - **☁️ Cloud-Native**: Docker containerization for any cloud (AWS, Azure, GCP) or on-premises
 
@@ -175,10 +185,10 @@ docker compose exec daily-sync python scripts/daily_sync.py --fundamentals-only
 
 - **Dark Mode**: Toggle between light and dark themes with system preference detection and localStorage persistence. Dark theme features slate-blue tones (`bg: rgb(15,23,42)`, header `rgb(30,41,59)`).
 
-- **Custom Favicon**: SVG favicon (`favicon.svg`) with blue rounded rectangle and "oo" monogram, matching the brand across all 10 HTML pages.
+- **Custom Favicon**: SVG favicon (`favicon.svg`) with blue rounded rectangle and "oo" monogram, matching the brand across all HTML pages
 
 ### 2. Comprehensive REST API
-- **30 production endpoints** spanning data, AI analysis, trading strategy, ML prediction, caching, and health checks
+- **44 production endpoints** spanning data, ownership/analyst data, AI analysis, trading strategy, ML prediction, batch export, screener, caching, and health checks
 - **Auto-generated documentation** with Swagger UI
 - **CORS enabled** for web applications
 - **Health monitoring** for app and AI services
@@ -250,6 +260,84 @@ docker compose exec daily-sync python scripts/daily_sync.py --fundamentals-only
 
 All strategies are displayed in the Web UI with color-coded cards (green for LONG, red for SHORT, gray for WAIT) and include supporting technical signals for validation.
 
+### 9. Advanced Analysis Pages
+
+Nine dedicated single-page tools for deep-dive market analysis, all accessible from the main nav on every page:
+
+#### 📊 Correlation Matrix (`correlation-matrix.html`)
+- **N×N rolling correlation heatmap** for up to 40 tickers with configurable window (5–200 days)
+- **Hierarchical clustering dendrogram** auto-reorders rows/columns by similarity
+- **Color scale** from red (negative) through white (zero) to blue (positive)
+- **Live fetch** of any ticker from the API — no pre-loaded universe required
+- **NaN guards** and missing-data handling for incomplete datasets
+
+#### 📉 Volatility Dashboard (`volatility.html`)
+- **Implied Volatility (IV)** chart over rolling 6-month windows
+- **IV Rank** — current IV vs. the 1-year range (0–100%)
+- **IV Percentile** — percentage of days in the past year below current IV
+- **Volatility Cone** — overlay of IV term structure (30/60/90 day) vs. historical realized vol
+- **Historical Volatility** (realized) with std deviation and percentile
+- **Stock vs. Market** comparison using SPY as the market proxy
+
+#### 🔄 Backtester (`backtest.html`)
+- **Monte Carlo simulation** (1,000–50,000 runs) with configurable initial capital ($1K–$10M)
+- **Entry/Exit strategies**: SMA crossover, buy-and-hold, and custom price targets
+- **Position sizing**: Fixed amount or fixed % of portfolio
+- **Results**: Portfolio balance distribution, percentile outcomes, max drawdown, Sharpe-like ratio
+- **NaN guard** preventing crashes when no trades occur (e.g., SMA crossover produces no signals)
+
+#### 🎯 Portfolio Optimizer (`optimizer.html`)
+- **Efficient Frontier** computation across 10–100 portfolios with risk-free rate
+- **Tangency portfolio** highlighted — maximum Sharpe ratio
+- **Risk/Return scatter** with color-coded portfolios (green = efficient, red = dominated)
+- **Asset inputs**: Add tickers with allocation %, expected return, and volatility
+- **Null-safe**: Handles empty or zero-variance inputs gracefully
+
+#### 📰 News Sentiment Timeline (`news-timeline.html`)
+- **Price vs. sentiment overlay chart** — normalized price line with bullish/bearish article bars grouped by week
+- **Mock news fallback** when yfinance returns no articles (ensures page always renders)
+- **Sentiment-colored article cards** — green (bullish >0.2), red (bearish <-0.2), gray (neutral)
+- **Source attribution** and date display on each article
+
+#### 📅 Earnings & Dividend Calendar (`calendar.html`)
+- **Upcoming earnings** with confirmed/expected badges, EPS estimates, and time-of-day (BM/AM/PM)
+- **Historical earnings** surprise data (actual vs. estimated)
+- **Dividend dates**: Ex-date, pay date, amount, yield — with a dividend calendar heatmap
+- **Market indices**: Broad market events (FOMC, CPI, NFP) as informational chips
+
+#### 💼 Portfolio Tracker (`portfolio.html`)
+- **Holdings table**: Ticker, shares, cost basis, current price, total value, unrealized P&L ($ and %)
+- **Sector allocation donut chart** with labeled percentages
+- **Individual ticker cards** with 7-day mini-chart, P&L, and yield
+- **"Add ticker" form** to append new positions to the holdings list
+- **State persisted** in localStorage — survives page refreshes
+
+#### ⭐ Watchlist (`watchlist.html`)
+- **Sortable watchlist table**: Ticker, price, 1D/1W/1M change, volume, market cap, P/E
+- **Color-coded change cells**: Green for up, red for down
+- **"Add ticker" chip** to append new tickers without navigating away
+- **localStorage persistence** — watchlist survives browser restarts
+
+#### 🏦 Options Analyzer (`options.html`)
+- **Option chain table** for a given ticker at a given expiration
+- **Calls and puts** split into In-The-Money and Out-of-The-Money sections
+- **Columns**: Strike, Last, Chg, Bid, Ask, Volume, Open Interest, IV, Delta, Gamma, Theta, Vega
+- **Strategy builder**: Leg-by-leg option position entry with combined P&L view
+- **Expiration date picker** — fetch chains for any available expiry
+
+#### 📈 Sector Comparison (`compare-sectors.html`)
+- **Compare up to 6 sectors/industries** across 8 metrics: 1-month return, 1-year return, P/E, Forward P/E, PEG, Div Yield, 52-week beta, 5-year revenue growth
+- **Horizontal bar chart** per metric with best-in-class highlighted in blue
+- **Ranking table** with weighted composite score
+
+### 10. Database Infrastructure
+
+- **TimescaleDB** (PostgreSQL extension) as the primary time-series store for price history and technical indicators
+- **Hypertable partitioning** on `price_history` and `technical_indicators` tables for fast queries on large datasets
+- **Chunk pruning** on date-bounded fetches — ML price history queries avoid scanning expired chunks
+- **Batch fundamentals API** (`POST /api/batch/fundamentals`) for bulk-loading S&P 500+ tickers in a single call
+- **Incremental sync** via `daily-sync` container that runs on weekdays at 6 PM ET
+
 ## 🏗️ Architecture
 
 ### System Architecture
@@ -260,7 +348,7 @@ All strategies are displayed in the Web UI with color-coded cards (green for LON
 │  ┌──────────────┬──────────────┬──────────────────────────┐ │
 │  │  CLI Tool    │   REST API   │   Interactive Web UI     │ │
 │  │  (flow.py)   │ (FastAPI)    │   (HTML5/CSS3/JS)        │ │
-│  │              │ • 30 Endpoints│   • Candlestick Charts  │ │
+│  │              │ • 44 Endpoints│   • Candlestick Charts  │ │
 │  │              │ • OpenAPI Docs│   • Real-time Search    │ │
 │  │              │ • Health Checks│  • ML Model Lab        │ │
 │  └──────────────┴──────────────┴──────────────────────────┘ │
@@ -292,55 +380,29 @@ All strategies are displayed in the Web UI with color-coded cards (green for LON
 ### Container Architecture (Docker)
 
 ```
-┌──────────────────────────────────────────────────────┐
-│                  Docker Host                          │
-│                                                       │
-│  ┌──────────────┐  ┌──────────────┐  ┌────────────┐ │
-│  │   Nginx      │  │  FastAPI     │  │  Ollama    │ │
-│  │   (Web)      │  │  (API)       │  │  (AI)      │ │
-│  │              │  │              │  │            │ │
-│  │ Port: 2009   │  │ Port: 2010   │  │Port: 11434 │ │
-│  │              │  │              │  │            │ │
-│  │ Serves:      │  │ Provides:    │  │ Runs:      │ │
-│  │ • HTML/CSS/JS│  │ • REST API   │  │ • LLM      │ │
-│  │ • Static     │  │ • OpenAPI    │  │ • Local AI │ │
-│  │   Assets     │  │ • Health     │  │ • Inference│ │
-│  └──────────────┘  └──────────────┘  └────────────┘ │
-│         ↓                  ↓                 ↓        │
-│  ┌──────────────────────────────┐                   │
-│  │    SQLite Cache Database     │                   │
-│  │      (cache.db)              │                   │
-│  │                              │                   │
-│  │ Functions:                   │                   │
-│  │ • API result caching         │                   │
-│  │ • Market-aware expiration    │                   │
-│  │ • Performance optimization   │                   │
-│  └──────────────────────────────┘                   │
-│         ↑                  ↑                 ↑        │
-│  ┌──────────────────────────────────────────────┐   │
-│  │        Docker Network (oobir_default)         │   │
-│  └──────────────────────────────────────────────┘   │
-└──────────────────────────────────────────────────────┘
-
-### Caching Infrastructure (PostgreSQL)
-
-OOBIR includes a robust caching layer backed by PostgreSQL to improve performance and reduce external API calls.
-
-- **Cache Store**: `api_cache` table (JSONB payloads)
-- **Expiry**: 24 hours by default
-- **Keying**: `endpoint:symbol` plus additional parameters when present
-- **Initialization**: Schema auto-created at app startup
-- **Connection**: Managed via a pooled connection in `db.py`
-
-Docker Compose provisions a `postgres` service and wires environment variables into the `app` service:
-
-- `POSTGRES_HOST=postgres`
-- `POSTGRES_PORT=5432`
-- `POSTGRES_DB=oobir`
-- `POSTGRES_USER=oobir`
-- `POSTGRES_PASSWORD=oobir_password`
-
-See `docker-compose.yml` for the full setup, including a persistent `postgres_data` volume and healthcheck.
+┌──────────────────────────────────────────────────────────────────┐
+│                        Docker Host                                │
+│                                                                   │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐ │
+│  │   Nginx    │  │  FastAPI   │  │  Ollama    │  │   Timescale│ │
+│  │  (oobir_   │  │  (oobir_   │  │  (oobir_   │  │  (oobir_   │ │
+│  │   web)     │  │   app)     │  │  ollama)   │  │  postgres) │ │
+│  │            │  │            │  │            │  │            │ │
+│  │ Port: 2009 │  │ Port: 2010 │  │ Port:11436 │  │ Port: 5432 │ │
+│  │            │  │            │  │            │  │            │ │
+│  │ Serves:    │  │ Provides:  │  │ Runs:      │  │ Stores:    │ │
+│  │ • Web UI   │  │ • REST API │  │ • LLM      │  │ • Prices   │ │
+│  │ • Static   │  │ • OpenAPI  │  │ • Inference│  │ • Indicators│
+│  └────────────┘  └────────────┘  └────────────┘  └────────────┘ │
+│                       ↓                         ↑                  │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │              SQLite Cache (cache.db in app container)        │ │
+│  │  • API result caching  • Market-aware expiration             │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+│  ┌──────────────────────────────────────────────────────────────┐ │
+│  │             daily-sync (oobir_daily_sync) — weekdays 6 PM ET  │ │
+│  └──────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ### Caching Infrastructure
@@ -522,21 +584,25 @@ Run cache tests: `pytest tests/test_cache_layer.py -v`
 
 OOBIR maintains strict code quality standards with multi-language linting:
 
-- **Ruff** (`flow.py`, `flow_api.py`): Import sorting (I001–I005), f-string consistency (F541), undefined names (F821), useless expressions (B018), implicit Optional types (RUF013). Configured to allow broad-except patterns (BLE001, S112, S110, EXE001) with `# noqa` comments.
-- **Black** (`flow.py`, `flow_api.py`): PEP 8 compliant code formatting
+- **Black** (`flow_api.py`, `db.py`, `db_timescale.py`, `ml/`, `tests/`): PEP 8 compliant formatting — 31 files, 0 reformatting needed
+- **mypy** (`flow_api.py`, `db.py`, `db_timescale.py`, `ml/`): Full type checking with `--ignore-missing-imports` — 0 errors in 13 source files
+- **Bandit** (`flow_api.py`, `db.py`, `db_timescale.py`, `ml/`): Security analysis — 0 High, 0 Medium, 0 Low issues (2 intentional `# nosec` suppressions)
+- **pylint** (`flow_api.py`, `db.py`, `db_timescale.py`): 10.00/10 score, 0 errors
 - **ESLint** (`web/*.js`): 0 errors, 0 warnings — consistent JS across all web pages
-- **Pytest** (`tests/test_ui_static_files.py`): 32 static file contract tests including new `TestModelLabContracts` (6 tests) validating ML UI elements
+- **Pytest** (`tests/`): 311 tests passing (ignore=tests/ui), 76% code coverage
 
 ```bash
 # Run all linters
-ruff check flow.py flow_api.py
-black --check flow.py flow_api.py
+black --check flow_api.py db.py db_timescale.py ml/ tests/
+mypy flow_api.py db.py db_timescale.py ml/ --ignore-missing-imports
+bandit -r flow_api.py db.py db_timescale.py ml/
+pylint flow_api.py db.py db_timescale.py --disable=all --enable=E
 npx eslint web/*.js
-pytest tests/test_ui_static_files.py -v
+pytest tests/ --ignore=tests/ui --tb=no -q
 ```
 
 ### 🚀 REST API & Platform Features
-- **30 Comprehensive Endpoints**: data, AI analysis, trading strategy, ML prediction, screener, cache management, and health checks
+- **40+ Comprehensive Endpoints**: data, AI analysis, trading strategy, ML prediction, batch export, screener, cache management, and health checks
 - **REST API with AutoDocs**: Full OpenAPI 3.0/Swagger documentation auto-generated by FastAPI
 - **Triple Interface Architecture**: Identical functionality via CLI, REST API, and Web UI without code duplication
 - **Health Monitoring**: Real-time service health checks for app and Ollama LLM with graceful fallbacks
@@ -634,20 +700,30 @@ cd web && python -m http.server 2009
 
 ```
 web/
-├── index.html        # Main stock analysis page
-├── stocks.html       # AI Picks
-├── screener.html     # Fundamental screener
-├── markets.html      # International market indexes
-├── search.html       # Search landing page
-├── crypto.html       # Crypto dashboard
-├── metals.html       # Metals dashboard
-├── commodities.html  # Commodities dashboard
-├── predictions.html  # AI Predictions / ML Model Lab
-├── predictions.js    # Model Lab frontend logic
-├── app.js            # Frontend logic and data visualization
-├── styles.css        # Responsive styling
-├── tooltip.css       # Tooltip styling
-└── config.js         # API base URL configuration
+├── index.html             # Main stock analysis page
+├── stocks.html            # AI Picks
+├── screener.html          # Fundamental screener
+├── markets.html           # International market indexes
+├── search.html            # Search landing page
+├── crypto.html            # Crypto dashboard
+├── metals.html            # Metals dashboard
+├── commodities.html       # Commodities dashboard
+├── predictions.html       # AI Predictions / ML Model Lab
+├── predictions.js         # Model Lab frontend logic
+├── backtest.html          # Strategy backtester with Monte Carlo
+├── optimizer.html         # Portfolio optimizer with efficient frontier
+├── correlation-matrix.html # N×N rolling correlation heatmap with dendrogram
+├── volatility.html        # IV/IV Rank/IV Percentile dashboard + vol cone
+├── news-timeline.html     # News sentiment timeline with price overlay
+├── calendar.html          # Upcoming earnings and dividend dates
+├── watchlist.html         # Personal watchlist tracker
+├── portfolio.html         # Holdings tracker with P&L
+├── dividends.html         # Dividend income tracker with yield-on-cost
+├── options.html           # Options chain analyzer
+├── app.js                 # Frontend logic and data visualization
+├── styles.css             # Responsive styling
+├── tooltip.css            # Tooltip styling
+└── config.js              # API base URL configuration
 ```
 
 ### Customizing the Web UI
@@ -730,7 +806,7 @@ docker compose up -d
 - `GET /health` - Application health check
 - `GET /health/ollama` - Ollama service health check
 
-**Data Endpoints (13):**
+**Data Endpoints (14):**
 - `GET /api/fundamentals/{symbol}` - Company fundamentals
 - `GET /api/price-history/{symbol}` - Historical price data
 - `GET /api/analyst-targets/{symbol}` - Analyst consensus
@@ -740,6 +816,13 @@ docker compose up -d
 - `GET /api/option-chain/{symbol}` - Options data
 - `GET /api/news/{symbol}` - Recent news articles
 - `GET /api/screen-undervalued` - Stock screener
+- `POST /api/batch/fundamentals` - Bulk fundamentals for multiple tickers (body: `{"tickers": ["AAPL","MSFT"]}`)
+
+**Ownership & Analyst Data Endpoints (4):**
+- `GET /api/recommendations/{symbol}` - Analyst recommendations summary (strong buy/buy/hold/sell/strong sell by period)
+- `GET /api/institutional-holders/{symbol}` - Top institutional shareholders with % held, shares, and value
+- `GET /api/insider-transactions/{symbol}` - Recent insider buy/sell transactions
+- `GET /api/analyst-upgrades/{symbol}` - Recent analyst upgrades, downgrades, and price target changes
 
 **AI Analysis Endpoints (10):**
 > Preferred fast path: the UI "AI Recommendation" uses fundamental analysis for quicker responses.
@@ -988,7 +1071,7 @@ Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model installed.
 ├───────────────────────────────────────────────────────────┤
 │   CLI Interface  │  REST API       │  Web UI              │
 │   (flow.py)      │  (flow_api.py)  │  (HTML5/CSS3/JS)     │
-│                  │  • 30 Endpoints │                      │
+│                  │  • 44 Endpoints │                      │
 │                  │  • OpenAPI Docs │  • Real-time search  │
 │                  │  • Health check │  • Charts & data     │
 │                  │                 │  • ML model lab      │
@@ -1042,7 +1125,7 @@ Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model installed.
 │  • Handle user interactions              │
 │  • On-demand AI button loading           │
 ├─────────────────────────────────────────┤
-│    REST API (FastAPI) - 30 Endpoints     │
+│    REST API (FastAPI) - 44 Endpoints     │
 └─────────────────────────────────────────┘
 ```
 
@@ -1117,7 +1200,7 @@ docker compose exec app pytest tests/ -v
 ```
 
 #### Test Quality Metrics
-- ✅ **30 API endpoints covered**: data, AI analysis, trading strategy, ML prediction, and health checks
+- ✅ **40+ API endpoints covered**: data, AI analysis, trading strategy, ML prediction, batch export, screener, and health checks
 - ✅ **100% endpoint coverage**: All REST endpoints fully tested
 - ✅ **Web UI integration validated**: Frontend-backend communication verified
 - ✅ **Success and error paths verified**: Both happy paths and error cases tested
@@ -1125,10 +1208,11 @@ docker compose exec app pytest tests/ -v
 - ✅ **Database caching behavior verified**: Cache hits/misses tested in all endpoints
 - ✅ **Cache behavior verified**: Tests validate `set_cached_data()` is called exactly once per successful request
 - ✅ **CI browser smoke tests**: GitHub Actions validates critical Selenium user flows on headless Chrome
+- ✅ **Code coverage**: 76% overall — ml/config.py (100%), db_timescale.py (88%), ml/explore.py (95%), ml/labels.py (95%), flow_api.py (67%)
 
 #### Test Files
 
-**tests/test_data_endpoints.py** (13 tests)
+**tests/test_data_endpoints.py** (18 tests)
 - Fundamentals retrieval and validation
 - Price history data accuracy
 - Analyst targets and consensus data
@@ -1140,16 +1224,62 @@ docker compose exec app pytest tests/ -v
 - **All tests mock database caching**: `@patch('db.get_cached_data', return_value=None)` and `@patch('db.set_cached_data')`
 - **Cache write verification**: Each test asserts `mock_set_cache.assert_called_once()`
 
-**tests/test_ai_analysis_endpoints.py** (38 tests)
+**tests/test_ai_analysis_endpoints.py** (57 tests)
 - Fundamental analysis accuracy
 - Balance sheet analysis
 - Technical analysis
 - Income statement analysis
 - Action recommendations (detailed, sentence, single-word)
 - Full report generation
-- **News Sentiment Analysis** (multi-test coverage for this novel feature)
+- News Sentiment Analysis (multi-test coverage for this novel feature)
 - Error handling and fallback behavior
 - **All AI tests mock database caching**: Cache mocks simulate cache misses and verify AI response caching
+
+**tests/test_ml.py** (116 tests)
+- ml/config: default bounds, validation, clamp logic
+- ml/train: dataset building, model training, backtest orchestration
+- ml/dataset: feature matrix assembly, label computation, no-look-ahead guarantee
+- ml/explore: ExploreParams validation, experiment orchestration
+- ml/labels: 3-class labeling with margin band
+- ml/features: technical feature computation (returns, volatility, SMA gaps, RSI, Bollinger %B, MACD)
+
+**tests/test_db_timescale.py** (15 tests)
+- TimescaleDB hypertable creation, price history upserts, technical indicator inserts
+- Date-bounded fetches with chunk pruning
+- Batch operations and stats queries
+
+**tests/test_stock_snapshot.py** (13 tests)
+- Stock snapshot endpoint with mocked TimescaleDB data
+- Screener endpoint (money-flow, undervalued)
+- Batch fundamentals endpoint
+- Error handling for invalid tickers
+
+**tests/test_batch_export.py** (6 tests)
+- Batch fundamentals endpoint
+- Batch price history endpoint
+- Export fundamentals endpoint
+- Export price history endpoint
+
+**tests/test_security.py** (7 tests)
+- API key authentication on protected endpoints
+- Missing/invalid key rejection
+
+**tests/test_cache_layer.py** (16 tests)
+- SQLite cache set/get/clear operations
+- Market-aware expiration logic with US market hours
+- Complex data serialization
+
+**tests/test_technical_indicators.py** (2 tests)
+- SMA, RSI, MACD, Bollinger Bands calculations
+
+**tests/test_web_ui_integration.py** (21 tests)
+- Frontend-backend contract validation
+- Error path testing for invalid inputs
+- Cache behavior verification
+
+**tests/test_ui_static_files.py** (32 tests)
+- Static file existence and content validation
+- ML Model Lab UI element contracts (predictions.html)
 
 ### Run All Tests
 
@@ -1164,16 +1294,22 @@ docker compose exec app pytest tests/ -v
 
 ### Test Structure
 
-- `tests/test_data_endpoints.py` - 13 tests for data endpoints
-- `tests/test_ai_analysis_endpoints.py` - 38 tests for AI endpoints
-- `tests/test_technical_indicators.py` - 2 tests for technical indicators
-- `tests/test_web_ui_integration.py` - 13 tests for Web UI integration
-- `tests/scripts/` - Manual testing scripts and utilities
+- `tests/test_data_endpoints.py` - 18 tests for data endpoints
+- `tests/test_ai_analysis_endpoints.py` - 57 tests for AI analysis endpoints
+- `tests/test_cache_layer.py` - 16 tests for SQLite cache operations
+- `tests/test_ml.py` - 116 tests for ML features, config, training, exploration, and labels
+- `tests/test_db_timescale.py` - 15 tests for TimescaleDB functions
+- `tests/test_stock_snapshot.py` - 13 tests for snapshot and screener endpoints
+- `tests/test_batch_export.py` - 6 tests for batch export endpoints
+- `tests/test_security.py` - 7 tests for API key authentication
+- `tests/test_technical_indicators.py` - 2 tests for technical indicator calculations
+- `tests/test_web_ui_integration.py` - 21 tests for frontend-backend contract validation
+- `tests/test_ui_static_files.py` - 32 tests for static file contract validation (including ML Model Lab)
 
 ### Test Coverage
 
 - ✅ **Comprehensive multi-layer test suite** (API, cache, ML, integration, and Selenium UI)
-- ✅ All 30 API endpoints covered, including ML prediction and model-lab routes
+- ✅ All 44 API endpoints covered, including ownership/analyst data, ML prediction, batch export, screener, and model-lab routes
 - ✅ Web UI integration validated
 - ✅ Success and error paths verified
 - ✅ Proper mocking of external dependencies (Ollama, yfinance, SQLite cache)
@@ -1299,7 +1435,7 @@ pytest tests/test_cache_layer.py::TestMarketAwareCaching -v
 # - Cache expires at market open (9:30 AM ET)
 # - Cache persists across market hours
 # - 24-hour absolute TTL is respected
-# - Non-market-aware endpoints have standard 1-hour TTL
+# - Non-market-aware endpoints expire after 24 hours
 ```
 
 ### Cache Layer Test Classes
@@ -1314,8 +1450,8 @@ pytest tests/test_cache_layer.py::TestMarketAwareCaching -v
 ### Ollama Connection Issues
 
 ```bash
-# Check if Ollama is running
-curl http://localhost:11434/api/tags
+# Check if Ollama is running (mapped to host port 11436 in compose)
+curl http://localhost:11436/api/tags
 
 # Verify model is downloaded
 docker compose exec ollama ollama list
@@ -1357,7 +1493,7 @@ For issues, questions, or contributions:
 
 ---
 
-**Last Updated**: October 2026  
-**Version**: 1.3.0  
+**Last Updated**: October 2026
+**Version**: 2.0.0
 **Status**: ✅ Production Ready  
 **Features**: AI Analysis • Market-Aware Caching • Technical Indicators • REST API • Cloud-Native
