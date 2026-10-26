@@ -318,7 +318,7 @@ class TestModelLabContracts(unittest.TestCase):
     def test_predictions_js_included_in_index(self):
         """index.html should include predictions.js script."""
         html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
-        self.assertIn('predictions.js', html)
+        self.assertIn("predictions.js", html)
 
     def test_no_duplicate_ids_in_ml_section(self):
         """ML section IDs should not conflict with other page IDs."""

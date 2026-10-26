@@ -12,12 +12,14 @@ import os
 import uuid
 from contextlib import asynccontextmanager
 from datetime import date, datetime
+from typing import Any
 
 import numpy as np
 import pandas as pd
 import pybreaker
 import yfinance as yf
 from fastapi import (
+    Depends,
     FastAPI,
     HTTPException,
     Query,
@@ -106,6 +108,7 @@ allowed_origins = [
     "http://192.168.1.248",
     "http://192.168.1.248:8080",
     "http://192.168.1.248:8081",
+    "http://192.168.1.248:2009",
     "http://localhost:2009",
     "http://127.0.0.1:2009",
 ]
@@ -170,7 +173,7 @@ async def require_api_key_middleware(request: Request, call_next):
     return await call_next(request)
 
 
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
 
 class ExploreParams(BaseModel):
@@ -352,7 +355,7 @@ def health_check_deps(request: Request):
     """
     import requests
 
-    deps = {}
+    deps: dict[str, Any] = {}
     all_healthy = True
 
     ollama_status = "unhealthy"
@@ -826,7 +829,7 @@ def _parse_portfolio_tickers(portfolio: str, symbol: str) -> list[str]:
 
 def _extract_close_series(payload) -> list[float]:
     """Extract close price series from price-history payload."""
-    rows = []
+    rows: list[dict[str, Any]] = []
     if isinstance(payload, dict):
         rows = payload.get("data") or []
     elif isinstance(payload, list):
@@ -977,7 +980,7 @@ def get_decision_engine_payload(
                         corr = float(np.corrcoef(base_slice, hold_slice)[0, 1])
                         if not np.isnan(corr):
                             max_abs_corr = max(max_abs_corr, abs(corr))
-            except Exception:  # pylint: disable=broad-except
+            except Exception:  # nosec
                 continue
 
         if same_sector >= 2:
@@ -1298,21 +1301,19 @@ def predict_backtest(symbol: str, horizon: int | None = None):
 
 
 @app.get("/api/predict/{symbol}/explore")
-def predict_explore(
-    symbol: str,
-    model_name: str = "hist_gbm",
-    horizon: int = 5,
-    margin: float = 0.0,
-    feature_groups: str = "",
-    folds: int = 3,
-    max_train: int = 200,
-):
+def predict_explore(symbol: str, params: ExploreParams = Depends()):
     """Run an interactive model-lab experiment for a symbol from UI knobs.
 
     Trains a fresh model for the requested configuration and returns the live
     prediction, per-model feature drivers, class balance, and a walk-forward
     backtest -- all pure scikit-learn.
     """
+    model_name = params.model_name
+    horizon = params.horizon
+    margin = params.margin
+    feature_groups = params.feature_groups
+    folds = params.folds
+    max_train = params.max_train
     symbol = symbol.upper()
     logger.info(
         "ML explore for %s (model=%s horizon=%s margin=%s groups=%s)",
@@ -1390,12 +1391,20 @@ def predict_features(symbol: str, top_n: int = 5):
 
 
 @app.get("/api/price-history/{symbol}")
-def get_price_history(symbol: str):
+def get_price_history(symbol: str, start: str | None = None, end: str | None = None):
     """Get historical price data for a given stock symbol."""
     symbol = symbol.upper()
-    logger.info("Fetching price history for %s", symbol)
+    logger.info("Fetching price history for %s (start=%s, end=%s)", symbol, start, end)
     try:
         result = get_price_history_payload(symbol)
+        if start or end:
+            data = result.get("data") or result
+            if isinstance(data, list):
+                if start:
+                    data = [r for r in data if r.get("Date", "")[:10] >= start]
+                if end:
+                    data = [r for r in data if r.get("Date", "")[:10] <= end]
+            result = {"data": data} if "data" in result else data
         return JSONResponse(content=result)
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error fetching price history for %s: %s", symbol, str(exc))
@@ -1508,7 +1517,7 @@ def get_stock_snapshot(
     logger.info("Fetching stock snapshot for %s", symbol)
     portfolio_tickers = _parse_portfolio_tickers(portfolio, symbol)
 
-    snapshot = {
+    snapshot: dict[str, Any] = {
         "symbol": symbol,
         "fundamentals": None,
         "price_history": None,
@@ -1552,7 +1561,7 @@ def get_stock_snapshot(
                 section,
                 str(exc),
             )
-            snapshot["section_errors"][section] = str(exc)
+            snapshot["section_errors"][section] = str(exc)  # type: ignore[index]
 
     return JSONResponse(content=snapshot)
 
@@ -2299,7 +2308,7 @@ class ConnectionManager:
             for connection in self.active_connections[symbol.upper()]:
                 try:
                     await connection.send_text(message)
-                except Exception:
+                except Exception:  # nosec: B110
                     pass
 
 

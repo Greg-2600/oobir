@@ -52,8 +52,8 @@ services:
     environment:
       - OLLAMA_HOST=http://ollama:11434
       - OLLAMA_MODEL=huihui_ai/llama3.2-abliterate:3b
-      - OOBIR_API_KEYS=${OOBIR_API_KEYS:-dev-api-key-change-in-production}
-      - OOBIR_AUTH_ENABLED=false
+      - OOBIR_API_KEYS=${OOBIR_API_KEYS:-test-api-key-12345}
+      - OOBIR_AUTH_ENABLED=true
       - PGHOST=postgres
       - PGPORT=5432
       - PGDATABASE=oobir

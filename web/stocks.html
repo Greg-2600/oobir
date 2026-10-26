@@ -192,8 +192,23 @@
                         <a href="stocks.html" class="active">AI Picks</a>
                         <a href="predictions.html">AI Predictions</a>
                         <a href="money-flow.html">Money Flow</a>
+                        <a href="dividends.html">Dividends</a>
                         <a href="crypto.html">Crypto</a>
                         <a href="metals.html">Metals</a>
+                        <a href="portfolio.html">Portfolio</a>
+                        <a href="watchlist.html">Watchlist</a>
+                        <a href="options.html">Options</a>
+                        <a href="backtest.html">Backtest</a>
+                          <a href="correlations.html">Correlations</a>
+                        <a href="compare-sectors.html">Compare</a>
+                        <a href="optimizer.html">Optimizer</a>
+                        <a href="correlation-matrix.html">Corr Matrix</a>
+                        <a href="volatility.html">Volatility</a>
+                        <a href="news-timeline.html">News</a>
+                        <a href="calendar.html">Calendar</a>
+                        <a href="predictions.html">AI</a>
+                        <a href="news-timeline.html">News</a>
+                        <a href="calendar.html">Calendar</a>
                         <a href="commodities.html">Commodities</a>
                     </nav>
                     <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">🌙</button>
@@ -638,27 +653,7 @@
             }
             if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
             applyTheme(getPreferredTheme());
-        })();        </script>
-
-        // Theme toggle
-        (function() {
-            var themeToggle = document.getElementById('theme-toggle');
-            var THEME_KEY = 'oobir_theme';
-            function getPreferredTheme() {
-                return localStorage.getItem(THEME_KEY) ||
-                    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            }
-            function applyTheme(theme) {
-                document.documentElement.setAttribute('data-theme', theme);
-                localStorage.setItem(THEME_KEY, theme);
-                if (themeToggle) themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
-            }
-            function toggleTheme() {
-                var current = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
-                applyTheme(current === 'dark' ? 'light' : 'dark');
-            }
-            if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
-            applyTheme(getPreferredTheme());
         })();
-    </body>
+    </script>
+</body>
 </html>

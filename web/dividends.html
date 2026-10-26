@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dividends — OOBIR</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="tooltip.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <style>
+        .div-page { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
+        .div-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+        .div-header h1 { font-size: 1.8rem; font-weight: 800; color: #1f2937; }
+        .div-header p { color: #64748b; font-size: 0.85rem; margin-top: 2px; }
+        .div-actions { display: flex; gap: 10px; }
+        .btn-primary { background: #1a73e8; color: white; border: none; border-radius: 999px; padding: 9px 20px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        .btn-primary:hover { background: #1557b0; transform: translateY(-1px); }
+        .btn-secondary { background: white; color: #334155; border: 1.5px solid #dbe2ea; border-radius: 999px; padding: 9px 20px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        .btn-secondary:hover { border-color: #1a73e8; color: #1a73e8; }
+        .div-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 28px; }
+        .sum-card { background: white; border: 1.5px solid #e5e7eb; border-radius: 14px; padding: 18px; }
+        .sum-card .val { font-size: 1.6rem; font-weight: 800; color: #1f2937; }
+        .sum-card .lbl { font-size: 0.75rem; color: #64748b; margin-top: 4px; font-weight: 600; }
+        .sum-card .sub { font-size: 0.78rem; margin-top: 4px; font-weight: 600; color: #15803d; }
+        .section-title { font-size: 0.95rem; font-weight: 700; color: #1f2937; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .div-table-wrap { background: white; border: 1.5px solid #e5e7eb; border-radius: 14px; overflow: hidden; margin-bottom: 24px; }
+        .div-table { width: 100%; border-collapse: collapse; }
+        .div-table th { background: #f8fafc; padding: 10px 14px; text-align: left; font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+        .div-table td { padding: 12px 14px; border-top: 1px solid #f3f4f6; font-size: 0.85rem; }
+        .div-table tr:hover td { background: #f8fafc; }
+        .div-table .ticker { font-weight: 800; color: #1f2937; }
+        .div-table .name { color: #64748b; font-size: 0.78rem; }
+        .div-table .yield-good { color: #15803d; font-weight: 700; }
+        .div-table .yield-low { color: #b91c1c; font-weight: 700; }
+        .div-calendar { background: white; border: 1.5px solid #e5e7eb; border-radius: 14px; padding: 18px; margin-bottom: 24px; }
+        .div-calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .div-calendar-header h3 { font-size: 0.95rem; font-weight: 700; color: #1f2937; }
+        .div-calendar-header p { font-size: 0.78rem; color: #64748b; }
+        .div-events { display: flex; flex-direction: column; gap: 8px; }
+        .div-event { display: flex; gap: 12px; align-items: center; padding: 10px 12px; background: #f8fafc; border-radius: 8px; border-left: 3px solid #10b981; }
+        .div-event .date-badge { background: #10b981; color: white; padding: 4px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; min-width: 64px; text-align: center; }
+        .div-event .date-badge.ex-dividend { background: #f59e0b; border-color: #f59e0b; }
+        .div-event .event-info { flex: 1; }
+        .div-event .event-ticker { font-weight: 800; font-size: 0.85rem; }
+        .div-event .event-type { font-size: 0.75rem; color: #64748b; }
+        .div-event .event-amount { font-weight: 700; color: #15803d; font-size: 0.85rem; }
+        .div-event.empty { color: #94a3b8; font-size: 0.82rem; border-left-color: #e5e7eb; background: none; }
+        .empty-state { text-align: center; padding: 40px; color: #94a3b8; }
+        .empty-state h3 { font-size: 1rem; color: #64748b; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.4); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-overlay.hidden { display: none; }
+        .modal-card { background: white; border-radius: 18px; padding: 28px; width: 400px; max-width: 90vw; box-shadow: 0 20px 60px rgba(15,23,42,.2); }
+        .modal-card h3 { font-size: 1.1rem; font-weight: 800; margin-bottom: 6px; color: #1f2937; }
+        .modal-card p { font-size: 0.8rem; color: #64748b; margin-bottom: 20px; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 0.78rem; font-weight: 700; color: #475569; margin-bottom: 5px; }
+        .form-group input { width: 100%; padding: 9px 12px; border: 1.5px solid #dbe2ea; border-radius: 9px; font-size: 0.85rem; box-sizing: border-box; transition: border-color 0.2s; }
+        .form-group input:focus { outline: none; border-color: #1a73e8; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .modal-actions button { flex: 1; }
+        [data-theme="dark"] .sum-card, [data-theme="dark"] .div-table-wrap, [data-theme="dark"] .div-calendar { background: #1e293b; border-color: #334155; }
+        [data-theme="dark"] .div-header h1 { color: #f1f5f9; }
+        [data-theme="dark"] .div-table th { background: #0f172a; color: #94a3b8; }
+        [data-theme="dark"] .div-table td { border-color: #334155; }
+        [data-theme="dark"] .div-table tr:hover td { background: #0f172a; }
+        [data-theme="dark"] .div-event { background: #0f172a; }
+        [data-theme="dark"] .modal-card { background: #1e293b; }
+        [data-theme="dark"] .form-group label { color: #94a3b8; }
+        [data-theme="dark"] .form-group input { background: #0f172a; border-color: #334155; color: #f1f5f9; }
+        [data-theme="dark"] .div-table .ticker { color: #f1f5f9; }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="app-header-content">
+            <div class="app-header-left">
+                <a class="app-brand" href="search.html">OOBIR</a>
+                <span class="app-page-label">Dividends</span>
+            </div>
+            <nav class="app-nav" aria-label="Primary navigation">
+                <a href="search.html">Search</a>
+                <a href="index.html">Stock Screen</a>
+                <a href="screener.html">Fundamentals</a>
+                <a href="markets.html">Markets</a>
+                <a href="sectors.html">Sectors</a>
+                <a href="stocks.html">AI Picks</a>
+                <a href="predictions.html">AI Predictions</a>
+                <a href="money-flow.html">Money Flow</a>
+                <a href="watchlist.html">Watchlist</a>
+                <a href="portfolio.html">Portfolio</a>
+                        <a href="dividends.html">Dividends</a>
+                <a href="crypto.html">Crypto</a>
+                <a href="metals.html">Metals</a>
+                        <a href="options.html">Options</a>
+                        <a href="backtest.html">Backtest</a>
+                <a href="correlations.html">Correlations</a>
+                        <a href="compare-sectors.html">Compare</a>
+                        <a href="optimizer.html">Optimizer</a>
+                        <a href="correlation-matrix.html">Corr Matrix</a>
+                        <a href="volatility.html">Volatility</a>
+                        <a href="news-timeline.html">News</a>
+                        <a href="calendar.html">Calendar</a>
+                        <a href="predictions.html">AI</a>
+                        <a href="news-timeline.html">News</a>
+                        <a href="calendar.html">Calendar</a>
+                <a href="commodities.html">Commodities</a>
+            </nav>
+            <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">🌙</button>
+        </div>
+    </header>
+
+    <div class="div-page">
+        <div class="div-header">
+            <div>
+                <h1>💰 Dividend Tracker</h1>
+                <p>Projected dividend income, yield-on-cost, and upcoming dividend dates</p>
+            </div>
+            <div class="div-actions">
+                <button class="btn-secondary" onclick="openAddDividend()">+ Add Holding</button>
+            </div>
+        </div>
+
+        <div id="div-summary" class="div-summary"></div>
+
+        <div class="section-title">📋 Holdings</div>
+        <div id="div-table-wrap" class="div-table-wrap"></div>
+
+        <div class="div-calendar">
+            <div class="div-calendar-header">
+                <div>
+                    <h3>📅 Upcoming Ex-Dividend Dates</h3>
+                    <p>Next 60 days for your holdings</p>
+                </div>
+            </div>
+            <div id="div-events" class="div-events"></div>
+        </div>
+    </div>
+
+    <!-- Add Dividend Modal -->
+    <div id="add-div-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h3>Add Dividend Holding</h3>
+            <p>Track dividend income from a stock you own</p>
+            <div class="form-group">
+                <label>Ticker Symbol</label>
+                <input type="text" id="div-ticker" placeholder="e.g. AAPL, JNJ, KO" style="text-transform:uppercase">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Shares Owned</label>
+                    <input type="number" id="div-shares" placeholder="100" step="any" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Cost Basis (per share)</label>
+                    <input type="number" id="div-cost" placeholder="150.00" step="any" min="0">
+                </div>
+            </div>
+            <div id="add-div-error" style="color:#ef4444;font-size:0.78rem;margin-bottom:8px;display:none;"></div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="closeAddDividend()">Cancel</button>
+                <button class="btn-primary" onclick="confirmAddDividend()">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const API = window.location.origin;
+    const STORAGE_KEY = 'oobir_dividends';
+
+    let dividends = [];
+    let priceData = {};
+
+    const DIV_FREQ = { annual: 1, quarterly: 4, monthly: 12 };
+    const KNOWN_DIVIDEND_TICKERS = {
+        AAPL: { freq: 'quarterly', rate: 0.96 }, MSFT: { freq: 'quarterly', rate: 3.0 }, JNJ: { freq: 'quarterly', rate: 4.76 },
+        KO: { freq: 'quarterly', rate: 1.88 }, PEP: { freq: 'quarterly', rate: 5.42 }, MCD: { freq: 'quarterly', rate: 6.68 },
+        PG: { freq: 'quarterly', rate: 4.03 }, XOM: { freq: 'quarterly', rate: 3.80 }, CVX: { freq: 'quarterly', rate: 6.04 },
+        T: { freq: 'quarterly', rate: 5.44 }, ABBV: { freq: 'quarterly', rate: 2.25 }, PFE: { freq: 'quarterly', rate: 1.68 },
+        MRK: { freq: 'quarterly', rate: 3.48 }, UNH: { freq: 'quarterly', rate: 7.52 }, BMY: { freq: 'quarterly', rate: 2.40 },
+        JPM: { freq: 'quarterly', rate: 4.60 }, GS: { freq: 'quarterly', rate: 10.0 }, V: { freq: 'quarterly', rate: 2.48 },
+        MA: { freq: 'quarterly', rate: 2.80 }, BAC: { freq: 'quarterly', rate: 1.54 }, WMT: { freq: 'quarterly', rate: 2.28 },
+        HD: { freq: 'quarterly', rate: 6.60 }, DIS: { freq: 'semiannual', rate: 1.78 }, NEE: { freq: 'quarterly', rate: 5.30 },
+        DUK: { freq: 'quarterly', rate: 4.73 }, SO: { freq: 'quarterly', rate: 3.56 }, AEP: { freq: 'quarterly', rate: 4.22 },
+        SPY: { freq: 'quarterly', rate: 8.24 }, QQQ: { freq: 'quarterly', rate: 2.66 }, VYM: { freq: 'quarterly', rate: 3.96 },
+        SCHD: { freq: 'quarterly', rate: 3.54 }, VNQ: { freq: 'quarterly', rate: 3.77 }, JEPI: { freq: 'monthly', rate: 4.68 },
+        JEPQ: { freq: 'monthly', rate: 5.18 }, KMI: { freq: 'quarterly', rate: 4.50 }, O: { freq: 'monthly', rate: 3.74 },
+    };
+
+    function load() {
+        try { dividends = JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+        catch { dividends = []; }
+    }
+
+    function save(data) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        dividends = data;
+    }
+
+    async function fetchPrices() {
+        if (!dividends.length) return;
+        const tickers = dividends.map(d => d.ticker);
+        try {
+            const res = await fetch(`${API}/api/batch/fundamentals`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(tickers),
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            Object.entries(data).forEach(([symbol, s]) => {
+                if (s && !s.error) {
+                    priceData[symbol] = {
+                        price: s.currentPrice || s.regularMarketPrice || 0,
+                        name: s.shortName || s.longName || symbol,
+                        divYield: s.trailingAnnualDividendYield || 0,
+                        divRate: s.dividendRate || 0,
+                        exDivNext: s.exDividendDate || null,
+                    };
+                }
+            });
+        } catch {}
+    }
+
+    const MARKET_DIV_TICKERS = [
+        'AAPL', 'MSFT', 'JNJ', 'KO', 'PEP', 'MCD', 'PG', 'XOM', 'CVX',
+        'T', 'ABBV', 'PFE', 'JPM', 'V', 'BAC', 'WMT', 'HD', 'SPY', 'QQQ',
+        'SCHD', 'VNQ', 'JEPI', 'O'
+    ];
+
+    async function fetchMarketDividends() {
+        try {
+            const res = await fetch(`${API}/api/batch/fundamentals`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(MARKET_DIV_TICKERS),
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            Object.entries(data).forEach(([symbol, s]) => {
+                if (s && !s.error) {
+                    priceData[symbol] = {
+                        price: s.currentPrice || s.regularMarketPrice || 0,
+                        name: s.shortName || s.longName || symbol,
+                        divYield: s.trailingAnnualDividendYield || 0,
+                        divRate: s.dividendRate || 0,
+                        exDivNext: s.exDividendDate || null,
+                    };
+                }
+            });
+        } catch {}
+    }
+
+    async function init() {
+        load();
+        if (dividends.length === 0) {
+            await fetchMarketDividends();
+        } else {
+            await fetchPrices();
+        }
+        render();
+    }
+
+    function getAnnualDiv(ticker, price) {
+        const known = KNOWN_DIVIDEND_TICKERS[ticker];
+        if (known) return known.rate;
+        const pd = priceData[ticker];
+        if (pd && pd.divRate > 0) return pd.divRate;
+        if (pd && pd.divYield > 0) return pd.divYield * price;
+        return 0;
+    }
+
+    function calcDividends() {
+        return dividends.map(d => {
+            const pd = priceData[d.ticker] || {};
+            const price = pd.price || 0;
+            const name = pd.name || d.ticker;
+            const annualDiv = getAnnualDiv(d.ticker, price);
+            const annualIncome = annualDiv * d.shares;
+            const costBasis = d.costBasis * d.shares;
+            const yieldOnCost = costBasis > 0 ? (annualIncome / costBasis) * 100 : 0;
+            const portfolioYield = price * d.shares > 0 ? (annualIncome / (price * d.shares)) * 100 : 0;
+            const nextExDiv = pd.exDivNext || null;
+            return { ...d, price, name, annualDiv, annualIncome, costBasis, yieldOnCost, portfolioYield, nextExDiv };
+        });
+    }
+
+    function render() {
+        const data = calcDividends();
+        renderSummary(data);
+        renderTable(data);
+        renderCalendar(data);
+    }
+
+    function renderSummary(data) {
+        const totalIncome = data.reduce((s, d) => s + d.annualIncome, 0);
+        const totalValue = data.reduce((s, d) => s + d.price * d.shares, 0);
+        const totalCost = data.reduce((s, d) => s + d.costBasis, 0);
+        const avgYieldOnCost = totalCost > 0 ? (totalIncome / totalCost) * 100 : 0;
+        const portfolioYield = totalValue > 0 ? (totalIncome / totalValue) * 100 : 0;
+        document.getElementById('div-summary').innerHTML = `
+            <div class="sum-card">
+                <div class="val">$${totalIncome.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                <div class="lbl">Annual Income</div>
+            </div>
+            <div class="sum-card">
+                <div class="val">$${(totalIncome / 12).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                <div class="lbl">Monthly Income</div>
+            </div>
+            <div class="sum-card">
+                <div class="val">${avgYieldOnCost.toFixed(2)}%</div>
+                <div class="lbl">Avg Yield on Cost</div>
+            </div>
+            <div class="sum-card">
+                <div class="val">${portfolioYield.toFixed(2)}%</div>
+                <div class="lbl">Portfolio Yield</div>
+            </div>
+        `;
+    }
+
+    function renderTable(data) {
+        const wrap = document.getElementById('div-table-wrap');
+        if (!data.length) {
+            const marketRows = MARKET_DIV_TICKERS.map(ticker => {
+                const pd = priceData[ticker] || {};
+                const price = pd.price || 0;
+                const name = pd.name || ticker;
+                const annualDiv = getAnnualDiv(ticker, price);
+                const divYield = price > 0 ? (annualDiv / price) * 100 : 0;
+                const yieldClass = divYield >= 3 ? 'yield-good' : divYield >= 1.5 ? '' : 'yield-low';
+                return `<tr>
+                    <td><span class="ticker">${ticker}</span><div class="name">${name}</div></td>
+                    <td>—</td>
+                    <td>${price > 0 ? '$' + price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '—'}</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>${annualDiv > 0 ? '$' + annualDiv.toFixed(2) : '—'}</td>
+                    <td style="font-weight:700;color:#15803d">${annualDiv > 0 ? '$' + annualDiv.toFixed(2) + '/yr' : '—'}</td>
+                    <td class="${yieldClass}">${divYield > 0 ? divYield.toFixed(2) + '%' : '—'}</td>
+                    <td class="${yieldClass}">${divYield > 0 ? divYield.toFixed(2) + '%' : '—'}</td>
+                    <td><button class="btn-primary" style="padding:5px 12px;font-size:0.72rem" onclick="openAddDividend('${ticker}')">+ Add</button></td>
+                </tr>`;
+            }).join('');
+            wrap.innerHTML = `
+                <div class="empty-state" style="padding:16px 24px 0;border-bottom:1px solid #f3f4f6;margin-bottom:0;">
+                    <p style="margin-bottom:14px;color:#64748b;font-size:0.82rem;">Popular dividend-paying stocks — click "+ Add" to track your holdings</p>
+                </div>
+                <table class="div-table">
+                    <thead>
+                        <tr>
+                            <th>Ticker</th>
+                            <th>Shares</th>
+                            <th>Current Price</th>
+                            <th>Market Value</th>
+                            <th>Cost Basis</th>
+                            <th>Annual Div/Share</th>
+                            <th>Annual Income</th>
+                            <th>Yield on Cost</th>
+                            <th>Market Yield</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>${marketRows}</tbody>
+                </table>`;
+            return;
+        }
+        wrap.innerHTML = `
+            <table class="div-table">
+                <thead>
+                    <tr>
+                        <th>Ticker</th>
+                        <th>Shares</th>
+                        <th>Current Price</th>
+                        <th>Market Value</th>
+                        <th>Cost Basis</th>
+                        <th>Annual Div/Share</th>
+                        <th>Annual Income</th>
+                        <th>Yield on Cost</th>
+                        <th>Market Yield</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.map(d => {
+                        const yocGood = d.yieldOnCost > 3;
+                        const mktGood = d.portfolioYield > 3;
+                        return `<tr>
+                            <td><span class="ticker">${d.ticker}</span><div class="name">${d.name}</div></td>
+                            <td>${d.shares.toLocaleString()}</td>
+                            <td>$${d.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td>$${(d.price * d.shares).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td>$${d.costBasis.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td>$${d.annualDiv.toFixed(2)}</td>
+                            <td style="font-weight:700;color:#15803d">$${d.annualIncome.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td class="${yocGood ? 'yield-good' : 'yield-low'}">${d.yieldOnCost.toFixed(2)}%</td>
+                            <td class="${mktGood ? 'yield-good' : ''}">${d.portfolioYield.toFixed(2)}%</td>
+                            <td><button class="btn-secondary" style="padding:5px 10px;font-size:0.72rem" onclick="deleteDividend('${d.ticker}')">Remove</button></td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>`;
+    }
+
+    function renderCalendar(data) {
+        const container = document.getElementById('div-events');
+        const now = new Date();
+        const sixty = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
+        const events = [];
+        data.forEach(d => {
+            if (!d.nextExDiv) return;
+            const exDate = new Date(d.nextExDiv * 1000);
+            if (exDate >= now && exDate <= sixty) {
+                events.push({ ticker: d.ticker, date: exDate, amount: d.annualDiv, shares: d.shares, name: d.name });
+            }
+        });
+        events.sort((a, b) => a.date - b.date);
+        if (!events.length) {
+            container.innerHTML = `<div class="div-event empty">No upcoming ex-dividend dates in the next 60 days for your holdings.</div>`;
+            return;
+        }
+        container.innerHTML = events.map(e => {
+            const income = e.amount * e.shares;
+            return `<div class="div-event">
+                <div class="date-badge ex-dividend">${e.date.toLocaleDateString('en-US', {month: 'short', day: 'numeric'})}</div>
+                <div class="event-info">
+                    <div class="event-ticker">${e.ticker} <span style="font-weight:400;color:#64748b">— ${e.name}</span></div>
+                    <div class="event-type">Ex-Dividend Date</div>
+                </div>
+                <div class="event-amount">+$${income.toFixed(2)}</div>
+            </div>`;
+        }).join('');
+    }
+
+    function openAddDividend(prefillTicker) {
+        document.getElementById('add-div-modal').classList.remove('hidden');
+        document.getElementById('div-ticker').value = prefillTicker || '';
+        document.getElementById('div-shares').value = '';
+        document.getElementById('div-cost').value = '';
+        document.getElementById('add-div-error').style.display = 'none';
+        if (!prefillTicker) document.getElementById('div-ticker').focus();
+    }
+
+    function closeAddDividend() {
+        document.getElementById('add-div-modal').classList.add('hidden');
+    }
+
+    async function confirmAddDividend() {
+        const ticker = document.getElementById('div-ticker').value.trim().toUpperCase();
+        const shares = parseFloat(document.getElementById('div-shares').value);
+        const costBasis = parseFloat(document.getElementById('div-cost').value);
+        const error = document.getElementById('add-div-error');
+        if (!ticker) { error.textContent = 'Enter a ticker'; error.style.display = 'block'; return; }
+        if (!shares || shares <= 0) { error.textContent = 'Enter valid shares'; error.style.display = 'block'; return; }
+        if (isNaN(costBasis) || costBasis < 0) { error.textContent = 'Enter valid cost basis'; error.style.display = 'block'; return; }
+        load();
+        if (dividends.find(d => d.ticker === ticker)) { error.textContent = `${ticker} already tracked`; error.style.display = 'block'; return; }
+        try {
+            const res = await fetch(`${API}/api/fundamentals/${ticker}`);
+            if (!res.ok) throw new Error();
+            dividends.push({ ticker, shares, costBasis, addedAt: new Date().toISOString() });
+            save(dividends);
+            closeAddDividend();
+            await init();
+        } catch {
+            error.textContent = `Ticker "${ticker}" not found`;
+            error.style.display = 'block';
+        }
+    }
+
+    function deleteDividend(ticker) {
+        load();
+        dividends = dividends.filter(d => d.ticker !== ticker);
+        save(dividends);
+        init();
+    }
+
+    // Theme
+    (function() {
+        var btn = document.getElementById('theme-toggle');
+        var KEY = 'oobir_theme';
+        function getPreferredTheme() { return localStorage.getItem(KEY) || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem(KEY, theme);
+            if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+        }
+        if (btn) btn.addEventListener('click', () => applyTheme(getPreferredTheme() === 'dark' ? 'light' : 'dark'));
+        applyTheme(getPreferredTheme());
+    })();
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeAddDividend();
+        if (e.key === 'Enter' && !document.getElementById('add-div-modal').classList.contains('hidden')) confirmAddDividend();
+    });
+
+    init();
+    </script>
+</body>
+</html>

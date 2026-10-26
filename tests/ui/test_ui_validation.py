@@ -28,8 +28,9 @@ class TestLandingPageStyling:
             parts = bg_color.replace("rgb(", "").replace(")", "").split(",")
             bg_color = rgb_to_hex(int(parts[0]), int(parts[1]), int(parts[2]))
 
-        assert "f8fafc" in bg_color.lower() or "rgb(248, 250, 252)" in bg_color, \
-            f"Expected light gray background, got: {bg_color}"
+        assert (
+            "f8fafc" in bg_color.lower() or "rgb(248, 250, 252)" in bg_color
+        ), f"Expected light gray background, got: {bg_color}"
 
     def test_header_is_white_with_border(self, browser, base_url):
         """Header should be white with bottom border."""
@@ -44,9 +45,11 @@ class TestLandingPageStyling:
         )
 
         import re
+
         def rgb_to_hex(rgb):
-            if not rgb.startswith("rgb"): return rgb
-            match = re.search(r'rgb\((\d+),\s*(\d+),\s*(\d+)\)', rgb)
+            if not rgb.startswith("rgb"):
+                return rgb
+            match = re.search(r"rgb\((\d+),\s*(\d+),\s*(\d+)\)", rgb)
             if match:
                 return f"#{int(match.group(1)):02x}{int(match.group(2)):02x}{int(match.group(3)):02x}"
             return rgb
@@ -55,14 +58,18 @@ class TestLandingPageStyling:
         header_border = rgb_to_hex(header_border)
 
         assert "ffffff" in header_bg.lower(), f"Expected white header, got: {header_bg}"
-        assert "e5e7eb" in header_border.lower(), f"Expected light border, got: {header_border}"
+        assert (
+            "e5e7eb" in header_border.lower()
+        ), f"Expected light border, got: {header_border}"
 
     def test_logo_has_correct_styling(self, browser, base_url):
         """Logo should have bold blue styling with red accent."""
         browser.get(base_url)
         wait = WebDriverWait(browser, 15)
 
-        logo = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "unified-logo")))
+        logo = wait.until(
+            EC.presence_of_element_located((By.CLASS_NAME, "unified-logo"))
+        )
 
         font_weight = browser.execute_script(
             "return window.getComputedStyle(arguments[0]).fontWeight;", logo
@@ -72,9 +79,11 @@ class TestLandingPageStyling:
         )
 
         import re
+
         def rgb_to_hex(rgb):
-            if not rgb.startswith("rgb"): return rgb
-            match = re.search(r'rgb\((\d+),\s*(\d+),\s*(\d+)\)', rgb)
+            if not rgb.startswith("rgb"):
+                return rgb
+            match = re.search(r"rgb\((\d+),\s*(\d+),\s*(\d+)\)", rgb)
             if match:
                 return f"#{int(match.group(1)):02x}{int(match.group(2)):02x}{int(match.group(3)):02x}"
             return rgb
@@ -89,7 +98,9 @@ class TestLandingPageStyling:
         browser.get(base_url)
         wait = WebDriverWait(browser, 15)
 
-        nav_links = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, ".unified-nav a")))
+        nav_links = wait.until(
+            EC.presence_of_all_elements_located((By.CSS_SELECTOR, ".unified-nav a"))
+        )
 
         for link in nav_links[:3]:
             font_size = browser.execute_script(
@@ -111,7 +122,9 @@ class TestLandingPageStyling:
         browser.get(base_url)
         wait = WebDriverWait(browser, 15)
 
-        grid = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "stocks-grid")))
+        grid = wait.until(
+            EC.presence_of_element_located((By.CLASS_NAME, "stocks-grid"))
+        )
         assert grid.is_displayed()
 
     def test_market_radar_exists(self, browser, base_url):
@@ -119,7 +132,9 @@ class TestLandingPageStyling:
         browser.get(base_url)
         wait = WebDriverWait(browser, 15)
 
-        radar = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "market-radar-section")))
+        radar = wait.until(
+            EC.presence_of_element_located((By.CLASS_NAME, "market-radar-section"))
+        )
         assert radar.is_displayed()
 
     def test_no_radial_gradients_on_body(self, browser, base_url):
@@ -131,8 +146,9 @@ class TestLandingPageStyling:
             "return window.getComputedStyle(document.body).backgroundImage;"
         )
 
-        assert "radial-gradient" not in body_bg.lower(), \
-            f"Found radial gradient on body - old style not removed: {body_bg[:100]}"
+        assert (
+            "radial-gradient" not in body_bg.lower()
+        ), f"Found radial gradient on body - old style not removed: {body_bg[:100]}"
 
 
 class TestStockDetailPage:
@@ -151,22 +167,30 @@ class TestStockDetailPage:
         browser.get(f"{base_url}/?ticker=AAPL")
         wait = WebDriverWait(browser, 30)
 
-        wait.until(lambda d: "hidden" not in d.find_element(By.ID, "results-container").get_attribute("class"))
+        wait.until(
+            lambda d: "hidden"
+            not in d.find_element(By.ID, "results-container").get_attribute("class")
+        )
 
-        fundamentals = wait.until(EC.presence_of_element_located((By.ID, "fundamentals-data")))
+        fundamentals = wait.until(
+            EC.presence_of_element_located((By.ID, "fundamentals-data"))
+        )
         assert fundamentals is not None
 
 
 class TestNavigation:
     """Validate navigation across pages."""
 
-    @pytest.mark.parametrize("page", [
-        "index.html",
-        "search.html",
-        "stocks.html",
-        "money-flow.html",
-        "markets.html",
-    ])
+    @pytest.mark.parametrize(
+        "page",
+        [
+            "index.html",
+            "search.html",
+            "stocks.html",
+            "money-flow.html",
+            "markets.html",
+        ],
+    )
     def test_all_pages_have_consistent_nav(self, browser, base_url, page):
         """All pages should have consistent navigation with 10 links in correct order."""
         browser.get(f"{base_url}/{page}")
@@ -177,9 +201,16 @@ class TestNavigation:
         )
 
         expected_pages = [
-            "search.html", "index.html", "screener.html", "markets.html",
-            "stocks.html", "predictions.html", "money-flow.html",
-            "crypto.html", "metals.html", "commodities.html"
+            "search.html",
+            "index.html",
+            "screener.html",
+            "markets.html",
+            "stocks.html",
+            "predictions.html",
+            "money-flow.html",
+            "crypto.html",
+            "metals.html",
+            "commodities.html",
         ]
 
         hrefs = [link.get_attribute("href", "").split("/")[-1] for link in nav_links]
@@ -190,14 +221,17 @@ class TestNavigation:
 class TestMoneyFlowPage:
     """Validate money flow page works for all periods."""
 
-    @pytest.mark.parametrize("period", [
-        ("day", "today"),
-        ("week", "week"),
-        ("month", "month"),
-        ("3month", "3 months"),
-        ("6month", "6 months"),
-        ("year", "year"),
-    ])
+    @pytest.mark.parametrize(
+        "period",
+        [
+            ("day", "today"),
+            ("week", "week"),
+            ("month", "month"),
+            ("3month", "3 months"),
+            ("6month", "6 months"),
+            ("year", "year"),
+        ],
+    )
     def test_money_flow_periods(self, browser, base_url, period):
         """Money flow should work for all time periods."""
         period_val, period_name = period
@@ -207,12 +241,15 @@ class TestMoneyFlowPage:
         select = wait.until(EC.presence_of_element_located((By.ID, "period-select")))
         select.click()
 
-        option = browser.find_element(By.CSS_SELECTOR, f"#period-select option[value='{period_val}']")
+        option = browser.find_element(
+            By.CSS_SELECTOR, f"#period-select option[value='{period_val}']"
+        )
         option.click()
 
         browser.find_element(By.ID, "tab-in").click()
 
         import time
+
         time.sleep(3)
 
         cards = browser.find_elements(By.CLASS_NAME, "money-flow-card")

@@ -409,7 +409,7 @@ class TestFeaturesDetailed(unittest.TestCase):
     def test_sma_20_less_than_close_in_uptrend(self):
         df = _sample_price_df(200, uptrend=True)
         ind = features.compute_indicators(df)
-        self.assertTrue((ind["SMA_20"] < df["Close"].iloc[-len(ind):]).all())
+        self.assertTrue((ind["SMA_20"] < df["Close"].iloc[-len(ind) :]).all())
 
     def test_volume_zscore_centered_near_zero(self):
         df = _sample_price_df(300, uptrend=True)
@@ -420,7 +420,9 @@ class TestFeaturesDetailed(unittest.TestCase):
     def test_log_ret_1_approx_ret_1_for_small_moves(self):
         df = _sample_price_df(200, uptrend=True)
         ind = features.compute_indicators(df)
-        self.assertTrue(np.allclose(ind["log_ret_1"], ind["ret_1"], rtol=0.01, atol=0.1))
+        self.assertTrue(
+            np.allclose(ind["log_ret_1"], ind["ret_1"], rtol=0.01, atol=0.1)
+        )
 
     def test_make_feature_vector_returns_correct_length(self):
         df = _sample_price_df(200, uptrend=True)
@@ -481,7 +483,9 @@ class TestLabelsDetailed(unittest.TestCase):
             df, horizon=5, feature_columns=["returns", "rsi"]
         )
         cols = [c for c in frame.columns if c not in ("target", "Date")]
-        self.assertTrue(set(cols).issubset({"ret_1", "ret_5", "ret_10", "log_ret_1", "RSI_14"}))
+        self.assertTrue(
+            set(cols).issubset({"ret_1", "ret_5", "ret_10", "log_ret_1", "RSI_14"})
+        )
 
     def test_label_forward_returns_respects_horizon(self):
         df = _sample_price_df(200, uptrend=True)
@@ -500,7 +504,10 @@ class TestModelDetailed(unittest.TestCase):
 
     def _trained_frame(self):
         return pd.concat(
-            [labels.build_labelled_frame(_sample_price_df(200, up), 5) for up in (True, False)],
+            [
+                labels.build_labelled_frame(_sample_price_df(200, up), 5)
+                for up in (True, False)
+            ],
             ignore_index=True,
         )
 
@@ -574,7 +581,10 @@ class TestBacktestDetailed(unittest.TestCase):
 
     def _mixed_frame(self):
         return pd.concat(
-            [labels.build_labelled_frame(_sample_price_df(200, up), 5) for up in (True, False)],
+            [
+                labels.build_labelled_frame(_sample_price_df(200, up), 5)
+                for up in (True, False)
+            ],
             ignore_index=True,
         )
 
@@ -644,7 +654,14 @@ class TestExploreDetailed(unittest.TestCase):
 
     def test_default_knobs_has_expected_keys(self):
         knobs = explore.default_knobs()
-        for key in ("model_name", "horizon", "margin", "feature_groups", "folds", "max_train"):
+        for key in (
+            "model_name",
+            "horizon",
+            "margin",
+            "feature_groups",
+            "folds",
+            "max_train",
+        ):
             self.assertIn(key, knobs)
 
     def test_normalize_knobs_clamps_horizon(self):
@@ -680,9 +697,19 @@ class TestExploreDetailed(unittest.TestCase):
     def test_explore_result_contains_expected_keys(self):
         df = _sample_price_df(250, uptrend=True)
         result = explore.explore(df, {"horizon": 5, "folds": 2})
-        for key in ("direction", "prob_up", "prob_flat", "prob_down",
-                    "confidence", "model_name", "n_features", "n_samples",
-                    "backtest", "class_balance", "knobs"):
+        for key in (
+            "direction",
+            "prob_up",
+            "prob_flat",
+            "prob_down",
+            "confidence",
+            "model_name",
+            "n_features",
+            "n_samples",
+            "backtest",
+            "class_balance",
+            "knobs",
+        ):
             self.assertIn(key, result)
 
     def test_explore_probabilities_sum_to_one(self):
@@ -755,6 +782,7 @@ class TestConfigEnvOverrides(unittest.TestCase):
 
     def test_horizon_from_env(self):
         import ml.config as cfg
+
         orig = os.environ.get("OOOBIR_ML_HORIZON")
         os.environ["OOOBIR_ML_HORIZON"] = "10"
         cfg.HORIZON_DAYS  # re-evaluated at import time in module; just check it parses
@@ -762,6 +790,269 @@ class TestConfigEnvOverrides(unittest.TestCase):
             del os.environ["OOOBIR_ML_HORIZON"]
         else:
             os.environ["OOOBIR_ML_HORIZON"] = orig
+
+
+class TestConfigValidation(unittest.TestCase):
+    """Tests for ml.config constants and validation."""
+
+    def test_config_constants_are_integers(self):
+        from ml.config import HORIZON_DAYS, WINDOW, MIN_HISTORY
+
+        self.assertIsInstance(HORIZON_DAYS, int)
+        self.assertIsInstance(WINDOW, int)
+        self.assertIsInstance(MIN_HISTORY, int)
+
+    def test_config_margin_is_float(self):
+        from ml.config import MARGIN
+
+        self.assertIsInstance(MARGIN, float)
+
+    def test_config_directions_tuple(self):
+        from ml.config import DIRECTIONS
+
+        self.assertIsInstance(DIRECTIONS, tuple)
+        self.assertEqual(set(DIRECTIONS), {"UP", "FLAT", "DOWN"})
+
+    def test_config_model_version(self):
+        from ml.config import MODEL_VERSION
+
+        self.assertIsInstance(MODEL_VERSION, str)
+        self.assertEqual(MODEL_VERSION, "1.0.0")
+
+    def test_config_backtest_params(self):
+        from ml.config import BACKTEST_MIN_TRAIN, BACKTEST_FOLDS, BACKTEST_MAX_TRAIN
+
+        self.assertIsInstance(BACKTEST_MIN_TRAIN, int)
+        self.assertIsInstance(BACKTEST_FOLDS, int)
+        self.assertIsInstance(BACKTEST_MAX_TRAIN, int)
+        self.assertGreater(BACKTEST_MIN_TRAIN, 0)
+        self.assertGreater(BACKTEST_FOLDS, 0)
+        self.assertGreater(BACKTEST_MAX_TRAIN, 0)
+
+    def test_env_int_invalid_returns_default(self):
+        import ml.config as cfg
+
+        orig = os.environ.get("OOOBIR_ML_HORIZON")
+        os.environ["OOOBIR_ML_HORIZON"] = "not_a_number"
+        result = cfg._env_int("OOOBIR_ML_HORIZON", 99)
+        self.assertEqual(result, 99)
+        if orig is None:
+            del os.environ["OOOBIR_ML_HORIZON"]
+        else:
+            os.environ["OOOBIR_ML_HORIZON"] = orig
+
+    def test_env_float_invalid_returns_default(self):
+        import ml.config as cfg
+
+        orig = os.environ.get("OOOBIR_ML_MARGIN")
+        os.environ["OOOBIR_ML_MARGIN"] = "not_a_float"
+        result = cfg._env_float("OOOBIR_ML_MARGIN", 0.5)
+        self.assertEqual(result, 0.5)
+        if orig is None:
+            del os.environ["OOOBIR_ML_MARGIN"]
+        else:
+            os.environ["OOOBIR_ML_MARGIN"] = orig
+
+
+class TestTrainCLI(unittest.TestCase):
+    """Tests for ml.train CLI entry point functions."""
+
+    def test_sample_universe_returns_list(self):
+        from ml.train import _sample_universe
+
+        result = _sample_universe(5)
+        self.assertIsInstance(result, list)
+
+    def test_sample_universe_size_larger_than_available(self):
+        from ml.train import _sample_universe
+
+        result = _sample_universe(10000)
+        self.assertIsInstance(result, list)
+
+    def test_sample_universe_none_returns_all(self):
+        from ml.train import _sample_universe
+
+        result = _sample_universe(None)
+        self.assertIsInstance(result, list)
+
+    def test_historical_path_format(self):
+        from ml.train import _historical_path
+
+        path = _historical_path("AAPL")
+        self.assertIsInstance(path, str)
+        self.assertIn("AAPL", path)
+        self.assertIn("_price_history_all.json", path)
+
+    @patch("ml.train.build_training_frame")
+    def test_train_from_data_empty_frame(self, mock_build):
+        from ml.train import train_from_data
+
+        mock_build.return_value = pd.DataFrame()
+        with self.assertRaises(SystemExit):
+            train_from_data(pd.DataFrame())
+
+    def test_predict_ticker_file_not_found(self):
+        from ml.train import predict_ticker
+
+        with self.assertRaises(FileNotFoundError):
+            predict_ticker("INVALID_TICKER_XYZ123")
+
+    @patch("ml.train.dataset.labelled_frame_for_payload")
+    def test_predict_ticker_insufficient_history(self, mock_labelled):
+        import ml.train as train_mod
+
+        mock_labelled.return_value = pd.DataFrame()
+        with patch.object(
+            train_mod, "_historical_path", return_value="/tmp/nonexistent.json"
+        ):
+            with patch("os.path.exists", return_value=True):
+                with patch("builtins.open", side_effect=FileNotFoundError()):
+                    with self.assertRaises(FileNotFoundError):
+                        train_mod.predict_ticker("INVALID")
+
+    def test_cli_train_command_help(self):
+        from ml.train import _cli
+
+        with self.assertRaises(SystemExit) as ctx:
+            _cli(["train", "--help"])
+        self.assertEqual(ctx.exception.code, 0)
+
+    def test_cli_predict_command_help(self):
+        from ml.train import _cli
+
+        with self.assertRaises(SystemExit) as ctx:
+            _cli(["predict", "--help"])
+        self.assertEqual(ctx.exception.code, 0)
+
+    def test_cli_backtest_command_help(self):
+        from ml.train import _cli
+
+        with self.assertRaises(SystemExit) as ctx:
+            _cli(["backtest", "--help"])
+        self.assertEqual(ctx.exception.code, 0)
+
+    def test_cli_unknown_command(self):
+        from ml.train import _cli
+
+        with self.assertRaises(SystemExit):
+            _cli(["unknown_command"])
+
+
+class TestDatasetExtended(unittest.TestCase):
+    """Additional tests for ml.dataset functions."""
+
+    def test_ticker_filenames_returns_list(self):
+        from ml.dataset import ticker_filenames
+
+        result = ticker_filenames()
+        self.assertIsInstance(result, list)
+
+    def test_historical_files_returns_list(self):
+        from ml.dataset import historical_files
+
+        result = historical_files()
+        self.assertIsInstance(result, list)
+
+    def test_payload_to_frame_with_numeric_date(self):
+        df = _sample_price_df(100, uptrend=True)
+        df["Date"] = range(len(df))
+        result = dataset.payload_to_frame({"data": df.to_dict(orient="records")})
+        self.assertFalse(result.empty)
+
+    def test_payload_to_frame_sorts_by_date_column(self):
+        df = _sample_price_df(100, uptrend=True)
+        result = dataset.payload_to_frame({"data": df.to_dict(orient="records")})
+        self.assertFalse(result.empty)
+        self.assertIn("Date", result.columns)
+
+    def test_labelled_frame_for_payload_none_payload(self):
+        result = dataset.labelled_frame_for_payload(None)
+        self.assertTrue(result.empty)
+
+    def test_labelled_frame_for_payload_empty_dict(self):
+        result = dataset.labelled_frame_for_payload({})
+        self.assertTrue(result.empty)
+
+
+class TestExploreExtended(unittest.TestCase):
+    """Additional tests for ml.explore functions."""
+
+    def test_clamp_function(self):
+        from ml.explore import _clamp
+
+        self.assertEqual(_clamp(5, 0, 10, 5), 5)
+        self.assertEqual(_clamp(-5, 0, 10, 5), 0)
+        self.assertEqual(_clamp(15, 0, 10, 5), 10)
+        self.assertEqual(_clamp(None, 0, 10, 5), 5)
+        self.assertEqual(_clamp("bad", 0, 10, 5), 5)
+
+    def test_available_feature_groups_columns(self):
+        from ml.explore import available_feature_groups
+
+        groups = available_feature_groups()
+        for g in groups:
+            self.assertIn("columns", g)
+            self.assertIsInstance(g["columns"], list)
+
+    def test_explore_with_string_feature_groups(self):
+        df = pd.concat(
+            [_sample_price_df(150, up) for up in (True, False)], ignore_index=True
+        )
+        result = explore.explore(
+            df,
+            {
+                "model_name": "logistic",
+                "horizon": 5,
+                "feature_groups": "returns,rsi,volatility",
+                "folds": 2,
+                "max_train": 120,
+            },
+        )
+        self.assertIn("direction", result)
+        self.assertIn("n_features", result)
+
+
+class TestLabelsEdgeCases(unittest.TestCase):
+    """Edge case tests for ml.labels."""
+
+    def test_label_forward_returns_margin_exact_boundary(self):
+        df = _sample_price_df(200, uptrend=True)
+        lbls = labels.label_forward_returns(df, horizon=5, margin=0.01)
+        self.assertIn("FLAT", lbls.values)
+
+    def test_build_labelled_frame_no_date_column(self):
+        df = _sample_price_df(200, uptrend=True)
+        del df["Date"]
+        frame = labels.build_labelled_frame(df, horizon=5)
+        self.assertIn("target", frame.columns)
+        self.assertIn("Date", frame.columns)
+
+    def test_compute_feature_rows_with_feature_columns_filter(self):
+        df = _sample_price_df(200, uptrend=True)
+        rows = labels.compute_feature_rows(df, feature_columns=["returns", "rsi"])
+        cols = rows.columns.tolist()
+        self.assertTrue(
+            set(cols).issubset({"ret_1", "ret_5", "ret_10", "log_ret_1", "RSI_14"})
+        )
+
+
+class TestFeaturesEdgeCases(unittest.TestCase):
+    """Edge case tests for ml.features."""
+
+    def test_compute_indicators_with_nonzero_volume(self):
+        df = _sample_price_df(200, uptrend=True)
+        df["Volume"] = 0
+        ind = features.compute_indicators(df)
+        self.assertTrue(ind.notna().all().all())
+
+    def test_resolve_feature_columns_unknown_group(self):
+        cols = features.resolve_feature_columns(["unknown_group", "returns"])
+        self.assertIn("ret_1", cols)
+        self.assertNotIn("unknown_group", cols)
+
+    def test_resolve_feature_columns_empty_groups(self):
+        cols = features.resolve_feature_columns([])
+        self.assertEqual(cols, features.FEATURE_COLUMNS)
 
 
 if __name__ == "__main__":

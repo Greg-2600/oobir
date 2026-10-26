@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backtest Engine — OOBIR</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-card: #1c2128;
+            --bg-input: #0d1117;
+            --border: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-muted: #484f58;
+            --accent: #58a6ff;
+            --accent-dim: #1f3a5c;
+            --green: #3fb950;
+            --green-dim: #0f2a1a;
+            --red: #f85149;
+            --red-dim: #2a1214;
+            --yellow: #d29922;
+            --yellow-dim: #2a200a;
+            --purple: #bc8cff;
+            --radius: 8px;
+        }
+        [data-theme="light"] {
+            --bg-primary: #f6f8fa;
+            --bg-secondary: #ffffff;
+            --bg-card: #ffffff;
+            --bg-input: #f6f8fa;
+            --border: #d0d7de;
+            --text-primary: #1f2328;
+            --text-secondary: #656d76;
+            --text-muted: #b1bac4;
+            --accent: #0969da;
+            --accent-dim: #ddf4ff;
+            --green: #1a7f37;
+            --green-dim: #dafbe1;
+            --red: #cf222e;
+            --red-dim: #ffebe9;
+            --yellow: #9a6700;
+            --yellow-dim: #fdf0b2;
+            --purple: #8250df;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg-primary); color: var(--text-primary); font-family: system-ui, -apple-system, sans-serif; min-height: 100vh; }
+
+        .bt-page { max-width: 1400px; margin: 0 auto; padding: 0 0 40px; }
+
+        /* ── Top Bar ── */
+        .bt-topbar {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            height: 56px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .bt-topbar-brand {
+            font-size: 1.1rem;
+            font-weight: 900;
+            color: var(--accent);
+            letter-spacing: -0.02em;
+            text-decoration: none;
+        }
+        .bt-topbar h1 { font-size: 1rem; font-weight: 700; color: var(--text-primary); flex: 1; }
+        .bt-topbar-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .bt-topbar input, .bt-topbar select {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 0.82rem;
+            outline: none;
+        }
+        .bt-topbar input:focus, .bt-topbar select:focus { border-color: var(--accent); }
+        .bt-topbar input[type="date"] { color-scheme: dark; }
+        [data-theme="light"] .bt-topbar input[type="date"] { color-scheme: light; }
+        .btn-run {
+            background: var(--green);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 7px 16px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-run:hover { opacity: 0.9; }
+        .btn-run:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* ── Main Grid ── */
+        .bt-main { display: grid; grid-template-columns: 300px 1fr; gap: 0; min-height: calc(100vh - 56px); }
+
+        /* ── Left Sidebar ── */
+        .bt-sidebar {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            overflow-y: auto;
+            height: calc(100vh - 56px);
+            position: sticky;
+            top: 56px;
+        }
+        .bt-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+        .bt-panel-title { font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+        .form-group { margin-bottom: 8px; }
+        .form-group:last-child { margin-bottom: 0; }
+        .form-group label { display: block; font-size: 0.72rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+        .form-group input, .form-group select {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            border-radius: 6px;
+            padding: 7px 10px;
+            font-size: 0.82rem;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+        /* Preset pills */
+        .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+        .preset-btn {
+            padding: 6px 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-input);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.15s;
+        }
+        .preset-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+        .preset-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+        /* Conditions */
+        .cond-list { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; max-height: 160px; overflow-y: auto; }
+        .cond-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 8px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.75rem;
+        }
+        .cond-item .cond-label { flex: 1; font-weight: 600; color: var(--text-primary); }
+        .cond-item .cond-label span { color: var(--text-secondary); font-weight: 400; }
+        .cond-item .cond-remove { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.8rem; padding: 0 2px; }
+        .cond-item .cond-remove:hover { color: var(--red); }
+        .cond-item .and-dot { font-size: 0.6rem; color: var(--accent); font-weight: 900; }
+
+        .add-cond { display: flex; flex-direction: column; gap: 6px; }
+        .add-cond-row { display: flex; gap: 6px; }
+        .add-cond-row select, .add-cond-row input { flex: 1; }
+        .btn-add-cond {
+            background: var(--accent-dim);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            border-radius: 6px;
+            padding: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+        }
+        .btn-add-cond:hover { background: var(--accent); color: #fff; }
+
+        /* ── Right Content ── */
+        .bt-content { padding: 16px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+
+        /* ── Metric Strip ── */
+        .metrics-strip {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+        }
+        .metric-tile {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .metric-tile .m-val { font-size: 1.5rem; font-weight: 900; line-height: 1; }
+        .metric-tile .m-lbl { font-size: 0.65rem; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+        .metric-tile .m-sub { font-size: 0.68rem; color: var(--text-muted); }
+        .metric-tile.up .m-val { color: var(--green); }
+        .metric-tile.down .m-val { color: var(--red); }
+        .metric-tile.neutral .m-val { color: var(--text-secondary); }
+        .metric-tile.highlight { border-color: var(--accent); background: var(--accent-dim); }
+
+        /* ── Chart Grid ── */
+        .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        @media (max-width: 1100px) { .charts-grid { grid-template-columns: 1fr; } }
+        .chart-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+        .chart-panel-header {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+        }
+        .chart-canvas { width: 100%; display: block; }
+        .chart-full { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+        .chart-full .chart-panel-header { padding: 12px 16px; }
+
+        /* Strategy comparison */
+        .strat-compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+        .strat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px 14px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .strat-card:hover { border-color: var(--accent); }
+        .strat-card.selected { border-color: var(--green); background: var(--green-dim); }
+        .strat-card .sc-name { font-size: 0.82rem; font-weight: 800; margin-bottom: 6px; }
+        .strat-card .sc-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+        .strat-card .sc-m { font-size: 0.7rem; }
+        .strat-card .sc-m .v { font-weight: 800; }
+        .strat-card .sc-m .l { color: var(--text-muted); }
+
+        /* Trade log */
+        .trade-log { max-height: 320px; overflow-y: auto; }
+        .trade-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+        .trade-table th {
+            position: sticky;
+            top: 0;
+            background: var(--bg-secondary);
+            padding: 8px 12px;
+            text-align: left;
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border);
+        }
+        .trade-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text-primary); }
+        .trade-table tr:hover td { background: var(--bg-input); }
+        .trade-table .buy { color: var(--green); font-weight: 700; }
+        .trade-table .sell { color: var(--red); font-weight: 700; }
+        .trade-table .win { color: var(--green); }
+        .trade-table .loss { color: var(--red); }
+        .trade-table .flat { color: var(--text-muted); }
+
+        /* Monte Carlo */
+        .mc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; }
+        .mc-percentile {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 10px;
+            text-align: center;
+        }
+        .mc-percentile .mp { font-size: 0.62rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
+        .mc-percentile .mv { font-size: 1rem; font-weight: 900; }
+        .mc-percentile .mv.up { color: var(--green); }
+        .mc-percentile .mv.down { color: var(--red); }
+
+        /* Indicator panel */
+        .indicator-tabs { display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap; }
+        .ind-tab {
+            padding: 4px 10px;
+            border: 1px solid var(--border);
+            background: none;
+            color: var(--text-secondary);
+            border-radius: 20px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .ind-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+        /* Empty / loading states */
+        .bt-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+            color: var(--text-muted);
+            text-align: center;
+            gap: 12px;
+        }
+        .bt-empty .big-icon { font-size: 3rem; }
+        .bt-empty h3 { font-size: 1rem; font-weight: 700; color: var(--text-secondary); }
+        .bt-empty p { font-size: 0.82rem; max-width: 400px; line-height: 1.5; }
+        .bt-loading { display: flex; align-items: center; justify-content: center; min-height: 300px; gap: 12px; color: var(--text-secondary); }
+        .bt-loading .spinner {
+            width: 20px; height: 20px; border: 2px solid var(--border);
+            border-top-color: var(--accent); border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .bt-loading .spinner { border-top-color: var(--accent); }
+
+        /* Run indicator */
+        .run-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+        }
+        .run-indicator .ri-dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: var(--green);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        /* Comparison toggle */
+        .compare-toggle { display: flex; align-items: center; gap: 8px; }
+        .toggle-label { font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; }
+        .toggle-switch {
+            position: relative; width: 32px; height: 18px;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider {
+            position: absolute; inset: 0;
+            background: var(--border); border-radius: 9px;
+            cursor: pointer; transition: 0.2s;
+        }
+        .toggle-slider:before {
+            content: ''; position: absolute;
+            width: 12px; height: 12px; left: 3px; bottom: 3px;
+            background: white; border-radius: 50%; transition: 0.2s;
+        }
+        .toggle-switch input:checked + .toggle-slider { background: var(--accent); }
+        .toggle-switch input:checked + .toggle-slider:before { transform: translateX(14px); }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        /* Nav */
+        header.app-header { display: none; }
+
+        @media (max-width: 900px) {
+            .bt-main { grid-template-columns: 1fr; }
+            .bt-sidebar { height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); }
+        }
+    </style>
+</head>
+<body>
+    <div class="bt-page">
+        <!-- Top bar -->
+        <div class="bt-topbar">
+            <a class="bt-topbar-brand" href="search.html">OOBIR</a>
+            <h1>⚙️ Backtest Engine</h1>
+            <div class="bt-topbar-controls">
+                <input type="text" id="bt-ticker" value="MSFT" placeholder="TICKER" style="width:80px;text-transform:uppercase">
+                <input type="date" id="bt-start" value="2026-04-29">
+                <input type="date" id="bt-end" value="2026-10-22">
+                <div class="compare-toggle">
+                    <span class="toggle-label">Multi-strat</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="compare-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <button class="btn-run" id="run-btn" onclick="runBacktest()">
+                    ▶ Run Backtest
+                </button>
+            </div>
+        </div>
+
+        <!-- Main area -->
+        <div class="bt-main">
+            <!-- Sidebar -->
+            <div class="bt-sidebar">
+                <!-- Capital & sizing -->
+                <div class="bt-panel">
+                    <div class="bt-panel-title">💰 Capital & Sizing</div>
+                    <div class="form-row" style="margin-bottom:8px">
+                        <div class="form-group">
+                            <label>Capital ($)</label>
+                            <input type="number" id="bt-capital" value="100000" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label>Pos Size (%)</label>
+                            <input type="number" id="bt-pos-size" value="10" min="1" max="100">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Commission ($/trade)</label>
+                        <input type="number" id="bt-commission" value="0" step="any" placeholder="0">
+                    </div>
+                </div>
+
+                <!-- Entry Conditions -->
+                <div class="bt-panel">
+                    <div class="bt-panel-title">📋 Entry Conditions</div>
+                    <div class="preset-grid">
+                        <button class="preset-btn" onclick="applyPreset('rsi_oversold')">RSI &lt;30</button>
+                        <button class="preset-btn" onclick="applyPreset('rsi_overbought')">RSI &gt;70</button>
+                        <button class="preset-btn" onclick="applyPreset('ma_cross_up')">MA Cross ↑</button>
+                        <button class="preset-btn" onclick="applyPreset('ma_cross_down')">MA Cross ↓</button>
+                        <button class="preset-btn" onclick="applyPreset('bollinger_bounce')">BB Bounce</button>
+                        <button class="preset-btn" onclick="applyPreset('macd_bull')">MACD Bull</button>
+                    </div>
+                    <div id="condition-list" class="cond-list"></div>
+                    <div class="add-cond">
+                        <div class="add-cond-row">
+                            <select id="cond-indicator">
+                                <option value="rsi">RSI</option>
+                                <option value="price_vs_sma20">Price÷SMA20</option>
+                                <option value="price_vs_sma50">Price÷SMA50</option>
+                                <option value="macd_hist">MACD Hist</option>
+                                <option value="volume_ratio">Vol Ratio</option>
+                                <option value="bb_percent">BB %B</option>
+                                <option value="price_change_5d">5d Return%</option>
+                                <option value="price_change_20d">20d Return%</option>
+                            </select>
+                            <select id="cond-op">
+                                <option value="<">&lt;</option>
+                                <option value=">">&gt;</option>
+                                <option value="<=">&le;</option>
+                                <option value=">=">&ge;</option>
+                                <option value="==">=</option>
+                            </select>
+                        </div>
+                        <div class="add-cond-row">
+                            <input type="number" id="cond-value" step="any" placeholder="Value">
+                            <button class="btn-add-cond" onclick="addCondition()">+ Add</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Risk Management -->
+                <div class="bt-panel">
+                    <div class="bt-panel-title">🛡️ Risk Management</div>
+                    <div class="form-row" style="margin-bottom:8px">
+                        <div class="form-group">
+                            <label>Stop Loss %</label>
+                            <input type="number" id="bt-stop" value="5" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label>Take Profit %</label>
+                            <input type="number" id="bt-profit" value="20" step="any">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Trail Stop %</label>
+                        <input type="number" id="bt-trail" value="0" step="any" placeholder="0 = off">
+                    </div>
+                    <div class="form-group">
+                        <label>Exit on opposite signal</label>
+                        <select id="bt-opposite-signal">
+                            <option value="true">Yes — flip position</option>
+                            <option value="false" selected>No — hold through</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Monte Carlo -->
+                <div class="bt-panel">
+                    <div class="bt-panel-title">🎲 Monte Carlo</div>
+                    <div class="form-group">
+                        <label>Simulations</label>
+                        <select id="mc-count">
+                            <option value="100">100 runs</option>
+                            <option value="500" selected>500 runs</option>
+                            <option value="1000">1000 runs</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Resample freq</label>
+                        <select id="mc-resample">
+                            <option value="day" selected>Daily</option>
+                            <option value="trade">Per Trade</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right content -->
+            <div class="bt-content">
+                <!-- Empty state -->
+                <div id="bt-empty" class="bt-empty">
+                    <div class="big-icon">📈</div>
+                    <h3>No backtest results yet</h3>
+                    <p>Enter a ticker, add entry conditions (or use a preset), then click <strong>▶ Run Backtest</strong> to simulate trades on historical data.</p>
+                    <p style="color:var(--accent);font-size:0.8rem;">Try: <strong>Ticker: MSFT</strong> + click <strong>RSI &lt;30</strong> preset + <strong>▶ Run Backtest</strong></p>
+                </div>
+
+                <!-- Loading -->
+                <div id="bt-loading" class="bt-loading" style="display:none">
+                    <div class="spinner"></div>
+                    <span>Running backtest simulation…</span>
+                </div>
+
+                <!-- Results -->
+                <div id="bt-results" style="display:none">
+                    <!-- Metric strip -->
+                    <div class="metrics-strip" id="metrics-strip"></div>
+
+                    <!-- Equity + Drawdown charts -->
+                    <div class="charts-grid">
+                        <div class="chart-panel">
+                            <div class="chart-panel-header">
+                                <span>📈 Equity Curve</span>
+                                <span id="equity-info" style="font-size:0.68rem;color:var(--text-muted)"></span>
+                            </div>
+                            <canvas id="equity-canvas" class="chart-canvas" style="height:220px"></canvas>
+                        </div>
+                        <div class="chart-panel">
+                            <div class="chart-panel-header">
+                                <span>📉 Drawdown</span>
+                                <span id="dd-info" style="font-size:0.68rem;color:var(--text-muted)"></span>
+                            </div>
+                            <canvas id="drawdown-canvas" class="chart-canvas" style="height:220px"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Price chart with trades -->
+                    <div class="chart-full">
+                        <div class="chart-panel-header">
+                            <span>💹 Price + Entry/Exit Signals</span>
+                            <div class="indicator-tabs" id="ind-tabs">
+                                <button class="ind-tab active" onclick="setIndicatorChart('price')">Price</button>
+                                <button class="ind-tab" onclick="setIndicatorChart('rsi')">RSI</button>
+                                <button class="ind-tab" onclick="setIndicatorChart('macd')">MACD</button>
+                                <button class="ind-tab" onclick="setIndicatorChart('bb')">BB %B</button>
+                            </div>
+                        </div>
+                        <canvas id="price-canvas" class="chart-canvas" style="height:280px"></canvas>
+                    </div>
+
+                    <!-- Monte Carlo + Trade log side by side -->
+                    <div class="charts-grid">
+                        <div class="chart-panel">
+                            <div class="chart-panel-header">
+                                <span>🎲 Monte Carlo (End Equity Distribution)</span>
+                            </div>
+                            <canvas id="mc-canvas" class="chart-canvas" style="height:180px"></canvas>
+                            <div class="mc-grid" id="mc-grid" style="padding:12px 14px"></div>
+                        </div>
+                        <div class="chart-panel">
+                            <div class="chart-panel-header">
+                                <span>📜 Trade Log</span>
+                                <span id="trade-count-label" style="font-size:0.68rem;color:var(--text-muted)"></span>
+                            </div>
+                            <div class="trade-log">
+                                <table class="trade-table">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th><th>Date</th><th>Action</th><th>Price</th><th>Shares</th><th>P&L</th><th>P&L %</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="trade-tbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Strategy Comparison -->
+                    <div id="strat-compare-section" style="display:none">
+                        <div class="chart-full">
+                            <div class="chart-panel-header">
+                                <span>🏆 Strategy Comparison</span>
+                            </div>
+                            <div class="strat-compare" id="strat-compare" style="padding:14px;gap:10px"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const API = window.location.origin;
+    let conditions = [];
+    let btData = null;
+    let activeIndicator = 'price';
+    let compareMode = false;
+    let stratResults = [];
+
+    function $ (id) { return document.getElementById(id); }
+
+    // ─── Indicators ─────────────────────────────────────────────────────────
+
+    function calcRSI(closes, period = 14) {
+        const out = new Array(closes.length).fill(null);
+        if (closes.length < period + 1) return out;
+        let gains = 0, losses = 0;
+        for (let i = 1; i <= period; i++) { const d = closes[i] - closes[i-1]; if (d > 0) gains += d; else losses -= d; }
+        let ag = gains / period, al = losses / period;
+        for (let i = period; i < closes.length; i++) {
+            out[i] = al === 0 ? 100 : 100 - 100 / (1 + ag / al);
+            const d = closes[i] - closes[i-1];
+            ag = (ag * (period - 1) + (d > 0 ? d : 0)) / period;
+            al = (al * (period - 1) + (d < 0 ? -d : 0)) / period;
+        }
+        return out;
+    }
+
+    function calcSMA(values, period) {
+        return values.map((_, i) => {
+            if (i < period - 1) return null;
+            return values.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0) / period;
+        });
+    }
+
+    function calcEMA(values, period) {
+        const k = 2 / (period + 1);
+        const out = new Array(values.length).fill(null);
+        let ema = values.slice(0, period).reduce((a, b) => a + b, 0) / period;
+        for (let i = period - 1; i < values.length; i++) {
+            if (i === period - 1) out[i] = ema;
+            else if (values[i] != null) out[i] = values[i] * k + out[i-1] * (1 - k);
+        }
+        return out;
+    }
+
+    function calcMACD(closes) {
+        const e12 = calcEMA(closes, 12), e26 = calcEMA(closes, 26);
+        const macdLine = e12.map((v, i) => v != null && e26[i] != null ? v - e26[i] : null);
+        const validMacd = macdLine.filter(v => v != null);
+        const signal = calcEMA(validMacd, 9);
+        let si = 0;
+        const signalOut = macdLine.map(v => { if (v == null) return null; return si < signal.length ? signal[si++] : null; });
+        const hist = macdLine.map((v, i) => v != null && signalOut[i] != null ? v - signalOut[i] : null);
+        return { macd: macdLine, signal: signalOut, histogram: hist };
+    }
+
+    function calcBollingerB(values, period = 20, mult = 2) {
+        const sma = calcSMA(values, period);
+        return values.map((_, i) => {
+            if (sma[i] == null) return null;
+            const slice = values.slice(i - period + 1, i + 1);
+            const std = Math.sqrt(slice.reduce((s, v) => s + (v - sma[i]) ** 2, 0) / period);
+            return (values[i] - (sma[i] - mult * std)) / (2 * mult * std);
+        });
+    }
+
+    function calcVolumeRatio(volumes, period = 20) {
+        const avg = calcSMA(volumes, period);
+        return volumes.map((v, i) => avg[i] != null ? v / avg[i] : null);
+    }
+
+    // ─── Condition management ────────────────────────────────────────────────
+
+    const IND_LABELS = {
+        rsi: 'RSI(14)', price_vs_sma20: 'Price÷SMA20', price_vs_sma50: 'Price÷SMA50',
+        macd_hist: 'MACD Hist', volume_ratio: 'Vol Ratio', bb_percent: 'BB %B',
+        price_change_5d: '5d Return%', price_change_20d: '20d Return%'
+    };
+
+    function addCondition() {
+        const ind = $('cond-indicator').value;
+        const op = $('cond-op').value;
+        const val = parseFloat($('cond-value').value);
+        if (isNaN(val)) return;
+        conditions.push({ indicator: ind, op, value: val, label: IND_LABELS[ind] || ind });
+        $('cond-value').value = '';
+        renderConditions();
+    }
+
+    function removeCondition(idx) {
+        conditions.splice(idx, 1);
+        renderConditions();
+    }
+
+    function renderConditions() {
+        const list = $('condition-list');
+        if (!conditions.length) { list.innerHTML = '<div style="font-size:0.72rem;color:var(--text-muted);padding:4px 0">No conditions — add one or use a preset</div>'; return; }
+        list.innerHTML = conditions.map((c, i) => `
+            <div class="cond-item">
+                ${i > 0 ? '<span class="and-dot">AND</span>' : ''}
+                <span class="cond-label">${c.label} <span>${c.op} ${c.value}</span></span>
+                <button class="cond-remove" onclick="removeCondition(${i})">✕</button>
+            </div>`).join('');
+    }
+
+    function applyPreset(name) {
+        conditions = [];
+        if (name === 'rsi_oversold') conditions.push({ indicator: 'rsi', op: '<', value: 30, label: 'RSI(14)' });
+        else if (name === 'rsi_overbought') conditions.push({ indicator: 'rsi', op: '>', value: 70, label: 'RSI(14)' });
+        else if (name === 'ma_cross_up') {
+            conditions.push({ indicator: 'price_vs_sma20', op: '>', value: 1, label: 'Price÷SMA20' });
+            conditions.push({ indicator: 'price_vs_sma50', op: '>', value: 1, label: 'Price÷SMA50' });
+        } else if (name === 'ma_cross_down') {
+            conditions.push({ indicator: 'price_vs_sma20', op: '<', value: 1, label: 'Price÷SMA20' });
+            conditions.push({ indicator: 'price_vs_sma50', op: '<', value: 1, label: 'Price÷SMA50' });
+        } else if (name === 'bollinger_bounce') conditions.push({ indicator: 'bb_percent', op: '<', value: 0, label: 'BB %B' });
+        else if (name === 'macd_bull') conditions.push({ indicator: 'macd_hist', op: '>', value: 0, label: 'MACD Hist' });
+        renderConditions();
+    }
+
+    function checkConditions(vals) {
+        if (!conditions.length) return false;
+        return conditions.every(c => {
+            const v = vals[c.indicator];
+            if (v == null) return false;
+            switch (c.op) {
+                case '<': return v < c.value;
+                case '>': return v > c.value;
+                case '<=': return v <= c.value;
+                case '>=': return v >= c.value;
+                case '==': return Math.abs(v - c.value) < 0.001;
+            }
+            return false;
+        });
+    }
+
+    // ─── Backtest Engine ─────────────────────────────────────────────────────
+
+    async function runBacktest() {
+        const ticker = $('bt-ticker').value.trim().toUpperCase();
+        const startDate = $('bt-start').value;
+        const endDate = $('bt-end').value;
+        const capital = parseFloat($('bt-capital').value) || 100000;
+        const posSizePct = parseFloat($('bt-pos-size').value) / 100;
+        const stopLoss = parseFloat($('bt-stop').value || 0) / 100;
+        const takeProfit = parseFloat($('bt-profit').value || 0) / 100;
+        const trailStop = parseFloat($('bt-trail').value || 0) / 100;
+        const flipOnOpposite = $('bt-opposite-signal').value === 'true';
+        const commission = parseFloat($('bt-commission').value || 0);
+
+        $('bt-empty').style.display = 'none';
+        $('bt-results').style.display = 'none';
+        $('bt-loading').style.display = 'flex';
+        $('run-btn').disabled = true;
+
+        try {
+            const res = await fetch(`${API}/api/price-history/${ticker}?start=${startDate}&end=${endDate}`);
+            if (!res.ok) throw new Error('Failed to fetch price data for ' + ticker);
+            const json = await res.json();
+            const rawData = (json.data || json);
+            if (!rawData || rawData.length < 30) throw new Error('Insufficient data — need at least 30 rows');
+
+            const closes = rawData.map(d => d.Close);
+            const highs = rawData.map(d => d.High);
+            const lows = rawData.map(d => d.Low);
+            const volumes = rawData.map(d => d.Volume);
+            const dates = rawData.map(d => d.Date);
+
+            const rsi = calcRSI(closes);
+            const sma20 = calcSMA(closes, 20);
+            const sma50 = calcSMA(closes, 50);
+            const macd = calcMACD(closes);
+            const bb = calcBollingerB(closes);
+            const volRatio = calcVolumeRatio(volumes);
+            const ret5 = closes.map((c, i) => i >= 5 ? (c - closes[i-5]) / closes[i-5] * 100 : null);
+            const ret20 = closes.map((c, i) => i >= 20 ? (c - closes[i-20]) / closes[i-20] * 100 : null);
+
+            const getVals = i => ({
+                rsi: rsi[i], price_vs_sma20: sma20[i] != null ? closes[i] / sma20[i] : null,
+                price_vs_sma50: sma50[i] != null ? closes[i] / sma50[i] : null,
+                macd_hist: macd.histogram[i], volume_ratio: volRatio[i], bb_percent: bb[i],
+                price_change_5d: ret5[i], price_change_20d: ret20[i],
+            });
+
+            // Run engine
+            const result = runEngine({ closes, highs, lows, volumes, dates, getVals, capital, posSizePct, stopLoss, takeProfit, trailStop, flipOnOpposite, commission, startIndex: 30 });
+            btData = { ...result, ticker, capital, closes, highs, lows, dates, rsi, sma20, sma50, macd, bb, volRatio, rawData };
+
+            // Monte Carlo
+            const mcRuns = parseInt($('mc-count').value);
+            const mcResult = runMonteCarlo(btData, mcRuns);
+
+            $('bt-loading').style.display = 'none';
+            $('bt-results').style.display = 'block';
+            $('run-btn').disabled = false;
+
+            renderMetrics(btData, mcResult);
+            drawEquityCurve(btData);
+            drawDrawdown(btData);
+            drawPriceChart(btData);
+            renderTradeLog(btData.trades);
+            renderMonteCarlo(mcResult, btData.initialCapital);
+
+            if (compareMode) {
+                stratResults.push({ name: conditions.map(c => `${c.label}${c.op}${c.value}`).join(' & ') || 'Custom', ...btData });
+                renderStrategyCompare();
+            } else {
+                stratResults = [];
+            }
+        } catch (err) {
+            $('bt-loading').style.display = 'none';
+            $('bt-empty').style.display = 'flex';
+            $('bt-empty').querySelector('h3').textContent = 'Error: ' + err.message;
+            $('run-btn').disabled = false;
+        }
+    }
+
+    function runEngine({ closes, highs, lows, volumes, dates, getVals, capital, posSizePct, stopLoss, takeProfit, trailStop, flipOnOpposite, commission, startIndex }) {
+        let cash = capital, shares = 0, equity = capital, position = 0;
+        let entryPrice = 0, entryDate = '', peak = equity;
+        const equityCurve = [], trades = [];
+        let trailingStop = 0;
+        const commissionCost = commission || 0;
+
+        for (let i = startIndex; i < closes.length; i++) {
+            const price = closes[i];
+            const vals = getVals(i);
+            const entrySignal = checkConditions(vals);
+            const stopPrice = stopLoss > 0 ? entryPrice * (1 - stopLoss) : 0;
+            const tpPrice = takeProfit > 0 ? entryPrice * (1 + takeProfit) : 0;
+
+            let shouldExit = position === 1 && (
+                (stopLoss > 0 && price <= stopPrice) ||
+                (takeProfit > 0 && price >= tpPrice) ||
+                (trailStop > 0 && trailingStop > 0 && price <= trailingStop) ||
+                (flipOnOpposite && !entrySignal)
+            );
+
+            if (position === 0 && entrySignal) {
+                const positionValue = equity * posSizePct;
+                shares = Math.floor(positionValue / price);
+                if (shares > 0) {
+                    cash -= shares * price + commissionCost;
+                    entryPrice = price;
+                    entryDate = dates[i];
+                    position = 1;
+                    trailingStop = 0;
+                    trades.push({ seq: 1, entryDate, entryPrice, shares, action: 'BUY', type: 'entry' });
+                }
+            } else if (position === 1 && shouldExit) {
+                cash += shares * price - commissionCost;
+                const pnl = cash - equity;
+                const pnlPct = (price - entryPrice) / entryPrice * 100;
+                trades.push({ seq: 2, exitDate: dates[i], exitPrice: price, pnl, pnlPct, shares, action: 'SELL', type: 'exit' });
+                equity = cash;
+                shares = 0; position = 0; entryPrice = 0; entryDate = '';
+                trailingStop = 0;
+            }
+
+            if (position === 1) {
+                equity = cash + shares * price;
+                if (trailStop > 0) {
+                    const newTrail = price * (1 - trailStop);
+                    trailingStop = Math.max(trailingStop, newTrail);
+                }
+            } else {
+                equity = cash;
+            }
+            peak = Math.max(peak, equity);
+            equityCurve.push({ date: dates[i], equity, drawdown: (equity - peak) / peak });
+        }
+
+        // Finalize open position
+        if (position === 1) {
+            const finalPnl = closes[closes.length - 1] * shares - entryPrice * shares;
+            equity = cash + shares * closes[closes.length - 1];
+            trades[trades.length - 1].holdPnl = finalPnl;
+            trades[trades.length - 1].holdPnlPct = (closes[closes.length - 1] - entryPrice) / entryPrice * 100;
+        }
+
+        return { equityCurve, trades, initialCapital: capital, finalEquity: equity, ticker: '' };
+    }
+
+    // ─── Monte Carlo ──────────────────────────────────────────────────────────
+
+    function runMonteCarlo(bt, runs = 500) {
+        const trades = bt.trades.filter(t => t.type === 'exit');
+        if (!trades.length) return null;
+        const pcts = trades.map(t => t.pnlPct / 100);
+        const results = [];
+        for (let r = 0; r < runs; r++) {
+            // Bootstrap resample
+            let equity = bt.initialCapital;
+            for (const pct of pcts) {
+                const sampled = pcts[Math.floor(Math.random() * pcts.length)];
+                equity *= (1 + sampled);
+            }
+            results.push(equity);
+        }
+        results.sort((a, b) => a - b);
+        const pct5 = results[Math.floor(runs * 0.05)];
+        const pct25 = results[Math.floor(runs * 0.25)];
+        const pct50 = results[Math.floor(runs * 0.50)];
+        const pct75 = results[Math.floor(runs * 0.75)];
+        const pct95 = results[Math.floor(runs * 0.95)];
+        return { runs: results, pct5, pct25, pct50, pct75, pct95, initial: bt.initialCapital };
+    }
+
+    // ─── Metrics ─────────────────────────────────────────────────────────────
+
+    function calcMetrics(bt) {
+        const { equityCurve, trades, initialCapital, finalEquity } = bt;
+        const closed = trades.filter(t => t.type === 'exit');
+        const wins = closed.filter(t => t.pnl > 0);
+        const winRate = closed.length ? wins.length / closed.length : 0;
+        const avgRet = closed.length ? closed.reduce((s, t) => s + t.pnlPct, 0) / closed.length : 0;
+        const grossProfit = closed.filter(t => t.pnl > 0).reduce((s, t) => s + t.pnl, 0);
+        const grossLoss = Math.abs(closed.filter(t => t.pnl < 0).reduce((s, t) => s + t.pnl, 0));
+        const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
+
+        let peak = initialCapital, maxDD = 0;
+        equityCurve.forEach(e => { peak = Math.max(peak, e.equity); maxDD = Math.min(maxDD, (e.equity - peak) / peak); });
+
+        const rets = equityCurve.slice(1).map((e, i) => (e.equity - equityCurve[i].equity) / equityCurve[i].equity);
+        const avgR = rets.reduce((a, b) => a + b, 0) / (rets.length || 1);
+        const stdR = Math.sqrt(rets.reduce((s, r) => s + (r - avgR) ** 2, 0) / (rets.length || 1));
+        const sharpe = stdR > 0 ? (avgR / stdR) * Math.sqrt(252) : 0;
+
+        const totalReturn = (finalEquity - initialCapital) / initialCapital;
+        const cagr = Math.pow(finalEquity / initialCapital, 252 / (equityCurve.length || 1)) - 1;
+
+        return {
+            totalReturn, finalEquity, pnl: finalEquity - initialCapital,
+            winRate, avgRet, profitFactor, sharpe, cagr,
+            maxDD, numTrades: closed.length, numWins: wins.length,
+        };
+    }
+
+    function renderMetrics(bt, mc) {
+        const m = calcMetrics(bt);
+        const up = m.totalReturn >= 0;
+        const strip = $('metrics-strip');
+        const fmt = (v, dec = 2, pct = false) => {
+            if (v == null || isNaN(v)) return '—';
+            const sign = pct && v > 0 ? '+' : '';
+            if (Math.abs(v) >= 1e6) return sign + (v / 1e6).toFixed(dec) + 'M';
+            if (Math.abs(v) >= 1e3) return sign + (v / 1e3).toFixed(dec) + 'K';
+            return sign + (pct ? (v * 100).toFixed(dec) + '%' : v.toFixed(dec));
+        };
+
+        strip.innerHTML = `
+            <div class="metric-tile ${up ? 'up' : 'down'} highlight">
+                <div class="m-val">${fmt(m.pnl, 0)}</div>
+                <div class="m-lbl">Total P&L</div>
+                <div class="m-sub">${fmt(m.totalReturn, 2, true)} return</div>
+            </div>
+            <div class="metric-tile ${up ? 'up' : 'down'}">
+                <div class="m-val">${fmt(m.finalEquity, 0)}</div>
+                <div class="m-lbl">Final Equity</div>
+                <div class="m-sub">of ${fmt(m.initialCapital, 0)} start</div>
+            </div>
+            <div class="metric-tile ${Math.abs(m.sharpe) < 1 ? 'down' : 'up'}">
+                <div class="m-val">${m.sharpe.toFixed(2)}</div>
+                <div class="m-lbl">Sharpe Ratio</div>
+                <div class="m-sub">annualised</div>
+            </div>
+            <div class="metric-tile ${m.winRate >= 0.5 ? 'up' : 'down'}">
+                <div class="m-val">${(m.winRate * 100).toFixed(0)}%</div>
+                <div class="m-lbl">Win Rate</div>
+                <div class="m-sub">${m.numWins} wins / ${m.numTrades} trades</div>
+            </div>
+            <div class="metric-tile ${m.profitFactor >= 1 ? 'up' : 'down'}">
+                <div class="m-val">${m.profitFactor === Infinity ? '∞' : m.profitFactor.toFixed(2)}</div>
+                <div class="m-lbl">Profit Factor</div>
+                <div class="m-sub">gross profit / loss</div>
+            </div>
+            <div class="metric-tile ${m.cagr >= 0 ? 'up' : 'down'}">
+                <div class="m-val">${(m.cagr * 100).toFixed(1)}%</div>
+                <div class="m-lbl">CAGR</div>
+                <div class="m-sub">annualised return</div>
+            </div>
+            <div class="metric-tile ${m.maxDD > -0.15 ? 'up' : 'down'}">
+                <div class="m-val">${(m.maxDD * 100).toFixed(1)}%</div>
+                <div class="m-lbl">Max Drawdown</div>
+                <div class="m-sub">peak-to-trough</div>
+            </div>
+            <div class="metric-tile neutral">
+                <div class="m-val">${m.numTrades}</div>
+                <div class="m-lbl">Total Trades</div>
+                <div class="m-sub">${fmt(m.avgRet, 2, true)} avg</div>
+            </div>
+            ${mc ? `
+            <div class="metric-tile ${mc.pct5 >= bt.initialCapital ? 'up' : 'down'}">
+                <div class="m-val">${(mc.pct5 >= bt.initialCapital ? '+' : '') + ((mc.pct5 / bt.initialCapital - 1) * 100).toFixed(1)}%</div>
+                <div class="m-lbl">MC 5th %ile</div>
+                <div class="m-sub">worst case</div>
+            </div>
+            <div class="metric-tile ${mc.pct50 >= bt.initialCapital ? 'up' : 'down'}">
+                <div class="m-val">${(mc.pct50 >= bt.initialCapital ? '+' : '') + ((mc.pct50 / bt.initialCapital - 1) * 100).toFixed(1)}%</div>
+                <div class="m-lbl">MC Median</div>
+                <div class="m-sub">50th percentile</div>
+            </div>` : ''}
+        `;
+    }
+
+    // ─── Equity Curve ─────────────────────────────────────────────────────────
+
+    function drawEquityCurve(bt) {
+        const canvas = $('equity-canvas');
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        const W = canvas.width = canvas.offsetWidth * dpr;
+        const H = canvas.height = canvas.offsetHeight * dpr;
+        ctx.scale(dpr, dpr);
+        const cssW = canvas.offsetWidth, cssH = canvas.offsetHeight;
+
+        const curve = bt.equityCurve;
+        const init = bt.initialCapital;
+        const norm = curve.map(e => e.equity);
+        const minV = Math.min(...norm) * 0.98, maxV = Math.max(...norm) * 1.01;
+        const pad = { l: 8, r: 8, t: 16, b: 28 }, w = cssW - pad.l - pad.r, h = cssH - pad.t - pad.b;
+        const toX = i => pad.l + (i / (norm.length - 1)) * w;
+        const toY = v => pad.t + h - ((v - minV) / (maxV - minV)) * h;
+
+        // Grid
+        ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1;
+        for (let g = 0; g <= 4; g++) {
+            const y = pad.t + (g / 4) * h;
+            ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + w, y); ctx.stroke();
+            const val = maxV - (g / 4) * (maxV - minV);
+            ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.font = '500 9px system-ui'; ctx.textAlign = 'right';
+            ctx.fillText('$' + Math.round(val).toLocaleString(), pad.l - 3, y + 3);
+        }
+
+        // Zero line
+        if (minV < init && maxV > init) {
+            const zy = toY(init);
+            ctx.setLineDash([4, 4]); ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+            ctx.beginPath(); ctx.moveTo(pad.l, zy); ctx.lineTo(pad.l + w, zy); ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // Area fill
+        ctx.beginPath();
+        norm.forEach((v, i) => { const x = toX(i), y = toY(v); i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); });
+        for (let i = norm.length - 1; i >= 0; i--) ctx.lineTo(toX(i), toY(norm[norm.length - 1]));
+        ctx.closePath();
+        const up = norm[norm.length - 1] >= init;
+        const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + h);
+        grad.addColorStop(0, up ? 'rgba(63,185,80,0.2)' : 'rgba(248,81,73,0.2)');
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grad; ctx.fill();
+
+        // Line
+        ctx.beginPath(); ctx.strokeStyle = up ? '#3fb950' : '#f85149'; ctx.lineWidth = 2;
+        norm.forEach((v, i) => { const x = toX(i), y = toY(v); i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); });
+        ctx.stroke();
+
+        // Entry/exit markers
+        const tradeEntries = bt.trades.filter(t => t.type === 'entry');
+        tradeEntries.forEach(t => {
+            const idx = curve.findIndex(e => e.date === t.entryDate);
+            if (idx < 0) return;
+            const x = toX(idx), y = toY(norm[idx]);
+            ctx.fillStyle = '#3fb950';
+            ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+        });
+        const tradeExits = bt.trades.filter(t => t.type === 'exit');
+        tradeExits.forEach(t => {
+            const idx = curve.findIndex(e => e.date === t.exitDate);
+            if (idx < 0) return;
+            const x = toX(idx), y = toY(norm[idx]);
+            ctx.fillStyle = '#f85149';
+            ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+        });
+
+        $('equity-info').textContent = `Return: ${((norm[norm.length-1]/init-1)*100).toFixed(1)}% | Final: $${Math.round(norm[norm.length-1]).toLocaleString()}`;
+    }
+
+    // ─── Drawdown ─────────────────────────────────────────────────────────────
+
+    function drawDrawdown(bt) {
+        const canvas = $('drawdown-canvas');
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        const W = canvas.width = canvas.offsetWidth * dpr;
+        const H = canvas.height = canvas.offsetHeight * dpr;
+        ctx.scale(dpr, dpr);
+        const cssW = canvas.offsetWidth, cssH = canvas.offsetHeight;
+
+        const curve = bt.equityCurve;
+        const dd = curve.map(e => e.drawdown);
+        const minDD = Math.min(...dd), maxDD = 0;
+        const pad = { l: 8, r: 8, t: 10, b: 24 }, w = cssW - pad.l - pad.r, h = cssH - pad.t - pad.b;
+        const toX = i => pad.l + (i / (dd.length - 1)) * w;
+        const toY = v => pad.t + h - ((v - minDD) / (maxDD - minDD)) * h;
+
+        ctx.fillStyle = 'rgba(248,81,73,0.08)'; ctx.fillRect(pad.l, pad.t, w, h);
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1;
+        for (let g = 0; g <= 4; g++) { const y = pad.t + (g/4)*h; ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l+w, y); ctx.stroke(); }
+
+        ctx.beginPath(); ctx.strokeStyle = '#f85149'; ctx.lineWidth = 1.5;
+        dd.forEach((v, i) => { const x = toX(i), y = toY(v); i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); });
+        ctx.stroke();
+
+        ctx.fillStyle = '#f85149';
+        dd.forEach((v, i) => {
+            const x = toX(i), y = toY(v);
+            ctx.fillRect(x - 1, y, 2, pad.t + h - y);
+        });
+
+        ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.font = '500 9px system-ui'; ctx.textAlign = 'left';
+        ctx.fillText((minDD * 100).toFixed(1) + '%', pad.l + 2, pad.t + 14);
+        ctx.textAlign = 'right';
+        ctx.fillText('0%', pad.l + w - 2, pad.t + 14);
+        $('dd-info').textContent = `Max drawdown: ${(minDD * 100).toFixed(1)}%`;
+    }
+
+    // ─── Price + Indicator Chart ───────────────────────────────────────────────
+
+    function setIndicatorChart(type) {
+        activeIndicator = type;
+        document.querySelectorAll('.ind-tab').forEach(t => t.classList.remove('active'));
+        event.target.classList.add('active');
+        drawPriceChart(btData);
+    }
+
+    function drawPriceChart(bt) {
+        const canvas = $('price-canvas');
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        const W = canvas.width = canvas.offsetWidth * dpr;
+        const H = canvas.height = canvas.offsetHeight * dpr;
+        ctx.scale(dpr, dpr);
+        const cssW = canvas.offsetWidth, cssH = canvas.offsetHeight;
+
+        const { closes, highs, lows, dates, rawData, rsi, sma20, sma50, macd, bb, trades } = bt;
+        const n = closes.length;
+        const pad = { l: 8, r: 8, t: 12, b: 32 }, w = cssW - pad.l - pad.r, h = cssH - pad.t - pad.b;
+
+        if (activeIndicator === 'price') {
+            const minV = Math.min(...closes) * 0.98, maxV = Math.max(...closes) * 1.02;
+            const toX = i => pad.l + (i / (n - 1)) * w;
+            const toY = v => pad.t + h - ((v - minV) / (maxV - minV)) * h;
+
+            // Grid
+            ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1;
+            for (let g = 0; g <= 4; g++) { const y = pad.t + (g/4)*h; ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l+w, y); ctx.stroke(); }
+            ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.font = '500 9px system-ui'; ctx.textAlign = 'right';
+            for (let g = 0; g <= 4; g++) { const vv = maxV - (g/4)*(maxV-minV); ctx.fillText('$' + Math.round(vv), pad.l - 3, pad.t + (g/4)*h + 3); }
+
+            // Candlesticks
+            const showCount = Math.min(80, n);
+            const startI = n - showCount;
+            const barW = Math.max(2, (w / showCount) * 0.6);
+            for (let i = startI; i < n; i++) {
+                const o = rawData[i].Open, c = rawData[i].Close, hi = rawData[i].High, lo = rawData[i].Low;
+                const up = c >= o, color = up ? '#3fb950' : '#f85149';
+                const xi = toX(i);
+                ctx.strokeStyle = color; ctx.fillStyle = color;
+                ctx.beginPath(); ctx.moveTo(xi, toY(hi)); ctx.lineTo(xi, toY(lo)); ctx.stroke();
+                const bodyTop = toY(Math.max(o, c)), bodyH = Math.max(1.5, Math.abs(toY(o) - toY(c)));
+                ctx.fillRect(xi - barW/2, bodyTop, barW, bodyH);
+            }
+
+            // SMAs
+            ctx.setLineDash([]);
+            ctx.beginPath(); ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 1.5;
+            let s = false; for (let i = startI; i < n; i++) { if (sma20[i] == null) { s = false; continue; } const x = toX(i), y = toY(sma20[i]); s ? ctx.lineTo(x, y) : ctx.moveTo(x, y); s = true; } ctx.stroke();
+            ctx.beginPath(); ctx.strokeStyle = '#d29922'; ctx.lineWidth = 1.5;
+            s = false; for (let i = startI; i < n; i++) { if (sma50[i] == null) { s = false; continue; } const x = toX(i), y = toY(sma50[i]); s ? ctx.lineTo(x, y) : ctx.moveTo(x, y); s = true; } ctx.stroke();
+
+        } else {
+            // Indicator sub-plot
+            const minV = Math.min(...(activeIndicator === 'rsi' ? rsi : activeIndicator === 'macd' ? macd.histogram : bb).filter(v => v != null)) * 0.95;
+            const maxV = Math.max(...(activeIndicator === 'rsi' ? rsi : activeIndicator === 'macd' ? macd.histogram : bb).filter(v => v != null)) * 1.05;
+            const toX = i => pad.l + (i / (n - 1)) * w;
+            const toY = v => pad.t + h - ((v - minV) / (maxV - minV)) * h;
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1;
+            for (let g = 0; g <= 4; g++) { const y = pad.t + (g/4)*h; ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l+w, y); ctx.stroke(); }
+
+            const data = activeIndicator === 'rsi' ? rsi : activeIndicator === 'macd' ? macd.histogram : bb;
+            const color = activeIndicator === 'rsi' ? '#bc8cff' : activeIndicator === 'macd' ? '#58a6ff' : '#d29922';
+
+            if (activeIndicator === 'macd') {
+                const valid = data.map((v, i) => v != null ? { v, i } : null).filter(x => x);
+                ctx.fillStyle = 'rgba(88,166,255,0.15)';
+                valid.forEach(({ v, i }) => {
+                    const x = toX(i), y = toY(0), vy = toY(v);
+                    ctx.fillRect(x - 1, Math.min(y, vy), 2, Math.abs(vy - y));
+                });
+            }
+
+            ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+            let s = false;
+            for (let i = 0; i < n; i++) {
+                if (data[i] == null) { s = false; continue; }
+                const x = toX(i), y = toY(data[i]);
+                s ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+                s = true;
+            }
+            ctx.stroke();
+
+            // Reference lines
+            if (activeIndicator === 'rsi') {
+                ctx.setLineDash([4, 4]); ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1;
+                [30, 50, 70].forEach(ref => { const y = toY(ref); ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + w, y); ctx.stroke(); });
+                ctx.setLineDash([]);
+            }
+        }
+
+        // Trade markers
+        const tradeMarkers = trades.filter(t => t.type === 'entry' || t.type === 'exit');
+        tradeMarkers.forEach(t => {
+            const idx = dates.indexOf(t.entryDate || t.exitDate);
+            if (idx < 0) return;
+            const x = toX(idx);
+            const isEntry = t.type === 'entry';
+            const isWin = t.pnl > 0;
+            ctx.fillStyle = isEntry ? '#3fb950' : (isWin ? '#3fb950' : '#f85149');
+            ctx.beginPath(); ctx.arc(x, pad.t + 16, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.font = '700 7px system-ui'; ctx.textAlign = 'center';
+            ctx.fillText(isEntry ? 'B' : 'S', x, pad.t + 20);
+        });
+    }
+
+    // ─── Trade Log ─────────────────────────────────────────────────────────────
+
+    function renderTradeLog(trades) {
+        const closed = trades.filter(t => t.type === 'exit');
+        const tbody = $('trade-tbody');
+        $('trade-count-label').textContent = `${closed.length} closed trades`;
+        tbody.innerHTML = closed.map((t, i) => {
+            const cls = t.pnl > 0 ? 'win' : t.pnl < 0 ? 'loss' : 'flat';
+            const entry = trades.find(e => e.seq === 1 && trades.indexOf(e) < trades.indexOf(t));
+            return `<tr>
+                <td>${i + 1}</td>
+                <td>${(t.exitDate || '').slice(0, 10)}</td>
+                <td class="sell">SELL</td>
+                <td>$${t.exitPrice.toFixed(2)}</td>
+                <td>${t.shares}</td>
+                <td class="${cls}">${t.pnl > 0 ? '+' : ''}$${t.pnl.toFixed(2)}</td>
+                <td class="${cls}">${t.pnlPct > 0 ? '+' : ''}${t.pnlPct.toFixed(2)}%</td>
+            </tr>`;
+        }).join('');
+    }
+
+    // ─── Monte Carlo ───────────────────────────────────────────────────────────
+
+    function renderMonteCarlo(mc, initCap) {
+        if (!mc) return;
+        const grid = $('mc-grid');
+        const up5 = mc.pct5 >= initCap, up50 = mc.pct50 >= initCap, up95 = mc.pct95 >= initCap;
+        grid.innerHTML = `
+            <div class="mc-percentile"><div class="mp">5th %ile (Worst)</div><div class="mv ${up5 ? 'up' : 'down'}">${fmtMC(mc.pct5)}</div></div>
+            <div class="mc-percentile"><div class="mp">25th %ile</div><div class="mv ${mc.pct25 >= initCap ? 'up' : 'down'}">${fmtMC(mc.pct25)}</div></div>
+            <div class="mc-percentile"><div class="mp">Median</div><div class="mv ${up50 ? 'up' : 'down'}">${fmtMC(mc.pct50)}</div></div>
+            <div class="mc-percentile"><div class="mp">75th %ile</div><div class="mv ${mc.pct75 >= initCap ? 'up' : 'down'}">${fmtMC(mc.pct75)}</div></div>
+            <div class="mc-percentile"><div class="mp">95th %ile (Best)</div><div class="mv ${up95 ? 'up' : 'down'}">${fmtMC(mc.pct95)}</div></div>
+        `;
+        drawMCChart(mc, initCap);
+    }
+
+    let initialCap = 100000;
+    function fmtMC(v) {
+        const pct = ((v / initialCap - 1) * 100).toFixed(1);
+        return (pct >= 0 ? '+' : '') + pct + '%';
+    }
+
+    function drawMCChart(mc, initCap) {
+        initialCap = initCap;
+        const canvas = $('mc-canvas');
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        const W = canvas.width = canvas.offsetWidth * dpr;
+        const H = canvas.height = canvas.offsetHeight * dpr;
+        ctx.scale(dpr, dpr);
+        const cssW = canvas.offsetWidth, cssH = canvas.offsetHeight;
+
+        const runs = mc.runs;
+        const pad = { l: 8, r: 8, t: 8, b: 20 }, w = cssW - pad.l - pad.r, h = cssH - pad.t - pad.b;
+
+        // Histogram buckets
+        const minV = runs[0], maxV = runs[runs.length - 1];
+        const buckets = 40;
+        const counts = new Array(buckets).fill(0);
+        const range = maxV - minV;
+        runs.forEach(v => { const b = range !== 0 ? Math.min(buckets - 1, Math.floor((v - minV) / range * buckets)) : 0; counts[b]++; });
+        const maxCount = Math.max(...counts);
+        const bucketW = w / buckets;
+
+        ctx.fillStyle = 'rgba(88,166,255,0.1)';
+        counts.forEach((c, b) => {
+            const bh = (c / maxCount) * h;
+            const x = pad.l + b * bucketW;
+            ctx.fillRect(x, pad.t + h - bh, bucketW - 1, bh);
+        });
+
+        // Zero line (initial capital)
+        if (minV < initCap && maxV > initCap) {
+            const zx = pad.l + ((initCap - minV) / (maxV - minV)) * w;
+            ctx.setLineDash([4, 4]); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(zx, pad.t); ctx.lineTo(zx, pad.t + h); ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // Percentile markers
+        [mc.pct5, mc.pct50, mc.pct95].forEach((pct, i) => {
+            const px = pad.l + ((pct - minV) / (maxV - minV)) * w;
+            ctx.fillStyle = i === 1 ? '#d29922' : '#8b949e';
+            ctx.fillRect(px - 1, pad.t, 2, h);
+        });
+    }
+
+    // ─── Strategy Compare ─────────────────────────────────────────────────────
+
+    function renderStrategyCompare() {
+        const section = $('strat-compare-section');
+        const container = $('strat-compare');
+        section.style.display = '';
+        container.innerHTML = stratResults.map((r, i) => {
+            const m = calcMetrics(r);
+            const up = m.totalReturn >= 0;
+            const fmtSc = (v, dec = 1) => (v == null || isNaN(v)) ? '—' : v.toFixed(dec);
+            return `<div class="strat-card ${i === stratResults.length - 1 ? 'selected' : ''}" onclick="loadStrat(${i})">
+                <div class="sc-name">${r.ticker || 'Strategy ' + (i + 1)}</div>
+                <div class="sc-metrics">
+                    <div class="sc-m"><div class="v" style="color:${up ? 'var(--green)' : 'var(--red)'}">${fmtSc(m.totalReturn * 100)}%</div><div class="l">Return</div></div>
+                    <div class="sc-m"><div class="v">${fmtSc(m.sharpe, 2)}</div><div class="l">Sharpe</div></div>
+                    <div class="sc-m"><div class="v">${fmtSc(m.winRate * 100, 0)}%</div><div class="l">Win Rate</div></div>
+                    <div class="sc-m"><div class="v" style="color:${m.maxDD > -0.15 ? 'var(--green)' : 'var(--red)'}">${fmtSc(m.maxDD * 100)}%</div><div class="l">Max DD</div></div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function loadStrat(idx) {
+        const r = stratResults[idx];
+        if (!r) return;
+        btData = r;
+        renderMetrics(r, null);
+        drawEquityCurve(r);
+        drawDrawdown(r);
+        drawPriceChart(r);
+        renderTradeLog(r.trades);
+    }
+
+    // ─── Theme ─────────────────────────────────────────────────────────────────
+
+    (function() {
+        var btn = $('theme-toggle');
+        var KEY = 'oobir_theme';
+        function getPreferredTheme() { return localStorage.getItem(KEY) || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem(KEY, theme);
+            if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+        }
+        if (btn) btn.addEventListener('click', () => applyTheme(getPreferredTheme() === 'dark' ? 'light' : 'dark'));
+        applyTheme(getPreferredTheme());
+    })();
+
+    $('compare-toggle').addEventListener('change', e => { compareMode = e.target.checked; if (!compareMode) { stratResults = []; $('strat-compare-section').style.display = 'none'; } });
+
+    document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runBacktest(); });
+    </script>
+</body>
+</html>

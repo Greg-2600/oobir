@@ -5,7 +5,7 @@
 ![Docker](https://img.shields.io/badge/Cloud_Native-Docker-blue?logo=docker)
 ![AI](https://img.shields.io/badge/AI-Ollama_LLM-purple?logo=ai)
 ![HTML5](https://img.shields.io/badge/Web_UI-HTML5_CSS3_JS-orange?logo=html5)
-![Tests](https://img.shields.io/badge/Tests-110_Passing-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-303_Passing-brightgreen)
 ![Status](https://img.shields.io/badge/Status-Production_Ready-success)
 
 > **Enterprise-grade stock analysis combining REST APIs, AI-powered insights, technical & fundamental analysis in a cloud-native architecture**
@@ -522,17 +522,21 @@ Run cache tests: `pytest tests/test_cache_layer.py -v`
 
 OOBIR maintains strict code quality standards with multi-language linting:
 
-- **Ruff** (`flow.py`, `flow_api.py`): Import sorting (I001–I005), f-string consistency (F541), undefined names (F821), useless expressions (B018), implicit Optional types (RUF013). Configured to allow broad-except patterns (BLE001, S112, S110, EXE001) with `# noqa` comments.
-- **Black** (`flow.py`, `flow_api.py`): PEP 8 compliant code formatting
+- **Black** (`flow_api.py`, `db.py`, `db_timescale.py`, `ml/`, `tests/`): PEP 8 compliant formatting — 31 files, 0 reformatting needed
+- **mypy** (`flow_api.py`, `db.py`, `db_timescale.py`, `ml/`): Full type checking with `--ignore-missing-imports` — 0 errors in 13 source files
+- **Bandit** (`flow_api.py`, `db.py`, `db_timescale.py`, `ml/`): Security analysis — 0 High, 0 Medium, 0 Low issues (2 intentional `# nosec` suppressions)
+- **pylint** (`flow_api.py`, `db.py`, `db_timescale.py`): 10.00/10 score, 0 errors
 - **ESLint** (`web/*.js`): 0 errors, 0 warnings — consistent JS across all web pages
-- **Pytest** (`tests/test_ui_static_files.py`): 32 static file contract tests including new `TestModelLabContracts` (6 tests) validating ML UI elements
+- **Pytest** (`tests/`): 303 tests passing, 76% code coverage
 
 ```bash
 # Run all linters
-ruff check flow.py flow_api.py
-black --check flow.py flow_api.py
+black --check flow_api.py db.py db_timescale.py ml/ tests/
+mypy flow_api.py db.py db_timescale.py ml/ --ignore-missing-imports
+bandit -r flow_api.py db.py db_timescale.py ml/
+pylint flow_api.py db.py db_timescale.py --disable=all --enable=E
 npx eslint web/*.js
-pytest tests/test_ui_static_files.py -v
+pytest tests/ --ignore=tests/ui --tb=no -q
 ```
 
 ### 🚀 REST API & Platform Features
@@ -634,20 +638,30 @@ cd web && python -m http.server 2009
 
 ```
 web/
-├── index.html        # Main stock analysis page
-├── stocks.html       # AI Picks
-├── screener.html     # Fundamental screener
-├── markets.html      # International market indexes
-├── search.html       # Search landing page
-├── crypto.html       # Crypto dashboard
-├── metals.html       # Metals dashboard
-├── commodities.html  # Commodities dashboard
-├── predictions.html  # AI Predictions / ML Model Lab
-├── predictions.js    # Model Lab frontend logic
-├── app.js            # Frontend logic and data visualization
-├── styles.css        # Responsive styling
-├── tooltip.css       # Tooltip styling
-└── config.js         # API base URL configuration
+├── index.html             # Main stock analysis page
+├── stocks.html            # AI Picks
+├── screener.html          # Fundamental screener
+├── markets.html           # International market indexes
+├── search.html            # Search landing page
+├── crypto.html            # Crypto dashboard
+├── metals.html            # Metals dashboard
+├── commodities.html       # Commodities dashboard
+├── predictions.html       # AI Predictions / ML Model Lab
+├── predictions.js         # Model Lab frontend logic
+├── backtest.html          # Strategy backtester with Monte Carlo
+├── optimizer.html         # Portfolio optimizer with efficient frontier
+├── correlation-matrix.html # N×N rolling correlation heatmap with dendrogram
+├── volatility.html        # IV/IV Rank/IV Percentile dashboard + vol cone
+├── news-timeline.html     # News sentiment timeline with price overlay
+├── calendar.html          # Upcoming earnings and dividend dates
+├── watchlist.html         # Personal watchlist tracker
+├── portfolio.html         # Holdings tracker with P&L
+├── dividends.html         # Dividend income tracker with yield-on-cost
+├── options.html           # Options chain analyzer
+├── app.js                 # Frontend logic and data visualization
+├── styles.css             # Responsive styling
+├── tooltip.css            # Tooltip styling
+└── config.js              # API base URL configuration
 ```
 
 ### Customizing the Web UI

@@ -307,9 +307,21 @@
                         <a href="stocks.html">AI Picks</a>
                         <a href="predictions.html" class="active">AI Predictions</a>
                         <a href="money-flow.html">Money Flow</a>
+                        <a href="dividends.html">Dividends</a>
                         <a href="crypto.html">Crypto</a>
                         <a href="metals.html">Metals</a>
+                        <a href="portfolio.html">Portfolio</a>
+                        <a href="watchlist.html">Watchlist</a>
+                        <a href="options.html">Options</a>
+                        <a href="backtest.html">Backtest</a>
+                          <a href="correlations.html">Correlations</a>
+                        <a href="compare-sectors.html">Compare</a>
+                        <a href="news-timeline.html">News</a>
+                        <a href="calendar.html">Calendar</a>
                         <a href="commodities.html">Commodities</a>
+                        <a href="optimizer.html">Optimizer</a>
+                        <a href="correlation-matrix.html">Corr Matrix</a>
+                        <a href="volatility.html">Volatility</a>
                     </nav>
                     <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">🌙</button>
                 </div>
@@ -373,14 +385,15 @@
                         <div class="chips" id="lab-feature-chips"></div>
                     </div>
 
-                    <div class="lab-actions">
-                        <button type="button" class="lab-btn" id="lab-run">⚡ Run experiment</button>
-                        <button type="button" class="lab-btn" id="lab-reset">↺ Reset defaults</button>
-                        <button type="button" class="lab-btn" id="lab-preset-baseline">Baseline</button>
-                        <button type="button" class="lab-btn" id="lab-preset-trend">Trend</button>
-                        <button type="button" class="lab-btn" id="lab-preset-long">Long-horizon</button>
-                        <span class="lab-hint" id="lab-status">Tune the knobs, then run.</span>
-                    </div>
+                        <div class="lab-actions">
+                            <button type="button" class="lab-btn" id="lab-run">⚡ Run experiment</button>
+                            <button type="button" class="lab-btn" id="lab-reset">↺ Reset defaults</button>
+                            <button type="button" class="lab-btn" id="lab-preset-baseline">Baseline</button>
+                            <button type="button" class="lab-btn" id="lab-preset-trend">Trend</button>
+                            <button type="button" class="lab-btn" id="lab-preset-long">Long-horizon</button>
+                            <button type="button" class="lab-btn" id="ml-lab-ensemble" style="background:#f5f3ff;border-color:#ddd6fe;color:#7c3aed;">🎯 Ensemble Mode</button>
+                            <span class="lab-hint" id="lab-status">Tune the knobs, then run.</span>
+                        </div>
                 </div>
             </details>
 
@@ -458,6 +471,18 @@
                     <div class="ml-card-header">⚖️ ML vs Technical Signals</div>
                     <div class="ml-card-body">
                         <div id="ml-compare" class="ml-empty">Compare the ML call to a heuristic RSI/MACD read</div>
+                    </div>
+                </div>
+
+                <!-- Ensemble predictions card (hidden by default) -->
+                <div class="ml-card" id="ml-ensemble-card" style="grid-column:span 2;display:none;">
+                    <div class="ml-card-header">🎯 Ensemble Predictions — Multi-Model Confidence</div>
+                    <div class="ml-card-body">
+                        <div id="ml-ensemble-summary" style="margin-bottom:14px;"></div>
+                        <div id="ml-ensemble-chart-wrap" style="height:200px;position:relative;margin-bottom:14px;">
+                            <canvas id="ml-ensemble-canvas"></canvas>
+                        </div>
+                        <div id="ml-ensemble-models" style="display:flex;flex-direction:column;gap:8px;"></div>
                     </div>
                 </div>
             </div>

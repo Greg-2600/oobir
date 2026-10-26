@@ -56,6 +56,17 @@ function initTheme() {
     applyTheme(getPreferredTheme());
     const btn = document.getElementById('theme-toggle');
     if (btn) btn.addEventListener('click', toggleTheme);
+    highlightActiveNavLink();
+}
+
+function highlightActiveNavLink() {
+    const page = window.location.pathname.split('/').pop() || 'index.html';
+    document.querySelectorAll('.results-top-nav a, .app-nav a').forEach(link => {
+        const href = link.getAttribute('href');
+        if (href === page || (page === 'index.html' && href === 'index.html')) {
+            link.classList.add('active');
+        }
+    });
 }
 
 if (document.readyState === 'loading') {

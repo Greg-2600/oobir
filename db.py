@@ -21,7 +21,9 @@ MARKET_CLOSE_TIME = time(16, 0)
 
 # In-memory LRU cache to avoid SQLite hits for hot entries
 _LRU_MAX_SIZE = 500
-_lru_cache: OrderedDict[str, tuple[str, str]] = OrderedDict()  # key -> (data_str, cached_at)
+_lru_cache: OrderedDict[str, tuple[str, str]] = (
+    OrderedDict()
+)  # key -> (data_str, cached_at)
 _lru_lock = threading.RLock()
 
 # Persistent SQLite connection (thread-safe via lock)
@@ -188,12 +190,12 @@ def clear_cache(endpoint: str | None = None, symbol: str | None = None) -> int:
             if endpoint and symbol:
                 cursor = conn.execute(
                     "DELETE FROM cache WHERE endpoint = ? AND symbol = ?",
-                    (endpoint, symbol),
+                    (endpoint, symbol),  # type: ignore[arg-type]
                 )
             elif endpoint:
-                cursor = conn.execute("DELETE FROM cache WHERE endpoint = ?", (endpoint,))
+                cursor = conn.execute("DELETE FROM cache WHERE endpoint = ?", (endpoint,))  # type: ignore[arg-type]
             elif symbol:
-                cursor = conn.execute("DELETE FROM cache WHERE symbol = ?", (symbol,))
+                cursor = conn.execute("DELETE FROM cache WHERE symbol = ?", (symbol,))  # type: ignore[arg-type]
             else:
                 cursor = conn.execute("DELETE FROM cache")
             count = cursor.rowcount
@@ -204,9 +206,10 @@ def clear_cache(endpoint: str | None = None, symbol: str | None = None) -> int:
                 _lru_cache.clear()
             else:
                 keys_to_remove = [
-                    k for k in _lru_cache
-                    if (endpoint and k.startswith(f"{endpoint}:")) or
-                       (symbol and k.endswith(f":{symbol}"))
+                    k
+                    for k in _lru_cache
+                    if (endpoint and k.startswith(f"{endpoint}:"))  # noqa: W504
+                    or (symbol and k.endswith(f":{symbol}"))
                 ]
                 for k in keys_to_remove:
                     del _lru_cache[k]
@@ -224,8 +227,12 @@ def get_cache_stats() -> dict:
         with get_db_connection() as conn:
             cursor = conn.execute("SELECT COUNT(*) FROM cache")
             total = cursor.fetchone()[0]
-            cursor = conn.execute("SELECT endpoint, COUNT(*) as count FROM cache GROUP BY endpoint")
-            by_endpoint = [{"endpoint": row[0], "count": row[1]} for row in cursor.fetchall()]
+            cursor = conn.execute(
+                "SELECT endpoint, COUNT(*) as count FROM cache GROUP BY endpoint"
+            )
+            by_endpoint = [
+                {"endpoint": row[0], "count": row[1]} for row in cursor.fetchall()
+            ]
             with _lru_lock:
                 lru_size = len(_lru_cache)
             return {
@@ -255,7 +262,8 @@ def clear_expired_cache() -> int:
             count = cursor.rowcount
         with _lru_lock:
             expired_keys = [
-                k for k, (_, cached_at) in _lru_cache.items()
+                k
+                for k, (_, cached_at) in _lru_cache.items()
                 if _should_expire_cache(cached_at)
             ]
             for k in expired_keys:

@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Options Analysis — OOBIR</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="tooltip.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <style>
+        .opt-page { max-width: 1200px; margin: 0 auto; padding: 24px 20px; }
+        .opt-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+        .opt-header h1 { font-size: 1.8rem; font-weight: 800; color: #1f2937; }
+        .opt-header p { color: #64748b; font-size: 0.85rem; margin-top: 2px; }
+        .opt-lookup { display: flex; gap: 10px; margin-bottom: 24px; align-items: center; }
+        .opt-lookup input { padding: 9px 16px; border: 1.5px solid #dbe2ea; border-radius: 999px; font-size: 0.9rem; width: 180px; text-transform: uppercase; }
+        .opt-lookup input:focus { outline: none; border-color: #1a73e8; }
+        .btn-primary { background: #1a73e8; color: white; border: none; border-radius: 999px; padding: 9px 20px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        .btn-primary:hover { background: #1557b0; }
+        .btn-secondary { background: white; color: #334155; border: 1.5px solid #dbe2ea; border-radius: 999px; padding: 9px 20px; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+        .btn-secondary:hover { border-color: #1a73e8; color: #1a73e8; }
+        .opt-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .opt-card { background: white; border: 1.5px solid #e5e7eb; border-radius: 14px; padding: 20px; }
+        .opt-card h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 14px; color: #1f2937; display: flex; align-items: center; gap: 8px; }
+        .opt-card h3 .icon { font-size: 1.1rem; }
+        .section-title { font-size: 0.95rem; font-weight: 700; color: #1f2937; margin: 24px 0 14px; }
+        /* Inputs */
+        .opt-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .opt-inputs .fi { display: flex; flex-direction: column; gap: 4px; }
+        .opt-inputs .fi label { font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; }
+        .opt-inputs .fi input, .opt-inputs .fi select {
+            padding: 8px 10px; border: 1.5px solid #dbe2ea; border-radius: 8px; font-size: 0.85rem;
+        }
+        .opt-inputs .fi input:focus, .opt-inputs .fi select:focus { outline: none; border-color: #1a73e8; }
+        /* Greeks table */
+        .greeks-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .greek-cell { text-align: center; padding: 10px 8px; background: #f8fafc; border-radius: 10px; }
+        .greek-cell .g { font-size: 1.2rem; font-weight: 800; color: #1a73e8; }
+        .greek-cell .label { font-size: 0.68rem; color: #64748b; font-weight: 700; text-transform: uppercase; margin-top: 2px; }
+        /* Probability display */
+        .prob-display { text-align: center; padding: 16px; background: #f0fdf4; border-radius: 12px; margin-top: 12px; }
+        .prob-display .big { font-size: 2rem; font-weight: 800; color: #15803d; }
+        .prob-display .sub { font-size: 0.78rem; color: #64748b; margin-top: 4px; }
+        /* P&L canvas */
+        .pli-chart { width: 100%; height: 240px; position: relative; }
+        .pli-chart canvas { width: 100%; height: 100%; }
+        .pli-info { display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.78rem; color: #64748b; }
+        /* Option chain */
+        .chain-wrap { max-height: 300px; overflow-y: auto; border-radius: 10px; border: 1px solid #e5e7eb; }
+        .chain-table { width: 100%; border-collapse: collapse; }
+        .chain-table th { position: sticky; top: 0; background: #f8fafc; padding: 8px 10px; text-align: right; font-size: 0.68rem; font-weight: 700; color: #64748b; text-transform: uppercase; }
+        .chain-table th:first-child { text-align: left; }
+        .chain-table td { padding: 7px 10px; text-align: right; font-size: 0.8rem; border-top: 1px solid #f3f4f6; }
+        .chain-table td:first-child { text-align: left; font-weight: 700; }
+        .chain-table tr:hover td { background: #f8fafc; cursor: pointer; }
+        .chain-table tr.selected td { background: #e8f0fe; }
+        .chain-table .strike { font-weight: 800; color: #1f2937; }
+        /* Leg builder */
+        .leg-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+        .leg-item { display: flex; gap: 8px; align-items: center; padding: 10px; background: #f8fafc; border-radius: 10px; font-size: 0.82rem; }
+        .leg-item .leg-badge {
+            padding: 3px 8px; border-radius: 5px; font-size: 0.7rem; font-weight: 800;
+            color: white; min-width: 48px; text-align: center;
+        }
+        .leg-item .leg-badge.call { background: #15803d; }
+        .leg-item .leg-badge.put { background: #b91c1c; }
+        .leg-item .leg-info { flex: 1; }
+        .leg-item .leg-strike { font-weight: 800; }
+        .leg-item .leg-prem { color: #64748b; }
+        .leg-item button { background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 0.9rem; padding: 2px 4px; }
+        .leg-item button:hover { color: #ef4444; }
+        .leg-item .leg-qty { display: flex; align-items: center; gap: 4px; }
+        .leg-item .leg-qty button { background: #e8eef5; border-radius: 4px; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; }
+        /* Spread controls */
+        .spread-presets { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+        .spread-preset { padding: 5px 12px; border: 1.5px solid #dbe2ea; background: white; border-radius: 999px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s; color: #475569; }
+        .spread-preset:hover, .spread-preset.active { background: #1a73e8; border-color: #1a73e8; color: white; }
+        /* Max profit/loss */
+        .mpl-box { display: flex; gap: 16px; margin-top: 12px; }
+        .mpl-item { flex: 1; text-align: center; padding: 12px; border-radius: 10px; }
+        .mpl-item.profit { background: #f0fdf4; }
+        .mpl-item.loss { background: #fef2f2; }
+        .mpl-item .val { font-size: 1.2rem; font-weight: 800; }
+        .mpl-item.profit .val { color: #15803d; }
+        .mpl-item.loss .val { color: #b91c1c; }
+        .mpl-item .lbl { font-size: 0.7rem; color: #64748b; font-weight: 700; text-transform: uppercase; margin-top: 2px; }
+        .breakeven-box { text-align: center; padding: 10px; background: #fffbeb; border-radius: 10px; border: 1px solid #fcd34d; margin-top: 8px; }
+        .breakeven-box .val { font-weight: 800; color: #92400e; font-size: 1rem; }
+        .breakeven-box .lbl { font-size: 0.7rem; color: #92400e; }
+        /* Spacer for full width */
+        .full-width { grid-column: 1 / -1; }
+        .loading-state { text-align: center; padding: 30px; color: #94a3b8; }
+        [data-theme="dark"] .opt-card, [data-theme="dark"] .greek-cell { background: #1e293b; border-color: #334155; }
+        [data-theme="dark"] .opt-header h1 { color: #f1f5f9; }
+        [data-theme="dark"] .chain-table th { background: #0f172a; }
+        [data-theme="dark"] .chain-table td { border-color: #334155; }
+        [data-theme="dark"] .chain-table tr:hover td { background: #0f172a; }
+        [data-theme="dark"] .chain-table tr.selected td { background: #1e3a5f; }
+        [data-theme="dark"] .leg-item { background: #0f172a; }
+        [data-theme="dark"] .opt-inputs .fi input, [data-theme="dark"] .opt-inputs .fi select { background: #0f172a; border-color: #334155; color: #f1f5f9; }
+        [data-theme="dark"] .greek-cell { background: #0f172a; }
+        @media (max-width: 768px) { .opt-layout { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="app-header-content">
+            <div class="app-header-left">
+                <a class="app-brand" href="search.html">OOBIR</a>
+                <span class="app-page-label">Options</span>
+            </div>
+            <nav class="app-nav" aria-label="Primary navigation">
+                <a href="search.html">Search</a>
+                <a href="index.html">Stock Screen</a>
+                <a href="screener.html">Fundamentals</a>
+                <a href="markets.html">Markets</a>
+                <a href="sectors.html">Sectors</a>
+                <a href="stocks.html">AI Picks</a>
+                <a href="predictions.html">AI Predictions</a>
+                <a href="money-flow.html">Money Flow</a>
+                <a href="watchlist.html">Watchlist</a>
+                <a href="portfolio.html">Portfolio</a>
+                <a href="dividends.html">Dividends</a>
+                <a href="crypto.html">Crypto</a>
+                <a href="metals.html">Metals</a>
+                        <a href="options.html">Options</a>
+                        <a href="backtest.html">Backtest</a>
+                <a href="correlations.html">Correlations</a>
+                        <a href="compare-sectors.html">Compare</a>
+                        <a href="optimizer.html">Optimizer</a>
+                        <a href="correlation-matrix.html">Corr Matrix</a>
+                        <a href="volatility.html">Volatility</a>
+                        <a href="news-timeline.html">News</a>
+                        <a href="calendar.html">Calendar</a>
+                        <a href="predictions.html">AI</a>
+                        <a href="news-timeline.html">News</a>
+                        <a href="calendar.html">Calendar</a>
+                <a href="commodities.html">Commodities</a>
+            </nav>
+            <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">🌙</button>
+        </div>
+    </header>
+
+    <div class="opt-page">
+        <div class="opt-header">
+            <div>
+                <h1>📊 Options Analysis</h1>
+                <p>Probability calculator, P&L diagrams, and spread builder</p>
+            </div>
+        </div>
+
+        <div class="opt-lookup">
+            <input type="text" id="opt-ticker-input" placeholder="TICKER" value="AAPL">
+            <button class="btn-primary" onclick="loadOptionChain()">Load Options</button>
+        </div>
+
+        <div id="opt-content" style="display:none">
+            <div class="opt-layout">
+                <!-- Probability Calculator -->
+                <div class="opt-card">
+                    <h3><span class="icon">🎯</span> Probability Calculator</h3>
+                    <div class="opt-inputs">
+                        <div class="fi">
+                            <label>Stock Price (S)</label>
+                            <input type="number" id="prob-s" step="any" value="175">
+                        </div>
+                        <div class="fi">
+                            <label>Strike (K)</label>
+                            <input type="number" id="prob-k" step="any" value="180">
+                        </div>
+                        <div class="fi">
+                            <label>Days to Exp (T)</label>
+                            <input type="number" id="prob-t" value="30" min="1">
+                        </div>
+                        <div class="fi">
+                            <label>Volatility (%)</label>
+                            <input type="number" id="prob-vol" value="25" step="any">
+                        </div>
+                    </div>
+                    <div style="margin-top:12px; display:flex; gap:8px;">
+                        <button class="btn-secondary" style="flex:1" onclick="calcProb()">Calculate</button>
+                        <button class="btn-secondary" style="flex:1" onclick="calcProbITM()">ITM Prob</button>
+                    </div>
+                    <div id="prob-result" class="prob-display" style="display:none">
+                        <div class="big" id="prob-pct">—</div>
+                        <div class="sub" id="prob-desc">—</div>
+                    </div>
+                    <div id="prob-result-itm" class="prob-display" style="display:none; background:#fef3c7;">
+                        <div class="big" id="prob-itm-pct" style="color:#92400e">—</div>
+                        <div class="sub" id="prob-itm-desc">—</div>
+                    </div>
+                </div>
+
+                <!-- Greeks Display -->
+                <div class="opt-card">
+                    <h3><span class="icon">📐</span> Greeks (Selected Strike)</h3>
+                    <div class="opt-inputs">
+                        <div class="fi">
+                            <label>Strike</label>
+                            <input type="number" id="greek-k" step="any">
+                        </div>
+                        <div class="fi">
+                            <label>Type</label>
+                            <select id="greek-type">
+                                <option value="call">Call</option>
+                                <option value="put">Put</option>
+                            </select>
+                        </div>
+                        <div class="fi">
+                            <label>Days to Exp</label>
+                            <input type="number" id="greek-t" value="30" min="1">
+                        </div>
+                        <div class="fi">
+                            <label>Volatility (%)</label>
+                            <input type="number" id="greek-vol" value="25" step="any">
+                        </div>
+                        <div class="fi">
+                            <label>Stock Price</label>
+                            <input type="number" id="greek-s" step="any" value="175">
+                        </div>
+                        <div class="fi">
+                            <label>Risk-Free Rate (%)</label>
+                            <input type="number" id="greek-r" value="5" step="any">
+                        </div>
+                    </div>
+                    <div style="margin-top:12px">
+                        <button class="btn-secondary" onclick="calcGreeks()" style="width:100%">Calculate Greeks</button>
+                    </div>
+                    <div id="greeks-result" class="greeks-grid" style="margin-top:14px; display:none">
+                        <div class="greek-cell"><div class="g" id="greek-delta">—</div><div class="label">Delta</div></div>
+                        <div class="greek-cell"><div class="g" id="greek-gamma">—</div><div class="label">Gamma</div></div>
+                        <div class="greek-cell"><div class="g" id="greek-vega">—</div><div class="label">Vega</div></div>
+                        <div class="greek-cell"><div class="g" id="greek-theta">—</div><div class="label">Theta</div></div>
+                    </div>
+                </div>
+
+                <!-- P&L Diagram -->
+                <div class="opt-card">
+                    <h3><span class="icon">📈</span> P&L at Expiration</h3>
+                    <div class="pli-chart">
+                        <canvas id="pli-canvas"></canvas>
+                    </div>
+                    <div class="pli-info">
+                        <span id="pli-max-loss">Max Loss: —</span>
+                        <span id="pli-breakeven">Breakeven: —</span>
+                        <span id="pli-max-profit">Max Profit: —</span>
+                    </div>
+                    <div id="mpl-box" class="mpl-box" style="display:none">
+                        <div class="mpl-item profit"><div class="val" id="mpl-profit-val">—</div><div class="lbl">Max Profit</div></div>
+                        <div class="mpl-item loss"><div class="val" id="mpl-loss-val">—</div><div class="lbl">Max Loss</div></div>
+                    </div>
+                </div>
+
+                <!-- Spread Builder -->
+                <div class="opt-card">
+                    <h3><span class="icon">🧩</span> Spread Builder</h3>
+                    <div class="spread-presets">
+                        <button class="spread-preset" onclick="applyPreset('vertical_call')">Vertical Call</button>
+                        <button class="spread-preset" onclick="applyPreset('vertical_put')">Vertical Put</button>
+                        <button class="spread-preset" onclick="applyPreset('straddle')">Straddle</button>
+                        <button class="spread-preset" onclick="applyPreset('strangle')">Strangle</button>
+                        <button class="spread-preset" onclick="clearLegs()">Clear All</button>
+                    </div>
+                    <div id="leg-list" class="leg-list"></div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <select id="leg-type" style="flex:1;padding:8px;border:1.5px solid #dbe2ea;border-radius:8px;font-size:0.82rem;">
+                            <option value="call">Call</option>
+                            <option value="put">Put</option>
+                        </select>
+                        <input type="number" id="leg-strike" placeholder="Strike" style="flex:1;padding:8px;border:1.5px solid #dbe2ea;border-radius:8px;font-size:0.82rem;" step="any">
+                        <input type="number" id="leg-premium" placeholder="Premium" style="flex:1;padding:8px;border:1.5px solid #dbe2ea;border-radius:8px;font-size:0.82rem;" step="any">
+                        <input type="number" id="leg-qty" value="1" min="1" style="flex:0.5;padding:8px;border:1.5px solid #dbe2ea;border-radius:8px;font-size:0.82rem;">
+                        <button class="btn-primary" onclick="addLeg()" style="padding:8px 14px">+ Leg</button>
+                    </div>
+                </div>
+
+                <!-- Option Chain -->
+                <div class="opt-card full-width">
+                    <h3><span class="icon">📋</span> Option Chain <span id="chain-expiry" style="font-weight:400;font-size:0.82rem;color:#64748b"></span></h3>
+                    <div class="chain-wrap">
+                        <table class="chain-table">
+                            <thead>
+                                <tr>
+                                    <th>Strike</th>
+                                    <th>IV</th>
+                                    <th>Delta</th>
+                                    <th>Gamma</th>
+                                    <th>Theta</th>
+                                    <th>Vega</th>
+                                    <th>Price</th>
+                                    <th>Bid</th>
+                                    <th>Ask</th>
+                                    <th>Vol</th>
+                                    <th>OI</th>
+                                </tr>
+                            </thead>
+                            <tbody id="chain-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="opt-loading" class="loading-state">Enter a ticker and click "Load Options"</div>
+    </div>
+
+    <script>
+    const API = window.location.origin;
+    let optionChain = [];
+    let currentStockPrice = 0;
+    let currentTicker = '';
+    let legs = [];
+
+    // ─── Math helpers ───────────────────────────────────────────────────────────
+    function normCDF(x) {
+        const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741;
+        const a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
+        const sign = x < 0 ? -1 : 1;
+        x = Math.abs(x) / Math.sqrt(2);
+        const t = 1 / (1 + p * x);
+        const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+        return 0.5 * (1 + sign * y);
+    }
+
+    function normPDF(x) { return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI); }
+
+    function bsPrice(S, K, T, r, sigma, type) {
+        if (T <= 0 || sigma <= 0) {
+            if (type === 'call') return Math.max(0, S - K);
+            return Math.max(0, K - S);
+        }
+        const d1 = (Math.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * Math.sqrt(T));
+        const d2 = d1 - sigma * Math.sqrt(T);
+        if (type === 'call') return S * normCDF(d1) - K * Math.exp(-r * T) * normCDF(d2);
+        return K * Math.exp(-r * T) * normCDF(-d2) - S * normCDF(-d1);
+    }
+
+    function bsGreeks(S, K, T, r, sigma, type) {
+        if (T <= 0 || sigma <= 0) return { delta: type === 'call' ? (S > K ? 1 : 0) : (S < K ? -1 : 0), gamma: 0, vega: 0, theta: 0 };
+        const d1 = (Math.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * Math.sqrt(T));
+        const d2 = d1 - sigma * Math.sqrt(T);
+        const nd1 = normCDF(d1);
+        const nd2 = normCDF(d2);
+        const ndp1 = normPDF(d1);
+        const delta = type === 'call' ? nd1 : nd1 - 1;
+        const gamma = ndp1 / (S * sigma * Math.sqrt(T));
+        const vega = S * ndp1 * Math.sqrt(T) / 100;
+        const theta = type === 'call'
+            ? (-S * ndp1 * sigma / (2 * Math.sqrt(T)) - r * K * Math.exp(-r * T) * nd2) / 365
+            : (-S * ndp1 * sigma / (2 * Math.sqrt(T)) + r * K * Math.exp(-r * T) * normCDF(-d2)) / 365;
+        return { delta: delta.toFixed(4), gamma: gamma.toFixed(4), vega: vega.toFixed(4), theta: theta.toFixed(4) };
+    }
+
+    function probAbove(S, K, T, sigma) {
+        if (T <= 0) return S > K ? 1 : 0;
+        const d2 = (Math.log(S / K)) / (sigma * Math.sqrt(T)) - 0.5 * sigma * Math.sqrt(T);
+        return 1 - normCDF(-d2);
+    }
+
+    function probBelow(S, K, T, sigma) { return 1 - probAbove(S, K, T, sigma); }
+
+    // ─── UI helpers ────────────────────────────────────────────────────────────
+    function $(id) { return document.getElementById(id); }
+
+    function show(id) { $(id).style.display = ''; }
+    function hide(id) { $(id).style.display = 'none'; }
+
+    // ─── Probability ───────────────────────────────────────────────────────────
+    function calcProb() {
+        const S = parseFloat($('prob-s').value);
+        const K = parseFloat($('prob-k').value);
+        const T = parseFloat($('prob-t').value) / 365;
+        const vol = parseFloat($('prob-vol').value) / 100;
+        const above = probAbove(S, K, T, vol);
+        const below = probBelow(S, K, T, vol);
+        show('prob-result');
+        $('prob-pct').textContent = (above * 100).toFixed(1) + '%';
+        $('prob-desc').textContent = `P(S_T > $${K.toFixed(2)}) over ${$('prob-t').value} days`;
+        hide('prob-result-itm');
+    }
+
+    function calcProbITM() {
+        const S = parseFloat($('prob-s').value);
+        const K = parseFloat($('prob-k').value);
+        const T = parseFloat($('prob-t').value) / 365;
+        const vol = parseFloat($('prob-vol').value) / 100;
+        const itmProb = S < K ? probAbove(S, K, T, vol) : probBelow(S, K, T, vol);
+        show('prob-result-itm');
+        $('prob-itm-pct').textContent = (itmProb * 100).toFixed(1) + '%';
+        $('prob-itm-desc').textContent = `P(option expires ITM)`;
+    }
+
+    // ─── Greeks ───────────────────────────────────────────────────────────────
+    function calcGreeks() {
+        const S = parseFloat($('greek-s').value);
+        const K = parseFloat($('greek-k').value);
+        const T = parseFloat($('greek-t').value) / 365;
+        const vol = parseFloat($('greek-vol').value) / 100;
+        const r = parseFloat($('greek-r').value) / 100;
+        const type = $('greek-type').value;
+        const g = bsGreeks(S, K, T, r, vol, type);
+        show('greeks-result');
+        $('greek-delta').textContent = g.delta;
+        $('greek-gamma').textContent = g.gamma;
+        $('greek-vega').textContent = g.vega;
+        $('greek-theta').textContent = g.theta;
+    }
+
+    // ─── P&L Drawing ──────────────────────────────────────────────────────────
+    function drawPLDiagram() {
+        const canvas = $('pli-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width = canvas.offsetWidth * 2;
+        const H = canvas.height = canvas.offsetHeight * 2;
+        ctx.clearRect(0, 0, W, H);
+
+        if (!legs.length) return;
+
+        const S = currentStockPrice || 100;
+        const range = S * 0.4;
+        const xMin = S - range, xMax = S + range;
+        const step = (xMax - xMin) / 200;
+
+        // Compute P&L at each price point
+        const pnlAt = (stockPrice) => {
+            return legs.reduce((total, leg) => {
+                const optVal = leg.type === 'call'
+                    ? Math.max(0, stockPrice - leg.strike)
+                    : Math.max(0, leg.strike - stockPrice);
+                const pnl = (optVal - leg.premium) * leg.qty * 100;
+                return total + pnl;
+            }, 0);
+        };
+
+        const pnlData = [];
+        for (let p = xMin; p <= xMax; p += step) pnlData.push({ price: p, pnl: pnlAt(p) });
+
+        const maxPnl = Math.max(...pnlData.map(d => d.pnl));
+        const minPnl = Math.min(...pnlData.map(d => d.pnl));
+        const rangePnl = maxPnl - minPnl || 1;
+        const padX = 60, padY = 30;
+        const chartW = W - padX * 2, chartH = H - padY * 2;
+
+        // Zero line
+        const zeroY = padY + chartH - ((0 - minPnl) / rangePnl) * chartH;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(padX, zeroY);
+        ctx.lineTo(padX + chartW, zeroY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // P&L curve
+        ctx.beginPath();
+        ctx.strokeStyle = '#1a73e8';
+        ctx.lineWidth = 2.5;
+        pnlData.forEach((d, i) => {
+            const x = padX + ((d.price - xMin) / (xMax - xMin)) * chartW;
+            const y = padY + chartH - ((d.pnl - minPnl) / rangePnl) * chartH;
+            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        // Fill above/below zero
+        ctx.lineTo(padX + chartW, zeroY);
+        ctx.lineTo(padX, zeroY);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(26,115,232,0.08)';
+        ctx.fill();
+
+        // Current price line
+        const cx = padX + ((S - xMin) / (xMax - xMin)) * chartW;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(cx, padY);
+        ctx.lineTo(cx, padY + chartH);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Y axis labels
+        ctx.fillStyle = '#64748b';
+        ctx.font = '20px system-ui';
+        ctx.textAlign = 'right';
+        ctx.fillText('$' + (maxPnl / 100).toFixed(0), padX - 8, padY + 20);
+        ctx.fillText('$' + (minPnl / 100).toFixed(0), padX - 8, padY + chartH);
+
+        // X axis labels
+        ctx.textAlign = 'center';
+        ctx.fillText('$' + xMin.toFixed(0), padX, padY + chartH + 24);
+        ctx.fillText('$' + S.toFixed(0), cx, padY + chartH + 24);
+        ctx.fillText('$' + xMax.toFixed(0), padX + chartW, padY + chartH + 24);
+
+        // Max profit / loss boxes
+        const maxProfit = legs.some(l => l.qty > 0) ? maxPnl : 0;
+        const maxLoss = legs.some(l => l.qty > 0) ? minPnl : 0;
+        $('mpl-profit-val').textContent = maxProfit >= 0 ? '+$' + (maxProfit / 100).toFixed(0) : '-$' + Math.abs(maxProfit / 100).toFixed(0);
+        $('mpl-loss-val').textContent = maxLoss <= 0 ? '-$' + Math.abs(maxLoss / 100).toFixed(0) : '+$' + (maxLoss / 100).toFixed(0);
+        show('mpl-box');
+
+        // Breakevens
+        const bes = [];
+        for (let i = 1; i < pnlData.length; i++) {
+            if ((pnlData[i-1].pnl < 0 && pnlData[i].pnl >= 0) || (pnlData[i-1].pnl >= 0 && pnlData[i].pnl < 0)) {
+                const t = -pnlData[i-1].pnl / (pnlData[i].pnl - pnlData[i-1].pnl);
+                const be = pnlData[i-1].price + t * (pnlData[i].price - pnlData[i-1].price);
+                bes.push(be.toFixed(2));
+            }
+        }
+        if (bes.length) {
+            $('pli-breakeven').textContent = 'Breakeven: $' + bes.join(', ');
+        } else {
+            $('pli-breakeven').textContent = 'Breakeven: —';
+        }
+        $('pli-max-profit').textContent = 'Max Profit: ' + (maxProfit >= 1e10 ? 'Unlimited' : (maxProfit >= 0 ? '+$' + (maxProfit/100).toFixed(0) : '$' + (maxProfit/100).toFixed(0)));
+        $('pli-max-loss').textContent = 'Max Loss: ' + (maxLoss <= -1e10 ? 'Unlimited' : '-$' + Math.abs(maxLoss/100).toFixed(0));
+    }
+
+    // ─── Leg management ────────────────────────────────────────────────────────
+    function addLeg() {
+        const type = $('leg-type').value;
+        const strike = parseFloat($('leg-strike').value);
+        const premium = parseFloat($('leg-premium').value);
+        const qty = parseInt($('leg-qty').value) || 1;
+        if (!strike || isNaN(premium)) return;
+        legs.push({ type, strike, premium, qty });
+        $('leg-strike').value = '';
+        $('leg-premium').value = '';
+        $('leg-qty').value = '1';
+        renderLegs();
+        drawPLDiagram();
+    }
+
+    function removeLeg(idx) {
+        legs.splice(idx, 1);
+        renderLegs();
+        drawPLDiagram();
+    }
+
+    function renderLegs() {
+        const list = $('leg-list');
+        if (!legs.length) { list.innerHTML = ''; hide('mpl-box'); return; }
+        list.innerHTML = legs.map((l, i) => `
+            <div class="leg-item">
+                <span class="leg-badge ${l.type}">${l.type.toUpperCase()}</span>
+                <div class="leg-info">
+                    <span class="leg-strike">$${l.strike.toFixed(2)}</span>
+                    <span class="leg-prem"> × ${l.qty} contract${l.qty > 1 ? 's' : ''} @ $${l.premium.toFixed(2)}</span>
+                </div>
+                <div class="leg-qty">
+                    <button onclick="adjustLeg(${i}, -1)">−</button>
+                    <span>${l.qty}</span>
+                    <button onclick="adjustLeg(${i}, 1)">+</button>
+                </div>
+                <button onclick="removeLeg(${i})">✕</button>
+            </div>`).join('');
+    }
+
+    function adjustLeg(idx, delta) {
+        legs[idx].qty = Math.max(1, legs[idx].qty + delta);
+        renderLegs();
+        drawPLDiagram();
+    }
+
+    function clearLegs() { legs = []; renderLegs(); drawPLDiagram(); }
+
+    function applyPreset(name) {
+        const S = currentStockPrice;
+        if (!S) return;
+        legs = [];
+        const atmStrike = Math.round(S / 5) * 5;
+        const otmStrike = Math.round((S * 1.05) / 5) * 5;
+        if (name === 'vertical_call') {
+            legs.push({ type: 'call', strike: atmStrike, premium: 3, qty: 1 });
+            legs.push({ type: 'call', strike: otmStrike, premium: 1, qty: -1 });
+        } else if (name === 'vertical_put') {
+            legs.push({ type: 'put', strike: atmStrike, premium: 3, qty: 1 });
+            legs.push({ type: 'put', strike: otmStrike, premium: 1, qty: -1 });
+        } else if (name === 'straddle') {
+            legs.push({ type: 'call', strike: atmStrike, premium: 5, qty: 1 });
+            legs.push({ type: 'put', strike: atmStrike, premium: 5, qty: 1 });
+        } else if (name === 'strangle') {
+            legs.push({ type: 'put', strike: atmStrike - 5, premium: 3, qty: 1 });
+            legs.push({ type: 'call', strike: atmStrike + 5, premium: 3, qty: 1 });
+        }
+        renderLegs();
+        drawPLDiagram();
+    }
+
+    // ─── Option Chain ──────────────────────────────────────────────────────────
+    async function loadOptionChain() {
+        const ticker = $('opt-ticker-input').value.trim().toUpperCase();
+        if (!ticker) return;
+        currentTicker = ticker;
+        hide('opt-content');
+        show('opt-loading');
+        try {
+            const [snapRes, chainRes] = await Promise.all([
+                fetch(`${API}/api/stock-snapshot/${ticker}`),
+                fetch(`${API}/api/option-chain/${ticker}`)
+            ]);
+            const snap = await snapRes.json();
+            currentStockPrice = snap.fundamentals?.currentPrice || snap.fundamentals?.regularMarketPrice || 0;
+            const chain = await chainRes.json();
+            optionChain = chain.calls || [];
+            $('prob-s').value = currentStockPrice.toFixed(2);
+            $('greek-s').value = currentStockPrice.toFixed(2);
+            renderChain();
+            hide('opt-loading');
+            show('opt-content');
+            drawPLDiagram();
+        } catch (e) {
+            $('opt-loading').textContent = 'Failed to load options for ' + ticker + '. Try again.';
+        }
+    }
+
+    function renderChain() {
+        if (!optionChain.length) return;
+        const expiry = optionChain[0]?.expirationDate || '';
+        $('chain-expiry').textContent = expiry ? ` — Expires: ${expiry}` : '';
+        const vol = parseFloat($('prob-vol').value) / 100;
+        const T = parseFloat($('prob-t').value) / 365;
+        const r = parseFloat($('greek-r').value) / 100;
+        $('chain-body').innerHTML = optionChain.map(c => {
+            const strike = parseFloat(c.strike);
+            const price = c.lastPrice || 0;
+            const g = bsGreeks(currentStockPrice, strike, T, r, vol, 'call');
+            const selected = currentStockPrice > 0 && Math.abs(strike - currentStockPrice) < (currentStockPrice * 0.05);
+            return `<tr class="${selected ? 'selected' : ''}" onclick="selectStrike(${strike})">
+                <td class="strike">$${strike.toFixed(2)}</td>
+                <td>${((c.impliedVolatility || 0) * 100).toFixed(1)}%</td>
+                <td>${g.delta}</td>
+                <td>${g.gamma}</td>
+                <td>${g.theta}</td>
+                <td>${g.vega}</td>
+                <td>$${price.toFixed(2)}</td>
+                <td>$${(c.bid || 0).toFixed(2)}</td>
+                <td>$${(c.ask || 0).toFixed(2)}</td>
+                <td>${(c.volume || 0).toLocaleString()}</td>
+                <td>${(c.openInterest || 0).toLocaleString()}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    function selectStrike(strike) {
+        $('greek-k').value = strike;
+        $('prob-k').value = strike;
+        calcGreeks();
+        // Auto-add as a leg
+        const matching = optionChain.find(c => parseFloat(c.strike) === strike);
+        if (matching && currentStockPrice) {
+            const type = strike > currentStockPrice ? 'call' : 'put';
+            legs.push({ type, strike, premium: matching.lastPrice || 0, qty: 1 });
+            renderLegs();
+            drawPLDiagram();
+        }
+    }
+
+    // ─── Theme ─────────────────────────────────────────────────────────────────
+    (function() {
+        var btn = document.getElementById('theme-toggle');
+        var KEY = 'oobir_theme';
+        function getPreferredTheme() { return localStorage.getItem(KEY) || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem(KEY, theme);
+            if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+        }
+        if (btn) btn.addEventListener('click', () => applyTheme(getPreferredTheme() === 'dark' ? 'light' : 'dark'));
+        applyTheme(getPreferredTheme());
+    })();
+
+    window.addEventListener('resize', () => { if (legs.length) drawPLDiagram(); });
+    </script>
+</body>
+</html>

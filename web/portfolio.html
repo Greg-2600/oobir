@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio — OOBIR</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="tooltip.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <style>
+        .portfolio-page { max-width: 1200px; margin: 0 auto; padding: 24px 20px; }
+        .portfolio-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+        .portfolio-header h1 { font-size: 1.8rem; font-weight: 800; color: #1f2937; }
+        .portfolio-header p { color: #64748b; font-size: 0.85rem; margin-top: 2px; }
+        .portfolio-actions { display: flex; gap: 10px; align-items: center; }
+        .btn-primary {
+            background: #1a73e8; color: white; border: none; border-radius: 999px;
+            padding: 9px 20px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-primary:hover { background: #1557b0; transform: translateY(-1px); }
+        .btn-secondary {
+            background: white; color: #334155; border: 1.5px solid #dbe2ea; border-radius: 999px;
+            padding: 9px 20px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-secondary:hover { border-color: #1a73e8; color: #1a73e8; }
+        .btn-danger { background: white; color: #b91c1c; border: 1.5px solid #fecaca; border-radius: 999px; padding: 9px 20px; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+        .portfolio-summary {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px;
+            margin-bottom: 28px;
+        }
+        .summary-card {
+            background: white; border: 1.5px solid #e5e7eb; border-radius: 14px; padding: 18px;
+        }
+        .summary-card .value { font-size: 1.6rem; font-weight: 800; color: #1f2937; }
+        .summary-card .label { font-size: 0.75rem; color: #64748b; margin-top: 4px; font-weight: 600; }
+        .summary-card .sub { font-size: 0.78rem; margin-top: 4px; font-weight: 600; }
+        .summary-card.up .value { color: #15803d; }
+        .summary-card.down .value { color: #b91c1c; }
+        .summary-card.up .sub { color: #15803d; }
+        .summary-card.down .sub { color: #b91c1c; }
+        .portfolio-allocation { background: white; border: 1.5px solid #e5e7eb; border-radius: 14px; padding: 18px; margin-bottom: 24px; }
+        .portfolio-allocation h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; color: #1f2937; }
+        .allocation-content { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+        .allocation-ring { position: relative; width: 180px; height: 180px; }
+        .allocation-legend { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px; }
+        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; }
+        .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .legend-ticker { font-weight: 700; min-width: 50px; }
+        .legend-pct { color: #64748b; margin-left: auto; }
+        .positions-section h3 { font-size: 0.95rem; font-weight: 700; color: #1f2937; margin-bottom: 12px; }
+        .positions-table { width: 100%; border-collapse: collapse; background: white; border: 1.5px solid #e5e7eb; border-radius: 14px; overflow: hidden; }
+        .positions-table th { background: #f8fafc; padding: 10px 14px; text-align: left; font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+        .positions-table td { padding: 12px 14px; border-top: 1px solid #f3f4f6; font-size: 0.85rem; }
+        .positions-table tr:hover td { background: #f8fafc; }
+        .positions-table .ticker-cell { font-weight: 800; color: #1f2937; }
+        .positions-table .name-cell { color: #64748b; font-size: 0.78rem; }
+        .positions-table .pnl-up { color: #15803d; font-weight: 700; }
+        .positions-table .pnl-down { color: #b91c1c; font-weight: 700; }
+        .positions-table .weight-bar-wrap { width: 80px; }
+        .positions-table .weight-bar { height: 5px; background: #e8eef5; border-radius: 3px; overflow: hidden; }
+        .positions-table .weight-fill { height: 100%; background: #1a73e8; border-radius: 3px; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #94a3b8; }
+        .empty-state h3 { font-size: 1.2rem; color: #64748b; margin-bottom: 8px; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.4); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-overlay.hidden { display: none; }
+        .modal-card { background: white; border-radius: 18px; padding: 28px; width: 400px; max-width: 90vw; box-shadow: 0 20px 60px rgba(15,23,42,.2); }
+        .modal-card h3 { font-size: 1.1rem; font-weight: 800; margin-bottom: 6px; color: #1f2937; }
+        .modal-card p { font-size: 0.8rem; color: #64748b; margin-bottom: 20px; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 0.78rem; font-weight: 700; color: #475569; margin-bottom: 5px; }
+        .form-group input, .form-group select {
+            width: 100%; padding: 9px 12px; border: 1.5px solid #dbe2ea; border-radius: 9px;
+            font-size: 0.85rem; box-sizing: border-box; transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #1a73e8; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .modal-actions button { flex: 1; }
+        #add-position-modal .form-group:nth-child(3) { margin-bottom: 0; }
+        .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 2000; display: flex; flex-direction: column; gap: 8px; }
+        .toast { background: #1e293b; color: white; padding: 12px 18px; border-radius: 10px; font-size: 0.82rem; font-weight: 600; box-shadow: 0 4px 20px rgba(0,0,0,.3); display: flex; align-items: center; gap: 10px; animation: slideIn 0.3s ease; max-width: 320px; }
+        .toast.success { border-left: 4px solid #10b981; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        [data-theme="dark"] .summary-card, [data-theme="dark"] .portfolio-allocation { background: #1e293b; border-color: #334155; }
+        [data-theme="dark"] .portfolio-header h1 { color: #f1f5f9; }
+        [data-theme="dark"] .positions-table { background: #1e293b; border-color: #334155; }
+        [data-theme="dark"] .positions-table th { background: #0f172a; color: #94a3b8; }
+        [data-theme="dark"] .positions-table td { border-color: #334155; }
+        [data-theme="dark"] .positions-table tr:hover td { background: #0f172a; }
+        [data-theme="dark"] .modal-card { background: #1e293b; }
+        [data-theme="dark"] .form-group label { color: #94a3b8; }
+        [data-theme="dark"] .form-group input, [data-theme="dark"] .form-group select { background: #0f172a; border-color: #334155; color: #f1f5f9; }
+        [data-theme="dark"] .positions-table .ticker-cell { color: #f1f5f9; }
+        [data-theme="dark"] .weight-fill { background: #3b82f6; }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="app-header-content">
+            <div class="app-header-left">
+                <a class="app-brand" href="search.html">OOBIR</a>
+                <span class="app-page-label">Portfolio</span>
+            </div>
+            <nav class="app-nav" aria-label="Primary navigation">
+                <a href="search.html">Search</a>
+                <a href="index.html">Stock Screen</a>
+                <a href="screener.html">Fundamentals</a>
+                <a href="markets.html">Markets</a>
+                <a href="sectors.html">Sectors</a>
+                <a href="stocks.html">AI Picks</a>
+                <a href="predictions.html">AI Predictions</a>
+                <a href="money-flow.html">Money Flow</a>
+                        <a href="portfolio.html">Portfolio</a>
+                <a href="watchlist.html">Watchlist</a>
+                        <a href="dividends.html">Dividends</a>
+                <a href="crypto.html">Crypto</a>
+                <a href="metals.html">Metals</a>
+                        <a href="options.html">Options</a>
+                        <a href="backtest.html">Backtest</a>
+                <a href="correlations.html">Correlations</a>
+                        <a href="compare-sectors.html">Compare</a>
+                        <a href="optimizer.html">Optimizer</a>
+                        <a href="correlation-matrix.html">Corr Matrix</a>
+                        <a href="volatility.html">Volatility</a>
+                        <a href="news-timeline.html">News</a>
+                        <a href="calendar.html">Calendar</a>
+                        <a href="predictions.html">AI</a>
+                        <a href="news-timeline.html">News</a>
+                        <a href="calendar.html">Calendar</a>
+                <a href="commodities.html">Commodities</a>
+            </nav>
+            <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">🌙</button>
+        </div>
+    </header>
+
+    <div class="portfolio-page">
+        <div class="portfolio-header">
+            <div>
+                <h1>💼 Portfolio</h1>
+                <p>Track your holdings, performance, and allocation</p>
+            </div>
+            <div class="portfolio-actions">
+                <button class="btn-secondary" onclick="exportCSV()">📥 Export</button>
+                <button class="btn-primary" onclick="openAddPosition()">+ Add Position</button>
+            </div>
+        </div>
+
+        <div id="portfolio-summary" class="portfolio-summary"></div>
+
+        <div class="portfolio-allocation">
+            <h3>Allocation</h3>
+            <div class="allocation-content">
+                <div class="allocation-ring">
+                    <canvas id="allocation-canvas" width="180" height="180"></canvas>
+                </div>
+                <div id="allocation-legend" class="allocation-legend"></div>
+            </div>
+        </div>
+
+        <div class="positions-section">
+            <h3>📋 Positions</h3>
+            <div id="positions-table-wrap"></div>
+        </div>
+    </div>
+
+    <!-- Add Position Modal -->
+    <div id="add-position-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h3>Add Position</h3>
+            <p>Enter your holding details</p>
+            <div class="form-group">
+                <label>Ticker Symbol</label>
+                <input type="text" id="pos-ticker" placeholder="e.g. AAPL" style="text-transform:uppercase">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Shares</label>
+                    <input type="number" id="pos-shares" placeholder="100" step="any" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Cost Basis (per share)</label>
+                    <input type="number" id="pos-cost" placeholder="150.00" step="any" min="0">
+                </div>
+            </div>
+            <div id="add-pos-error" style="color:#ef4444;font-size:0.78rem;margin-bottom:8px;display:none;"></div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="closeAddPosition()">Cancel</button>
+                <button class="btn-primary" onclick="confirmAddPosition()">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Position Modal -->
+    <div id="edit-position-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h3 id="edit-pos-title">Edit Position</h3>
+            <p>Update your holding</p>
+            <div class="form-group">
+                <label>Ticker Symbol</label>
+                <input type="text" id="edit-pos-ticker" disabled style="background:#f1f5f9;color:#64748b">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Shares</label>
+                    <input type="number" id="edit-pos-shares" step="any" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Cost Basis (per share)</label>
+                    <input type="number" id="edit-pos-cost" step="any" min="0">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="closeEditPosition()">Cancel</button>
+                <button class="btn-danger" onclick="deletePosition()">Delete</button>
+                <button class="btn-primary" onclick="confirmEditPosition()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="toast-container"></div>
+
+    <script>
+    const API = window.location.origin;
+    const STORAGE_KEY = 'oobir_portfolio';
+    const ALLOCATION_COLORS = ['#1a73e8','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16','#f97316','#6366f1'];
+
+    let portfolio = [];
+    let prices = {};
+    let editingTicker = null;
+
+    function loadPortfolio() {
+        try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+        catch { return []; }
+    }
+
+    function savePortfolio(data) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        portfolio = data;
+    }
+
+    async function fetchPrices() {
+        const p = loadPortfolio();
+        if (!p.length) return;
+        const tickers = p.map(w => w.ticker).join(',');
+        try {
+            const res = await fetch(`${API}/api/batch/fundamentals?symbols=${tickers}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.results) {
+                data.results.forEach(s => {
+                    if (s && s.symbol) {
+                        prices[s.symbol] = {
+                            price: s.currentPrice || s.regularMarketPrice,
+                            change: s.regularMarketChangePercent,
+                            name: s.shortName || s.longName || s.symbol,
+                            beta: s.beta,
+                            dividendYield: s.trailingAnnualDividendYield,
+                            marketCap: s.marketCap,
+                        };
+                    }
+                });
+            }
+        } catch {}
+    }
+
+    async function loadAll() {
+        portfolio = loadPortfolio();
+        renderPortfolio();
+        await fetchPrices();
+        renderPortfolio();
+    }
+
+    function calcPortfolio() {
+        let totalValue = 0, totalCost = 0, totalDayChange = 0;
+        const positions = portfolio.map(p => {
+            const pd = prices[p.ticker] || {};
+            const currentPrice = pd.price || 0;
+            const currentValue = currentPrice * p.shares;
+            const costBasis = p.costBasis * p.shares;
+            const pnl = currentValue - costBasis;
+            const pnlPct = costBasis > 0 ? (pnl / costBasis) * 100 : 0;
+            const dayChange = currentPrice * p.shares * ((pd.change || 0) / 100);
+            totalValue += currentValue;
+            totalCost += costBasis;
+            totalDayChange += dayChange;
+            return { ...p, currentPrice, currentValue, costBasis, pnl, pnlPct, dayChange, name: pd.name || p.ticker };
+        });
+        positions.sort((a, b) => b.currentValue - a.currentValue);
+        return { positions, totalValue, totalCost, totalPnl: totalValue - totalCost, totalPnlPct: totalCost > 0 ? ((totalValue - totalCost) / totalCost) * 100 : 0, totalDayChange };
+    }
+
+    function renderPortfolio() {
+        const { positions, totalValue, totalCost, totalPnl, totalPnlPct, totalDayChange } = calcPortfolio();
+        renderSummary(totalValue, totalCost, totalPnl, totalPnlPct, totalDayChange);
+        renderAllocation(positions, totalValue);
+        renderTable(positions, totalValue);
+    }
+
+    function renderSummary(totalValue, totalCost, totalPnl, totalPnlPct, totalDayChange) {
+        const dayUp = totalDayChange >= 0;
+        const totalUp = totalPnl >= 0;
+        const container = document.getElementById('portfolio-summary');
+        container.innerHTML = `
+            <div class="summary-card">
+                <div class="value">$${totalValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                <div class="label">Total Value</div>
+            </div>
+            <div class="summary-card ${totalUp ? 'up' : 'down'}">
+                <div class="value">${totalUp ? '+' : ''}$${totalPnl.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                <div class="label">Total P&L</div>
+                <div class="sub">${totalUp ? '+' : ''}${totalPnlPct.toFixed(2)}%</div>
+            </div>
+            <div class="summary-card ${dayUp ? 'up' : 'down'}">
+                <div class="value">${dayUp ? '+' : ''}$${totalDayChange.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                <div class="label">Today's Change</div>
+            </div>
+            <div class="summary-card">
+                <div class="value">$${(totalCost > 0 ? totalValue / totalCost : 0).toFixed(2)}</div>
+                <div class="label">Return Multiple</div>
+            </div>
+        `;
+    }
+
+    function renderAllocation(positions, totalValue) {
+        const legend = document.getElementById('allocation-legend');
+        if (!positions.length || totalValue === 0) {
+            legend.innerHTML = '<div style="color:#94a3b8;font-size:0.82rem;">No positions</div>';
+            const canvas = document.getElementById('allocation-canvas');
+            if (canvas) { canvas.getContext('2d').clearRect(0, 0, 180, 180); }
+            return;
+        }
+        legend.innerHTML = positions.map((p, i) => {
+            const pct = ((p.currentValue / totalValue) * 100).toFixed(1);
+            return `<div class="legend-item">
+                <span class="legend-dot" style="background:${ALLOCATION_COLORS[i % ALLOCATION_COLORS.length]}"></span>
+                <span class="legend-ticker">${p.ticker}</span>
+                <span class="legend-pct">${pct}%</span>
+            </div>`;
+        }).join('');
+        drawAllocationRing(positions.map(p => p.currentValue / totalValue));
+    }
+
+    function drawAllocationRing(fractions) {
+        const canvas = document.getElementById('allocation-canvas');
+        const ctx = canvas.getContext('2d');
+        const cx = 90, cy = 90, r = 70, ir = 45;
+        ctx.clearRect(0, 0, 180, 180);
+        let start = -Math.PI / 2;
+        fractions.forEach((f, i) => {
+            if (f < 0.001) return;
+            const end = start + f * 2 * Math.PI;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, start, end);
+            ctx.arc(cx, cy, ir, end, start, true);
+            ctx.closePath();
+            ctx.fillStyle = ALLOCATION_COLORS[i % ALLOCATION_COLORS.length];
+            ctx.fill();
+            start = end;
+        });
+    }
+
+    function renderTable(positions, totalValue) {
+        const wrap = document.getElementById('positions-table-wrap');
+        if (!positions.length) {
+            wrap.innerHTML = `<div class="empty-state"><h3>No positions yet</h3><p>Click "+ Add Position" to add your first holding</p></div>`;
+            return;
+        }
+        wrap.innerHTML = `
+            <table class="positions-table">
+                <thead>
+                    <tr>
+                        <th>Ticker</th>
+                        <th>Shares</th>
+                        <th>Avg Cost</th>
+                        <th>Current</th>
+                        <th>Market Value</th>
+                        <th>Cost Basis</th>
+                        <th>P&L</th>
+                        <th>Weight</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${positions.map(p => {
+                        const up = p.pnl >= 0;
+                        const pct = totalValue > 0 ? (p.currentValue / totalValue) * 100 : 0;
+                        return `<tr onclick="openEditPosition('${p.ticker}')" style="cursor:pointer">
+                            <td class="ticker-cell">${p.ticker}<div class="name-cell">${p.name}</div></td>
+                            <td>${p.shares.toLocaleString()}</td>
+                            <td>$${p.costBasis.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td>$${p.currentPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td>$${p.currentValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td>$${p.costBasis.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td class="${up ? 'pnl-up' : 'pnl-down'}">
+                                ${up ? '+' : ''}$${p.pnl.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}<br>
+                                <span style="font-size:0.75rem">${up ? '+' : ''}${p.pnlPct.toFixed(2)}%</span>
+                            </td>
+                            <td>
+                                <div class="weight-bar-wrap">
+                                    <div class="weight-bar"><div class="weight-fill" style="width:${Math.min(pct, 100)}%"></div></div>
+                                </div>
+                                <span style="font-size:0.72rem;color:#64748b">${pct.toFixed(1)}%</span>
+                            </td>
+                            <td><button class="btn-secondary" style="padding:5px 10px;font-size:0.72rem" onclick="event.stopPropagation();openEditPosition('${p.ticker}')">Edit</button></td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>`;
+    }
+
+    function openAddPosition() {
+        document.getElementById('add-position-modal').classList.remove('hidden');
+        document.getElementById('pos-ticker').value = '';
+        document.getElementById('pos-shares').value = '';
+        document.getElementById('pos-cost').value = '';
+        document.getElementById('add-pos-error').style.display = 'none';
+        document.getElementById('pos-ticker').focus();
+    }
+
+    function closeAddPosition() {
+        document.getElementById('add-position-modal').classList.add('hidden');
+    }
+
+    async function confirmAddPosition() {
+        const ticker = document.getElementById('pos-ticker').value.trim().toUpperCase();
+        const shares = parseFloat(document.getElementById('pos-shares').value);
+        const costBasis = parseFloat(document.getElementById('pos-cost').value);
+        const error = document.getElementById('add-pos-error');
+        if (!ticker) { error.textContent = 'Enter a ticker'; error.style.display = 'block'; return; }
+        if (!shares || shares <= 0) { error.textContent = 'Enter valid share count'; error.style.display = 'block'; return; }
+        if (isNaN(costBasis) || costBasis < 0) { error.textContent = 'Enter valid cost basis'; error.style.display = 'block'; return; }
+        const p = loadPortfolio();
+        if (p.find(x => x.ticker === ticker)) { error.textContent = `${ticker} already in portfolio`; error.style.display = 'block'; return; }
+        try {
+            const res = await fetch(`${API}/api/fundamentals/${ticker}`);
+            if (!res.ok) throw new Error();
+            p.push({ ticker, shares, costBasis, addedAt: new Date().toISOString() });
+            savePortfolio(p);
+            closeAddPosition();
+            showToast(`Added ${ticker} to portfolio`, 'success');
+            await loadAll();
+        } catch {
+            error.textContent = `Ticker "${ticker}" not found`;
+            error.style.display = 'block';
+        }
+    }
+
+    function openEditPosition(ticker) {
+        editingTicker = ticker;
+        const p = loadPortfolio().find(x => x.ticker === ticker);
+        if (!p) return;
+        document.getElementById('edit-pos-title').textContent = `Edit ${ticker}`;
+        document.getElementById('edit-pos-ticker').value = p.ticker;
+        document.getElementById('edit-pos-shares').value = p.shares;
+        document.getElementById('edit-pos-cost').value = p.costBasis;
+        document.getElementById('edit-position-modal').classList.remove('hidden');
+    }
+
+    function closeEditPosition() {
+        document.getElementById('edit-position-modal').classList.add('hidden');
+        editingTicker = null;
+    }
+
+    function confirmEditPosition() {
+        if (!editingTicker) return;
+        const shares = parseFloat(document.getElementById('edit-pos-shares').value);
+        const costBasis = parseFloat(document.getElementById('edit-pos-cost').value);
+        if (!shares || shares <= 0 || isNaN(costBasis)) { showToast('Invalid values', 'error'); return; }
+        let p = loadPortfolio();
+        const idx = p.findIndex(x => x.ticker === editingTicker);
+        if (idx >= 0) { p[idx].shares = shares; p[idx].costBasis = costBasis; }
+        savePortfolio(p);
+        closeEditPosition();
+        showToast(`Updated ${editingTicker}`, 'success');
+        loadAll();
+    }
+
+    function deletePosition() {
+        if (!editingTicker) return;
+        let p = loadPortfolio();
+        p = p.filter(x => x.ticker !== editingTicker);
+        savePortfolio(p);
+        closeEditPosition();
+        showToast(`Removed ${editingTicker}`, 'success');
+        loadAll();
+    }
+
+    function exportCSV() {
+        const { positions } = calcPortfolio();
+        if (!positions.length) return;
+        const rows = [['Ticker','Shares','Avg Cost','Current Price','Market Value','Cost Basis','P&L','P&L %']];
+        positions.forEach(p => {
+            rows.push([p.ticker, p.shares, p.costBasis.toFixed(2), p.currentPrice.toFixed(2),
+                p.currentValue.toFixed(2), p.costBasis.toFixed(2), p.pnl.toFixed(2), p.pnlPct.toFixed(2) + '%']);
+        });
+        const csv = rows.map(r => r.join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = 'portfolio.csv'; a.click();
+        showToast('Portfolio exported', 'success');
+    }
+
+    function showToast(message, type = 'info') {
+        const c = document.getElementById('toast-container');
+        const t = document.createElement('div'); t.className = `toast ${type}`; t.textContent = message;
+        c.appendChild(t); setTimeout(() => t.remove(), 5000);
+    }
+
+    // Theme init
+    (function() {
+        var btn = document.getElementById('theme-toggle');
+        var THEME_KEY = 'oobir_theme';
+        function getPreferredTheme() { return localStorage.getItem(THEME_KEY) || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem(THEME_KEY, theme);
+            if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+        }
+        if (btn) btn.addEventListener('click', () => applyTheme(getPreferredTheme() === 'dark' ? 'light' : 'dark'));
+        applyTheme(getPreferredTheme());
+    })();
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { closeAddPosition(); closeEditPosition(); }
+        if (e.key === 'Enter' && !document.getElementById('add-position-modal').classList.contains('hidden')) confirmAddPosition();
+    });
+
+    loadAll();
+    </script>
+</body>
+</html>

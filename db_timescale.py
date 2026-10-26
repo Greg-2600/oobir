@@ -62,17 +62,15 @@ def fetch_price_history(
         FROM price_history
         WHERE ticker = %s
     """
-    params = [ticker]
+    params: list[str | datetime] = [ticker]
     if since_days is not None:
-        # Pass a concrete timestamp (not make_interval) so TimescaleDB can
-        # prune chunks and avoid a multi-second planner pass.
         cutoff = datetime.now(UTC) - timedelta(days=int(since_days))
         sql += " AND date >= %s"
         params.append(cutoff)
     sql += " ORDER BY date DESC"
     if limit is not None:
         sql += " LIMIT %s"
-        params.append(limit)
+        params.append(limit)  # type: ignore[arg-type]
 
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute(sql, params)

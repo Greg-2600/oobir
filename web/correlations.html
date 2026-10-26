@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Twins — OOBIR</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="tooltip.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <style>
+        .corr-page { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .corr-header { text-align: center; margin-bottom: 32px; }
+        .corr-header h1 { font-size: 2rem; font-weight: 800; color: #1f2937; margin-bottom: 8px; }
+        .corr-header p { color: #64748b; font-size: 0.95rem; }
+        .corr-controls {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 28px;
+            flex-wrap: wrap;
+        }
+        .corr-controls .period-btn {
+            padding: 8px 18px;
+            border: 1.5px solid #dbe2ea;
+            background: white;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #334155;
+        }
+        .corr-controls .period-btn:hover { border-color: #1a73e8; color: #1a73e8; }
+        .corr-controls .period-btn.active { background: #1a73e8; border-color: #1a73e8; color: white; }
+        .corr-section { margin-bottom: 40px; }
+        .corr-section-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #1f2937;
+        }
+        .pair-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 14px;
+        }
+        .pair-card {
+            background: white;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .pair-card:hover { box-shadow: 0 6px 20px rgba(15,23,42,.1); transform: translateY(-2px); }
+        .pair-card.twin { border-left: 4px solid #10b981; }
+        .pair-card.inverse { border-left: 4px solid #ef4444; }
+        .pair-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .pair-tickers { display: flex; align-items: center; gap: 8px; }
+        .pair-ticker { font-weight: 800; font-size: 1.1rem; color: #1f2937; }
+        .pair-vs { color: #94a3b8; font-size: 0.75rem; }
+        .pair-corr {
+            font-weight: 800;
+            font-size: 1.1rem;
+            padding: 4px 10px;
+            border-radius: 999px;
+        }
+        .pair-corr.twin { background: #f0fdf4; color: #15803d; }
+        .pair-corr.inverse { background: #fef2f2; color: #b91c1c; }
+        .pair-sparklines { display: flex; gap: 8px; height: 50px; margin-bottom: 10px; }
+        .sparkline-wrap { flex: 1; position: relative; background: #f8fafc; border-radius: 6px; overflow: hidden; display: flex; align-items: flex-end; padding: 4px 2px 2px; }
+        .sparkline-wrap span { position: absolute; bottom: 4px; right: 4px; font-size: 0.6rem; color: #94a3b8; }
+        .pair-meta { font-size: 0.78rem; color: #64748b; display: flex; justify-content: space-between; }
+        .pair-bar-wrap { margin-top: 8px; }
+        .pair-bar-label { font-size: 0.72rem; color: #94a3b8; margin-bottom: 3px; }
+        .pair-bar-track { height: 6px; background: #f3f4f6; border-radius: 3px; overflow: hidden; }
+        .pair-bar-fill { height: 100%; border-radius: 3px; }
+        .loading-state { text-align: center; padding: 40px; color: #94a3b8; }
+        .section-divider { border: none; border-top: 1px solid #f3f4f6; margin: 32px 0; }
+        .corr-filter { display: flex; gap: 12px; justify-content: center; margin-bottom: 16px; }
+        .corr-filter select { padding: 8px 14px; border: 1.5px solid #dbe2ea; border-radius: 999px; font-size: 0.82rem; font-weight: 600; background: white; color: #334155; cursor: pointer; }
+        .pair-why { font-size: 0.72rem; color: #64748b; margin-top: 6px; padding: 6px 8px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #94a3b8; }
+        /* Modal */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-overlay.hidden { display: none; }
+        .modal-card { background: white; border-radius: 18px; padding: 24px; width: 580px; max-width: 90vw; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(15,23,42,.2); }
+        .modal-card h3 { font-size: 1rem; font-weight: 800; color: #1f2937; margin-bottom: 4px; }
+        .modal-card .modal-sub { font-size: 0.78rem; color: #64748b; margin-bottom: 16px; }
+        .scatter-canvas { width: 100%; height: 240px; border-radius: 10px; background: #f8fafc; }
+        .modal-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+        .modal-metric { text-align: center; padding: 10px; background: #f8fafc; border-radius: 8px; }
+        .modal-metric .val { font-size: 1.1rem; font-weight: 800; }
+        .modal-metric .lbl { font-size: 0.65rem; color: #64748b; font-weight: 700; text-transform: uppercase; }
+        .modal-close { margin-top: 14px; width: 100%; padding: 9px; background: #1a73e8; color: white; border: none; border-radius: 999px; font-size: 0.82rem; font-weight: 700; cursor: pointer; }
+        [data-theme="dark"] .pair-card { background: #1e293b; border-color: #334155; }
+        [data-theme="dark"] .pair-ticker { color: #f1f5f9; }
+        [data-theme="dark"] .pair-meta { color: #94a3b8; }
+        [data-theme="dark"] .corr-section-title { color: #f1f5f9; }
+        [data-theme="dark"] .sparkline-wrap { background: #0f172a; }
+        [data-theme="dark"] .pair-controls .period-btn { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+        [data-theme="dark"] .corr-header h1 { color: #f1f5f9; }
+        [data-theme="dark"] .corr-header p { color: #94a3b8; }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="app-header-content">
+            <div class="app-header-left">
+                <a class="app-brand" href="search.html">OOBIR</a>
+                <span class="app-page-label">Stock Twins</span>
+            </div>
+            <nav class="app-nav" aria-label="Primary navigation">
+                <a href="search.html">Search</a><a href="index.html">Stock Screen</a>
+                <a href="screener.html">Fundamentals</a><a href="markets.html">Markets</a>
+                <a href="sectors.html">Sectors</a><a href="stocks.html">AI Picks</a>
+                <a href="predictions.html">AI Predictions</a><a href="money-flow.html">Money Flow</a>
+                <a href="watchlist.html">Watchlist</a><a href="portfolio.html">Portfolio</a>
+                <a href="dividends.html">Dividends</a><a href="options.html">Options</a>
+                <a href="backtest.html">Backtest</a><a href="correlations.html">Correlations</a>
+                        <a href="compare-sectors.html">Compare</a>
+                        <a href="news-timeline.html">News</a>
+                        <a href="calendar.html">Calendar</a>
+                <a href="commodities.html">Commodities</a>
+            </nav>
+            <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">🌙</button>
+        </div>
+    </header>
+
+    <div class="corr-page">
+        <div class="corr-header">
+            <h1>📊 Stock Twins & Inverse Twins</h1>
+            <p>Find stocks that move together (twins) or in opposite directions (inverse twins)</p>
+        </div>
+
+        <div class="corr-controls">
+            <button class="period-btn active" onclick="setDays(30)">30 Days</button>
+            <button class="period-btn" onclick="setDays(60)">60 Days</button>
+            <button class="period-btn" onclick="setDays(90)">90 Days</button>
+            <button class="period-btn" onclick="setDays(180)">180 Days</button>
+        </div>
+        <div class="corr-filter">
+            <select id="sector-filter" onchange="applyFilter()">
+                <option value="">All Sectors</option>
+                <option value="etf">ETFs</option>
+                <option value="tech">Technology</option>
+                <option value="finance">Financials</option>
+                <option value="healthcare">Healthcare</option>
+                <option value="energy">Energy</option>
+                <option value="consumer">Consumer</option>
+                <option value="industrial">Industrial</option>
+                <option value="comm">Comm Services</option>
+            </select>
+        </div>
+
+        <div id="twin-section" class="corr-section">
+            <div class="corr-section-title">🔗 Twins — Highly Correlated Pairs</div>
+            <div class="pair-grid" id="twin-grid">
+                <div class="loading-state"><div style="color:#94a3b8;">Loading...</div></div>
+            </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <div id="inverse-section" class="corr-section">
+            <div class="corr-section-title">↔️ Inverse Twins — Negatively Correlated Pairs</div>
+            <div class="pair-grid" id="inverse-grid">
+                <div class="loading-state"><div style="color:#94a3b8;">Loading...</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pair Detail Modal -->
+    <div id="pair-modal" class="modal-overlay hidden" onclick="if(event.target===this)closePairModal()">
+        <div class="modal-card">
+            <h3 id="modal-title">Pair Analysis</h3>
+            <div class="modal-sub" id="modal-sub"></div>
+            <canvas id="scatter-canvas" class="scatter-canvas"></canvas>
+            <div class="modal-metrics" id="modal-metrics"></div>
+            <div id="modal-why" class="pair-why" style="margin-top:10px;display:none"></div>
+            <button class="modal-close" onclick="closePairModal()">Close</button>
+        </div>
+    </div>
+
+    <script>
+    const API = window.location.origin;
+    let currentDays = 30;
+
+    const UNIVERSE = [
+        'SPY', 'QQQ', 'DIA',
+        'XLF', 'XLK', 'XLE', 'XLV', 'XLY', 'XLP', 'XLI', 'XLB', 'XLRE', 'XLC', 'XLU',
+        'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'JPM', 'V', 'MA', 'BAC', 'GS',
+        'JNJ', 'UNH', 'PFE', 'ABBV', 'MRK', 'LLY', 'XOM', 'CVX', 'COP', 'SLB',
+        'PG', 'KO', 'PEP', 'MCD', 'SBUX', 'COST', 'WMT',
+        'DIS', 'NFLX', 'CMCSA', 'T', 'VZ', 'TMUS',
+        'BA', 'CAT', 'GE', 'HON', 'UPS', 'RTX',
+    ];
+
+    const TICKER_NAMES = {
+        'SPY': 'S&P 500 ETF', 'QQQ': 'Nasdaq ETF', 'DIA': 'Dow Jones ETF',
+        'XLF': 'Financials', 'XLK': 'Technology', 'XLE': 'Energy', 'XLV': 'Healthcare',
+        'XLY': 'Consumer Disc.', 'XLP': 'Consumer Staples', 'XLI': 'Industrials',
+        'XLB': 'Materials', 'XLRE': 'Real Estate', 'XLC': 'Comm. Services', 'XLU': 'Utilities',
+    };
+
+    const SECTOR_MAP = {
+        'SPY': 'etf', 'QQQ': 'etf', 'DIA': 'etf',
+        'XLF': 'finance', 'XLK': 'tech', 'XLE': 'energy', 'XLV': 'healthcare',
+        'XLY': 'consumer', 'XLP': 'consumer', 'XLI': 'industrial',
+        'XLB': 'industrial', 'XLRE': 'finance', 'XLC': 'comm', 'XLU': 'comm',
+        'AAPL': 'tech', 'MSFT': 'tech', 'GOOGL': 'tech', 'AMZN': 'tech', 'NVDA': 'tech', 'META': 'tech',
+        'TSLA': 'consumer', 'JPM': 'finance', 'V': 'finance', 'MA': 'finance', 'BAC': 'finance', 'GS': 'finance',
+        'JNJ': 'healthcare', 'UNH': 'healthcare', 'PFE': 'healthcare', 'ABBV': 'healthcare', 'MRK': 'healthcare', 'LLY': 'healthcare',
+        'XOM': 'energy', 'CVX': 'energy', 'COP': 'energy', 'SLB': 'energy',
+        'PG': 'consumer', 'KO': 'consumer', 'PEP': 'consumer', 'MCD': 'consumer', 'SBUX': 'consumer', 'COST': 'consumer', 'WMT': 'consumer',
+        'DIS': 'comm', 'NFLX': 'comm', 'CMCSA': 'comm', 'T': 'comm', 'VZ': 'comm', 'TMUS': 'comm',
+        'BA': 'industrial', 'CAT': 'industrial', 'GE': 'industrial', 'HON': 'industrial', 'UPS': 'industrial', 'RTX': 'industrial',
+    };
+
+    const SECTOR_LABELS = {
+        etf: 'ETF / Index', tech: 'Technology', finance: 'Financials',
+        healthcare: 'Healthcare', energy: 'Energy', consumer: 'Consumer',
+        industrial: 'Industrial', comm: 'Comm Services',
+    };
+
+    let allTwins = [], allInverses = [];
+
+    function pearsonCorrelation(x, y) {
+        const n = Math.min(x.length, y.length);
+        if (n < 10) return 0;
+        let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+        for (let i = 0; i < n; i++) {
+            sumX += x[i]; sumY += y[i]; sumXY += x[i] * y[i];
+            sumX2 += x[i] * x[i]; sumY2 += y[i] * y[i];
+        }
+        const num = n * sumXY - sumX * sumY;
+        const den = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+        return den === 0 ? 0 : num / den;
+    }
+
+    function normalizePrices(prices) {
+        if (!prices || prices.length < 2) return null;
+        const first = prices[0];
+        return prices.map(p => (p - first) / first);
+    }
+
+    function buildSparkline(normalized, color) {
+        if (!normalized || normalized.length < 5) return '';
+        const min = Math.min(...normalized);
+        const max = Math.max(...normalized);
+        const range = max - min || 1;
+        const h = normalized.map(v => Math.max(3, ((v - min) / range) * 38));
+        return normalized.map((v, i) => {
+            const bh = h[i];
+            const bottom = ((v - min) / range) * 38;
+            return `<div style="flex:1; height:${bh}px; background:${color}; opacity:0.7; border-radius:1px 1px 0 0; margin-top:${38 - bh}px;"></div>`;
+        }).join('');
+    }
+
+    async function fetchPrice(ticker) {
+        try {
+            const res = await fetch(`${API}/api/price-history/${ticker}?days=${currentDays}`);
+            if (!res.ok) return null;
+            const json = await res.json();
+            const data = json.data ? json.data : json;
+            if (!data || !Array.isArray(data)) return null;
+            return data.map(d => d.Close).filter(v => v != null);
+        } catch { return null; }
+    }
+
+    async function loadCorrelations() {
+        const twinGrid = document.getElementById('twin-grid');
+        const inverseGrid = document.getElementById('inverse-grid');
+        twinGrid.innerHTML = '<div class="loading-state"><div style="color:#94a3b8;">Fetching price data...</div></div>';
+        inverseGrid.innerHTML = '<div class="loading-state"><div style="color:#94a3b8;">Fetching price data...</div></div>';
+
+        const priceData = {};
+        await Promise.all(UNIVERSE.map(async ticker => {
+            const p = await fetchPrice(ticker);
+            if (p && p.length >= 20) priceData[ticker] = normalizePrices(p);
+        }));
+
+        const tickers = Object.keys(priceData);
+        if (tickers.length < 2) {
+            twinGrid.innerHTML = '<div class="loading-state"><div style="color:#ef4444;">Insufficient data</div></div>';
+            inverseGrid.innerHTML = '';
+            return;
+        }
+
+        const pairs = [];
+        for (let i = 0; i < tickers.length; i++) {
+            for (let j = i + 1; j < tickers.length; j++) {
+                const a = tickers[i], b = tickers[j];
+                const corr = pearsonCorrelation(priceData[a], priceData[b]);
+                if (isNaN(corr) || Math.abs(corr) < 0.3) continue;
+                pairs.push({ a, b, corr, dataA: priceData[a], dataB: priceData[b] });
+            }
+        }
+
+        allTwins = pairs.filter(p => p.corr > 0).sort((a, b) => b.corr - a.corr);
+        allInverses = pairs.filter(p => p.corr < 0).sort((a, b) => a.corr - b.corr);
+        applyFilter();
+    }
+
+    function applyFilter() {
+        const sector = document.getElementById('sector-filter').value;
+        const twins = sector ? allTwins.filter(p => (SECTOR_MAP[p.a] === sector || SECTOR_MAP[p.b] === sector)) : allTwins;
+        const inverses = sector ? allInverses.filter(p => (SECTOR_MAP[p.a] === sector || SECTOR_MAP[p.b] === sector)) : allInverses;
+        document.getElementById('twin-grid').innerHTML = twins.slice(0, 20).map(p => renderPairCard(p, 'twin')).join('');
+        document.getElementById('inverse-grid').innerHTML = inverses.slice(0, 20).map(p => renderPairCard(p, 'inverse')).join('');
+    }
+
+    function getWhyCorrelated(a, b) {
+        const sa = SECTOR_MAP[a] || '', sb = SECTOR_MAP[b] || '';
+        if (sa === sb && sa) return `Both are ${SECTOR_LABELS[sa] || sa} stocks — sector momentum drives both`;
+        if (['SPY', 'QQQ', 'DIA'].includes(a) || ['SPY', 'QQQ', 'DIA'].includes(b)) return 'Both track broad market indices';
+        if (sa === 'etf' || sb === 'etf') return 'One is an ETF, both reflect sector/broad market moves';
+        return null;
+    }
+
+    function renderPairCard(p, type) {
+        const nameA = TICKER_NAMES[p.a] || p.a;
+        const nameB = TICKER_NAMES[p.b] || p.b;
+        const color = type === 'twin' ? '#10b981' : '#ef4444';
+        const pct = (Math.abs(p.corr) * 100).toFixed(0);
+        const sparkA = buildSparkline(p.dataA, color);
+        const sparkB = buildSparkline(p.dataB, '#3b82f6');
+        const why = getWhyCorrelated(p.a, p.b);
+
+        return `
+            <div class="pair-card ${type}" onclick="openPairModal('${p.a}','${p.b}',${p.corr},${type})">
+                <div class="pair-header">
+                    <div class="pair-tickers">
+                        <span class="pair-ticker">${p.a}</span>
+                        <span class="pair-vs">${nameA}</span>
+                        <span class="pair-vs">↔</span>
+                        <span class="pair-ticker">${p.b}</span>
+                        <span class="pair-vs">${nameB}</span>
+                    </div>
+                    <div class="pair-corr ${type}">${type === 'twin' ? '+' : ''}${p.corr.toFixed(3)}</div>
+                </div>
+                <div class="pair-sparklines">
+                    <div class="sparkline-wrap">${sparkA}<span>${p.a}</span></div>
+                    <div class="sparkline-wrap">${sparkB}<span>${p.b}</span></div>
+                </div>
+                <div class="pair-meta">
+                    <span>${p.dataA ? p.dataA.length : 0} days of data</span>
+                    <span>${pct}% correlated over ${currentDays}d</span>
+                </div>
+                ${why ? `<div class="pair-why">💡 ${why}</div>` : ''}
+                <div class="pair-bar-wrap">
+                    <div class="pair-bar-label">Correlation strength</div>
+                    <div class="pair-bar-track">
+                        <div class="pair-bar-fill" style="width:${pct}%; background:${color};"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function openPairModal(a, b, corr, type) {
+        const nameA = TICKER_NAMES[a] || a, nameB = TICKER_NAMES[b] || b;
+        document.getElementById('modal-title').textContent = `${a} ↔ ${b}`;
+        document.getElementById('modal-sub').textContent = `${nameA} vs ${nameB} — ${type === 'twin' ? 'Twin' : 'Inverse Twin'} Pair (${corr >= 0 ? '+' : ''}${corr.toFixed(4)})`;
+        const why = getWhyCorrelated(a, b);
+        const whyEl = document.getElementById('modal-why');
+        if (why) { whyEl.textContent = '💡 ' + why; whyEl.style.display = ''; }
+        else { whyEl.style.display = 'none'; }
+        document.getElementById('modal-metrics').innerHTML = `
+            <div class="modal-metric"><div class="val" style="color:${corr > 0 ? '#15803d' : '#b91c1c'}">${(Math.abs(corr) * 100).toFixed(1)}%</div><div class="lbl">Correlation</div></div>
+            <div class="modal-metric"><div class="val">${corr > 0 ? 'Twin' : 'Inverse'}</div><div class="lbl">Type</div></div>
+            <div class="modal-metric"><div class="val">${currentDays}d</div><div class="lbl">Period</div></div>`;
+        const pA = allTwins.find(p => p.a === a && p.b === b) || allInverses.find(p => p.a === a && p.b === b);
+        if (pA && pA.dataA && pA.dataB) drawScatter(pA, type);
+        document.getElementById('pair-modal').classList.remove('hidden');
+    }
+
+    function closePairModal() { document.getElementById('pair-modal').classList.add('hidden'); }
+
+    function drawScatter(p, type) {
+        const canvas = document.getElementById('scatter-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width = canvas.offsetWidth * 2;
+        const H = canvas.height = canvas.offsetHeight * 2;
+        ctx.clearRect(0, 0, W, H);
+        const dA = p.dataA, dB = p.dataB;
+        if (!dA || !dB || dA.length < 5) return;
+        const n = Math.min(dA.length, dB.length);
+        const pad = { l: 50, r: 20, t: 20, b: 36 };
+        const cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
+        const minA = Math.min(...dA.slice(0, n)), maxA = Math.max(...dA.slice(0, n));
+        const minB = Math.min(...dB.slice(0, n)), maxB = Math.max(...dB.slice(0, n));
+        const rangeA = maxA - minA || 1, rangeB = maxB - minB || 1;
+        const toX = v => pad.l + ((v - minA) / rangeA) * cw;
+        const toY = v => pad.t + ch - ((v - minB) / rangeB) * ch;
+        // Grid
+        ctx.strokeStyle = '#f3f4f6'; ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+            const y = pad.t + (i / 4) * ch;
+            ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cw, y); ctx.stroke();
+            const x = pad.l + (i / 4) * cw;
+            ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, pad.t + ch); ctx.stroke();
+        }
+        // Trend line
+        const meanA = dA.slice(0, n).reduce((s, v) => s + v, 0) / n;
+        const meanB = dB.slice(0, n).reduce((s, v) => s + v, 0) / n;
+        let num = 0, denA = 0, denB = 0;
+        for (let i = 0; i < n; i++) { num += (dA[i] - meanA) * (dB[i] - meanB); denA += (dA[i] - meanA) ** 2; denB += (dB[i] - meanB) ** 2; }
+        const slope = denA > 0 ? num / denA : 0;
+        const intercept = meanB - slope * meanA;
+        ctx.setLineDash([6, 4]);
+        ctx.strokeStyle = type === 'twin' ? '#15803d' : '#b91c1c';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(toX(minA), toY(slope * minA + intercept));
+        ctx.lineTo(toX(maxA), toY(slope * maxA + intercept));
+        ctx.stroke();
+        ctx.setLineDash([]);
+        // Scatter dots
+        ctx.fillStyle = type === 'twin' ? 'rgba(16,128,61,0.6)' : 'rgba(239,68,68,0.6)';
+        for (let i = 0; i < n; i++) {
+            ctx.beginPath();
+            ctx.arc(toX(dA[i]), toY(dB[i]), 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        // Axis labels
+        ctx.fillStyle = '#94a3b8'; ctx.font = '18px system-ui'; ctx.textAlign = 'center';
+        ctx.fillText(p.a + ' normalized return', pad.l + cw / 2, H - 4);
+        ctx.save(); ctx.translate(14, pad.t + ch / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(p.b + ' normalized return', 0, 0); ctx.restore();
+    }
+
+    function setDays(days) {
+        currentDays = days;
+        document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+        event.target.classList.add('active');
+        loadCorrelations();
+    }
+
+    (function() {
+        var themeToggle = document.getElementById('theme-toggle');
+        var THEME_KEY = 'oobir_theme';
+        function getPreferredTheme() {
+            return localStorage.getItem(THEME_KEY) ||
+                (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        }
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem(THEME_KEY, theme);
+            if (themeToggle) themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+        }
+        function toggleTheme() {
+            var current = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
+            applyTheme(current === 'dark' ? 'light' : 'dark');
+        }
+        if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
+        applyTheme(getPreferredTheme());
+    })();
+
+    loadCorrelations();
+    </script>
+</body>
+</html>

@@ -498,7 +498,7 @@
         ctx.scale(dpr, dpr);
 
         const data = priceData;
-        const horizon = (prediction && prediction.horizon_days)
+        const _horizon = (prediction && prediction.horizon_days)
             || parseInt(el('lab-horizon') ? el('lab-horizon').value : '5', 10) || 5;
         const lastClose = Number(data[data.length - 1].Close);
 
@@ -715,7 +715,6 @@
             ctx.fillStyle = color;
             ctx.font = '800 10px system-ui, sans-serif';
             ctx.textAlign = 'center';
-            const targetPrice = lastClose + delta;
             ctx.fillText(
                 prediction.direction + ' $' + Math.abs(delta).toFixed(2),
                 (xStart + xEnd) / 2,

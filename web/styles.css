@@ -685,6 +685,57 @@ input:focus-visible {
     background: var(--primary-hover);
 }
 
+.results-top-nav {
+    background: white;
+    border-bottom: 1px solid var(--border-color);
+    padding: 6px 24px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.results-top-nav a {
+    text-decoration: none;
+    color: #334155;
+    background: #f1f5f9;
+    border: 1px solid #dbe2ea;
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    transition: all 0.18s ease;
+}
+
+.results-top-nav a:hover {
+    background: #e8eef5;
+    border-color: #c8d5e4;
+    transform: translateY(-1px);
+}
+
+[data-theme="dark"] .results-top-nav {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+[data-theme="dark"] .results-top-nav a {
+    color: #e2e8f0;
+    background: #334155;
+    border-color: #475569;
+}
+
+[data-theme="dark"] .results-top-nav a:hover {
+    background: #3b4a5c;
+    border-color: #64748b;
+}
+
+.results-top-nav a.active,
+.app-nav a.active {
+    color: #fff;
+    background: linear-gradient(180deg, #1a73e8, #0f4fb3);
+    border-color: #1a73e8;
+}
+
 .exploration-rail {
     margin: 14px 0 18px;
     padding: 16px 18px;

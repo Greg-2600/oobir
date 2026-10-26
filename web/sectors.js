@@ -31,7 +31,7 @@ async function fetchSectorData(ticker, days = 30) {
         const priceData = priceJson && priceJson.data ? priceJson.data : (priceJson || null);
         const fundData = fundRes && fundRes.ok ? await fundRes.json() : null;
         return { priceData, fundData };
-    } catch (e) {
+    } catch (_e) {
         return { priceData: null, fundData: null };
     }
 }
@@ -245,7 +245,7 @@ document.getElementById('theme-toggle').addEventListener('click', () => {
     if (toggle) toggle.textContent = next === 'dark' ? '☀️' : '🌙';
 });
 
-function openSectorDetail(ticker) {
+function openSectorDetail(ticker) { // eslint-disable-line no-unused-vars
     const d = sectorData[ticker];
     const sector = SECTORS.find(s => s.ticker === ticker);
     if (!d || !sector) return;
@@ -285,7 +285,7 @@ function openSectorDetail(ticker) {
     document.getElementById('sector-detail').style.display = 'block';
 }
 
-function closeSectorDetail() {
+function closeSectorDetail() { // eslint-disable-line no-unused-vars
     document.getElementById('sector-detail').style.display = 'none';
 }
 

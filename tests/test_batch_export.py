@@ -18,7 +18,7 @@ class TestBatchEndpoints(unittest.TestCase):
     def setUp(self):
         """Set up test client."""
         self.client = TestClient(flow_api.app)
-        self.api_key = "dev-api-key-change-in-production"
+        self.api_key = "test-api-key-12345"
 
     @patch("flow_api.get_fundamentals_payload")
     def test_batch_fundamentals(self, mock_payload):
@@ -28,7 +28,7 @@ class TestBatchEndpoints(unittest.TestCase):
         response = self.client.post(
             "/api/batch/fundamentals",
             json=["AAPL", "GOOGL"],
-            headers={"X-API-Key": self.api_key}
+            headers={"X-API-Key": self.api_key},
         )
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -43,7 +43,7 @@ class TestBatchEndpoints(unittest.TestCase):
         response = self.client.post(
             "/api/batch/price-history",
             json=["AAPL", "MSFT"],
-            headers={"X-API-Key": self.api_key}
+            headers={"X-API-Key": self.api_key},
         )
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -57,7 +57,7 @@ class TestExportEndpoints(unittest.TestCase):
     def setUp(self):
         """Set up test client."""
         self.client = TestClient(flow_api.app)
-        self.api_key = "dev-api-key-change-in-production"
+        self.api_key = "test-api-key-12345"
 
     @patch("flow_api.get_fundamentals_payload")
     def test_export_fundamentals_csv(self, mock_payload):
@@ -66,7 +66,7 @@ class TestExportEndpoints(unittest.TestCase):
 
         response = self.client.get(
             "/api/export/fundamentals/AAPL?format=csv",
-            headers={"X-API-Key": self.api_key}
+            headers={"X-API-Key": self.api_key},
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers["content-type"], "text/csv; charset=utf-8")
@@ -78,7 +78,7 @@ class TestExportEndpoints(unittest.TestCase):
 
         response = self.client.get(
             "/api/export/fundamentals/AAPL?format=json",
-            headers={"X-API-Key": self.api_key}
+            headers={"X-API-Key": self.api_key},
         )
         self.assertEqual(response.status_code, 200)
 
@@ -89,7 +89,7 @@ class TestExportEndpoints(unittest.TestCase):
 
         response = self.client.get(
             "/api/export/fundamentals/AAPL?format=xml",
-            headers={"X-API-Key": self.api_key}
+            headers={"X-API-Key": self.api_key},
         )
         self.assertEqual(response.status_code, 400)
 
@@ -103,9 +103,9 @@ class TestHealthEndpoints(unittest.TestCase):
 
     def test_health_deps_endpoint(self):
         """Test /health/deps endpoint structure."""
-        with patch("requests.get") as mock_get, \
-             patch("db.get_cache_stats") as mock_cache, \
-             patch("db_timescale.get_conn") as mock_conn:
+        with patch("requests.get") as mock_get, patch(
+            "db.get_cache_stats"
+        ) as mock_cache, patch("db_timescale.get_conn") as mock_conn:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_get.return_value = mock_response
@@ -113,7 +113,9 @@ class TestHealthEndpoints(unittest.TestCase):
             mock_conn_ctx = MagicMock()
             mock_conn.return_value = mock_conn_ctx
             mock_cursor = MagicMock()
-            mock_conn_ctx.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
+            mock_conn_ctx.cursor.return_value.__enter__ = MagicMock(
+                return_value=mock_cursor
+            )
             mock_conn_ctx.cursor.return_value.__exit__ = MagicMock(return_value=False)
             mock_cursor.execute = MagicMock()
 
