@@ -1055,5 +1055,218 @@ class TestFeaturesEdgeCases(unittest.TestCase):
         self.assertEqual(cols, features.FEATURE_COLUMNS)
 
 
+class TestModelFunctions(unittest.TestCase):
+    """Tests for ml.model module standalone functions (not Predictor class)."""
+
+    def test_feature_names_matches_features_module(self):
+        self.assertEqual(
+            model.MODEL_SPECS["hist_gbm"]["label"], "Hist Gradient Boosting"
+        )
+
+    def test_build_estimator_hist_gbm(self):
+        est = model.build_estimator("hist_gbm")
+        self.assertTrue(hasattr(est, "fit"))
+        self.assertTrue(hasattr(est, "predict"))
+
+    def test_build_estimator_random_forest(self):
+        est = model.build_estimator("random_forest")
+        self.assertTrue(hasattr(est, "fit"))
+        self.assertTrue(hasattr(est, "predict"))
+
+    def test_build_estimator_extra_trees(self):
+        est = model.build_estimator("extra_trees")
+        self.assertTrue(hasattr(est, "fit"))
+        self.assertTrue(hasattr(est, "predict"))
+
+    def test_build_estimator_logistic(self):
+        est = model.build_estimator("logistic")
+        self.assertTrue(hasattr(est, "fit"))
+        self.assertTrue(hasattr(est, "predict"))
+
+    def test_build_estimator_invalid_returns_default(self):
+        est = model.build_estimator("invalid_model_name")
+        self.assertIsNotNone(est)
+
+    def test_model_specs_have_required_keys(self):
+        for name, spec in model.MODEL_SPECS.items():
+            self.assertIn("label", spec)
+            self.assertIn("description", spec)
+            self.assertIn("factory", spec)
+
+    def test_model_specs_factory_returns_estimator(self):
+        for name, spec in model.MODEL_SPECS.items():
+            est = spec["factory"]()
+            self.assertTrue(hasattr(est, "fit"))
+            self.assertTrue(hasattr(est, "predict"))
+
+    def test_predictor_predict_direction_method(self):
+        frame = pd.concat(
+            [
+                labels.build_labelled_frame(_sample_price_df(200, up), 5)
+                for up in (True, False)
+            ],
+            ignore_index=True,
+        )
+        p = model.train_on_frame(frame, horizon=5)
+        vector, _ = features.make_feature_vector(_sample_price_df(200, True))
+        direction = p.predict_direction(vector)
+        self.assertIn(direction, {"UP", "DOWN", "FLAT"})
+
+    def test_predictor_predict_direction_with_numpy_array(self):
+        frame = pd.concat(
+            [
+                labels.build_labelled_frame(_sample_price_df(200, up), 5)
+                for up in (True, False)
+            ],
+            ignore_index=True,
+        )
+        p = model.train_on_frame(frame, horizon=5)
+        vector = np.random.rand(len(features.FEATURE_COLUMNS))
+        direction = p.predict_direction(vector)
+        self.assertIn(direction, {"UP", "DOWN", "FLAT"})
+
+    def test_fast_estimator_is_valid(self):
+        est = model.fast_estimator()
+        self.assertTrue(hasattr(est, "fit"))
+        self.assertTrue(hasattr(est, "predict"))
+
+    def test_default_estimator_is_valid(self):
+        est = model.default_estimator()
+        self.assertTrue(hasattr(est, "fit"))
+        self.assertTrue(hasattr(est, "predict"))
+
+    def test_estimator_factory_returns_factory(self):
+        factory = model.estimator_factory("hist_gbm")
+        self.assertTrue(callable(factory))
+
+    def test_normalize_model_name_valid(self):
+        self.assertEqual(model.normalize_model_name("random_forest"), "random_forest")
+        self.assertEqual(model.normalize_model_name("extra_trees"), "extra_trees")
+        self.assertEqual(model.normalize_model_name("logistic"), "logistic")
+
+    def test_normalize_model_name_none_returns_default(self):
+        self.assertEqual(model.normalize_model_name(None), model.DEFAULT_MODEL)
+
+
+class TestBacktestFunctions(unittest.TestCase):
+    """Tests for ml.backtest module standalone functions."""
+
+    def _mixed_frame(self, days=200):
+        return pd.concat(
+            [
+                labels.build_labelled_frame(_sample_price_df(days, up), 5)
+                for up in (True, False)
+            ],
+            ignore_index=True,
+        )
+
+    def test_run_backtest_returns_valid_metrics_dict(self):
+        frame = self._mixed_frame(250)
+        metrics = backtest.run_backtest(frame, horizon=5, folds=3)
+        self.assertIsInstance(metrics, dict)
+        self.assertIn("accuracy", metrics)
+        self.assertIn("balanced_accuracy", metrics)
+        self.assertIn("majority_class", metrics)
+        self.assertIn("beats_baseline", metrics)
+        self.assertIn("precision", metrics)
+        self.assertIn("recall", metrics)
+        self.assertIn("f1", metrics)
+        self.assertIn("classes", metrics)
+        self.assertIn("n_samples", metrics)
+        self.assertIn("horizon_days", metrics)
+        self.assertIn("baseline_accuracy", metrics)
+
+    def test_run_backtest_result_contains_per_class_metrics(self):
+        frame = self._mixed_frame(250)
+        metrics = backtest.run_backtest(frame, horizon=5, folds=3)
+        self.assertIsInstance(metrics["precision"], dict)
+        self.assertIsInstance(metrics["recall"], dict)
+        self.assertIsInstance(metrics["f1"], dict)
+        for cls in metrics["classes"]:
+            self.assertIn(cls, metrics["precision"])
+            self.assertIn(cls, metrics["recall"])
+            self.assertIn(cls, metrics["f1"])
+
+    def test_run_backtest_too_few_rows_returns_empty_metrics(self):
+        frame = self._mixed_frame(30)
+        metrics = backtest.run_backtest(frame, folds=3)
+        self.assertEqual(metrics["n_samples"], 0)
+        self.assertIn("error", metrics)
+
+    def test_run_backtest_with_single_fold(self):
+        frame = self._mixed_frame(200)
+        metrics = backtest.run_backtest(frame, folds=1)
+        self.assertGreater(metrics["n_samples"], 0)
+
+    def test_run_backtest_with_multiple_folds(self):
+        frame = self._mixed_frame(300)
+        metrics = backtest.run_backtest(frame, folds=5)
+        self.assertGreater(metrics["n_samples"], 0)
+        self.assertEqual(metrics["folds"], 5)
+
+    def test_run_backtest_folds_parameter_respected(self):
+        frame = self._mixed_frame(400)
+        metrics_3 = backtest.run_backtest(frame, folds=3)
+        metrics_5 = backtest.run_backtest(frame, folds=5)
+        self.assertEqual(metrics_3["folds"], 3)
+        self.assertEqual(metrics_5["folds"], 5)
+
+    def test_run_backtest_empty_frame_returns_empty_metrics(self):
+        metrics = backtest.run_backtest(pd.DataFrame())
+        self.assertEqual(metrics["n_samples"], 0)
+
+    def test_score_function_with_perfect_predictions(self):
+        y_true = ["UP", "UP", "DOWN", "DOWN"]
+        y_pred = ["UP", "UP", "DOWN", "DOWN"]
+        result = backtest._score(y_true, y_pred, horizon=5)
+        self.assertEqual(result["accuracy"], 1.0)
+        self.assertEqual(result["beats_baseline"], True)
+
+    def test_score_function_with_all_wrong(self):
+        y_true = ["UP", "UP", "DOWN", "DOWN"]
+        y_pred = ["DOWN", "DOWN", "UP", "UP"]
+        result = backtest._score(y_true, y_pred, horizon=5)
+        self.assertEqual(result["accuracy"], 0.0)
+
+    def test_score_function_empty_returns_empty_metrics(self):
+        result = backtest._score([], [], 5)
+        self.assertIn("accuracy", result)
+        self.assertEqual(result["accuracy"], 0.0)
+
+    def test_safe_div_by_zero(self):
+        self.assertEqual(backtest._safe_div(1, 0), 0.0)
+
+    def test_safe_div_normal(self):
+        self.assertAlmostEqual(backtest._safe_div(3, 4), 0.75)
+
+    def test_empty_metrics_has_expected_keys(self):
+        empty = backtest._empty_metrics()
+        for key in (
+            "n_samples",
+            "error",
+            "classes",
+            "majority_class",
+            "accuracy",
+            "balanced_accuracy",
+            "baseline_accuracy",
+            "beats_baseline",
+            "precision",
+            "recall",
+            "f1",
+            "model_name",
+            "folds",
+            "n_features",
+        ):
+            self.assertIn(key, empty)
+
+    def test_summarize_metrics_with_valid_data(self):
+        frame = self._mixed_frame(200)
+        metrics = backtest.run_backtest(frame, folds=3)
+        summary = backtest.summarize_metrics(metrics)
+        self.assertIsInstance(summary, str)
+        self.assertIn("Samples", summary)
+        self.assertIn("Accuracy", summary)
+
+
 if __name__ == "__main__":
     unittest.main()
