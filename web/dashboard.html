@@ -29,16 +29,22 @@
         .db-topbar {
             background: var(--bg-secondary);
             border-bottom: 1px solid var(--border);
-            padding: 0 12px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            height: 38px;
+            box-shadow: none;
+            position: static;
             flex-shrink: 0;
         }
+        .db-topbar .app-header-content {
+            max-width: none;
+            margin: 0;
+            padding: 0 12px;
+            height: 38px;
+            gap: 10px;
+            justify-content: flex-start;
+        }
+        .db-topbar .app-header-left { gap: 10px; }
         .db-topbar-brand { font-size: 0.9rem; font-weight: 900; color: var(--accent); text-decoration: none; }
-        .db-topbar h1 { font-size: 0.82rem; font-weight: 700; }
-        .db-topbar .meta { font-size: 0.7rem; color: var(--text-muted); flex: 1; }
+        .db-topbar .app-page-label { font-size: 0.82rem; font-weight: 700; color: var(--text-primary); text-transform: none; letter-spacing: normal; }
+        .db-topbar .meta { font-size: 0.7rem; color: var(--text-muted); margin-left: auto; }
         .db-topbar .theme-toggle { background: none; border: 1px solid var(--border); color: var(--text-secondary); border-radius: 4px; padding: 2px 7px; cursor: pointer; font-size: 0.8rem; }
         .db-topbar .refresh-btn { background: var(--accent-dim); border: 1px solid var(--accent); color: var(--accent); border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 0.72rem; font-weight: 700; }
         .db-topbar .refresh-btn:hover { background: var(--accent); color: white; }
@@ -299,13 +305,17 @@
 </head>
 <body>
     <!-- Top bar -->
-    <div class="db-topbar">
-        <a class="db-topbar-brand" href="search.html">OOBIR</a>
-        <h1>📋 Market Briefing</h1>
-        <span class="meta" id="update-time"><span class="refresh-dot"></span>Loading...</span>
-        <button class="refresh-btn" onclick="refreshAll()">↻ Refresh</button>
-        <button id="theme-toggle" class="theme-toggle">🌙</button>
-    </div>
+    <header class="app-header db-topbar">
+        <div class="app-header-content db-topbar-content">
+            <div class="app-header-left">
+                <a class="app-brand db-topbar-brand" href="search.html">OOBIR</a>
+                <span class="app-page-label">📋 Market Briefing</span>
+            </div>
+            <span class="meta" id="update-time"><span class="refresh-dot"></span>Loading...</span>
+            <button class="refresh-btn" onclick="refreshAll()">↻ Refresh</button>
+            <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">🌙</button>
+        </div>
+    </header>
 
     <!-- Nav -->
     <nav class="app-nav" aria-label="Primary navigation">
@@ -413,7 +423,7 @@
     <script>
     const API = window.location.origin;
     const $ = id => document.getElementById(id);
-    const fmt = v => v == null ? '—' : (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+    const fmt = v => (v === null || v === undefined) ? '—' : (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
     const LOADER = '<div class="loading-wrap" style="width:100%"><div class="loading-dots">LOADING</div></div>';
 
     // ── Helpers ───────────────────────────────────────────────
@@ -434,7 +444,6 @@
     }
 
     function setLoading(el) { el.innerHTML = LOADER; }
-    function doneLoading(el) { el.removeAttribute('data-loading'); }
 
     // ── Company names ─────────────────────────────────────────
     // Populated once from /api/fundamentals-db (single bulk call).
@@ -726,7 +735,7 @@
             return `<div class="earn-item">
                 <span class="ticker tip-host" ${tipAttrs(e.ticker, 'Earnings ' + mon + ' ' + day)} onclick="location.href='index.html?symbol=${e.ticker}'">${e.ticker}</span>
                 <span class="company tip-host" ${tipAttrs(e.ticker, 'Earnings ' + mon + ' ' + day)}>${nm}</span>
-                <span class="eps">${e.est != null ? 'EPS $' + e.est.toFixed(2) : ''}</span>
+                <span class="eps">${(e.est === null || e.est === undefined) ? '' : 'EPS $' + e.est.toFixed(2)}</span>
                 <span class="date">${mon} ${day}</span>
                 <span class="earn-badge ${e.time}">${e.time === 'bef' ? 'BMO' : 'AMC'}</span>
             </div>`;
@@ -749,9 +758,9 @@
             const d = new Date(today); d.setDate(d.getDate() + e.days);
             const day = d.getDate();
             const mon = d.toLocaleString('en-US',{month:'short'}).toUpperCase();
-            const dayLabel = e.days === 0 ? 'TODAY' : e.days === 1 ? 'TMRW' : `${mon} ${day}`;
+            const dateCell = e.days === 0 ? 'TODAY' : e.days === 1 ? 'TMRW' : `${mon} ${day}`;
             return `<div class="event-item tip-host" data-tip="${e.name}" data-tip-title="${e.name}" data-tip-sub="${e.desc}">
-                <div class="event-date"><span class="month">${e.days === 0 ? 'TODAY' : e.days === 1 ? 'TMRW' : mon}</span> <span class="day">${e.days === 0 || e.days === 1 ? '' : day}</span></div>
+                <div class="event-date"><span class="month">${dateCell}</span></div>
                 <div class="event-info">
                     <div class="event-name">${e.name}</div>
                     <div class="event-detail">${e.desc}</div>

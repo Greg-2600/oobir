@@ -5,7 +5,7 @@
 ![Docker](https://img.shields.io/badge/Cloud_Native-Docker-blue?logo=docker)
 ![AI](https://img.shields.io/badge/AI-Ollama_LLM-purple?logo=ai)
 ![HTML5](https://img.shields.io/badge/Web_UI-HTML5_CSS3_JS-orange?logo=html5)
-![Tests](https://img.shields.io/badge/Tests-311_Passing-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-420_Passing-brightgreen)
 ![Status](https://img.shields.io/badge/Status-Production_Ready-success)
 
 > **Enterprise-grade stock analysis combining REST APIs, AI-powered insights, technical & fundamental analysis in a cloud-native architecture**
@@ -81,6 +81,9 @@
 
 ### Stock Screener Page
 ![Stock Screener](docs/screenshots/06_stock_screener.png)
+
+### Market Briefing — Daily Dashboard
+![Market Briefing](docs/screenshots/07_market_briefing.png)
 
 ---
 
@@ -187,14 +190,23 @@ docker compose exec daily-sync python scripts/daily_sync.py --fundamentals-only
 
 - **Custom Favicon**: SVG favicon (`favicon.svg`) with blue rounded rectangle and "oo" monogram, matching the brand across all HTML pages
 
-### 2. Comprehensive REST API
+### 2. Market Briefing Dashboard
+- **Single-screen daily overview** (`web/dashboard.html`) that fits the viewport without scrolling
+- **Everything at a glance**: index snapshot, futures & pre-market, Fear & Greed, top movers, ML direction signals, earnings this week, key macro events and sector rotation
+- **Hourly auto-refresh** with a manual refresh button
+- **Per-section loading states** so every card shows progress while its data is in flight
+- **Full company names and floating tooltips** with sector and industry detail on hover
+- **Zero-config** — resolves the API from the serving origin, so it works behind any reverse proxy
+- **Easy to find** — linked from the header nav on every page, plus a promo banner on the landing page and a quick link on the search page
+
+### 3. Comprehensive REST API
 - **44 production endpoints** spanning data, ownership/analyst data, AI analysis, trading strategy, ML prediction, batch export, screener, caching, and health checks
 - **Auto-generated documentation** with Swagger UI
 - **CORS enabled** for web applications
 - **Health monitoring** for app and AI services
 - **Error handling** with meaningful HTTP status codes
 
-### 3. Machine Learning Price-Direction Lab
+### 4. Machine Learning Price-Direction Lab
 - **Pure scikit-learn** directional model — no LLM in the request path
 - **Interactive Model Lab** (`web/predictions.html`) with live-tunable model, horizon, margin, feature groups, folds, and train cap
 - **Four estimator families**: gradient boosting, random forest, extra trees, logistic regression
@@ -202,7 +214,7 @@ docker compose exec daily-sync python scripts/daily_sync.py --fundamentals-only
 - **Feature drivers** via permutation importance, plus label/class balance
 - **Date-bounded TimescaleDB history fetch** and in-process result caching for responsiveness
 
-### 4. AI-Powered Analysis & Trading Strategy
+### 5. AI-Powered Analysis & Trading Strategy
 - **Fundamental analysis**: Company metrics, growth trends, financial health
 - **Technical analysis**: Chart patterns, indicator interpretation, trend identification
 - **Balance sheet analysis**: Asset quality, debt levels, liquidity
@@ -211,21 +223,21 @@ docker compose exec daily-sync python scripts/daily_sync.py --fundamentals-only
 - **Action recommendations**: Buy/sell/hold with detailed reasoning
 - **Trading strategy**: Entry/exit targets, stop loss, risk/reward ratios, timeframe—all intelligently calculated from technical indicators and analyst targets
 
-### 5. Intelligent Caching Layer
+### 6. Intelligent Caching Layer
 - **Market-aware SQLite caching** for all data and AI endpoints
 - **Smart expiration logic** respecting US stock market hours (9:30 AM - 4:00 PM ET)
 - **Cache management APIs** for stats, selective invalidation, and full flush
 - **Performance optimization** reducing external API calls and LLM inference by up to 10x
 - **Transparent operation** with automatic cache hit/miss handling—no configuration needed
 
-### 6. Cloud-Native Architecture
+### 7. Cloud-Native Architecture
 - **Docker containerization** for consistent deployment
 - **Multi-container orchestration** with Docker Compose
 - **Service mesh** (Ollama + FastAPI + Nginx) with automatic health checks
 - **Horizontal scalability** via stateless design
 - **Environment parity** across dev, staging, production
 
-### 7. Dual Analysis Approach
+### 8. Dual Analysis Approach
 
 **Fundamental Analysis:**
 - P/E ratio, market cap, EPS, dividend yield
@@ -242,7 +254,7 @@ docker compose exec daily-sync python scripts/daily_sync.py --fundamentals-only
 - Trend: MACD with signal line
 - Volume analysis and patterns
 
-### 8. Intelligent Trading Strategy Generation
+### 9. Intelligent Trading Strategy Generation
 
 **Automatically Generated Entry/Exit Strategy:**
 - **Entry Targets**: Calculated from technical support levels and analyst targets
@@ -260,9 +272,9 @@ docker compose exec daily-sync python scripts/daily_sync.py --fundamentals-only
 
 All strategies are displayed in the Web UI with color-coded cards (green for LONG, red for SHORT, gray for WAIT) and include supporting technical signals for validation.
 
-### 9. Advanced Analysis Pages
+### 10. Advanced Analysis Pages
 
-Nine dedicated single-page tools for deep-dive market analysis, all accessible from the main nav on every page:
+Ten dedicated single-page tools for deep-dive market analysis, all accessible from the main nav on every page:
 
 #### 📊 Correlation Matrix (`correlation-matrix.html`)
 - **N×N rolling correlation heatmap** for up to 40 tickers with configurable window (5–200 days)
@@ -330,7 +342,37 @@ Nine dedicated single-page tools for deep-dive market analysis, all accessible f
 - **Horizontal bar chart** per metric with best-in-class highlighted in blue
 - **Ranking table** with weighted composite score
 
-### 10. Database Infrastructure
+#### 📋 Market Briefing (`dashboard.html`)
+> 📖 **Deep dive:** see [`docs/MARKET_BRIEFING.md`](docs/MARKET_BRIEFING.md).
+
+The single-page daily market overview — everything worth knowing at a glance, on one screen, refreshed automatically.
+
+- **Fits a single screen** — the page pins to the viewport (`100vh`, no page scroll) and lays out as a responsive grid that adapts to the window size
+- **Index snapshot** — SPY, QQQ, DIA and IWM with live price, % change and the full fund name
+- **Futures & pre-market** — S&P 500, Nasdaq, Russell, Oil, Gold and DXY with instrument descriptions
+- **Sentiment panel** — Fear & Greed gauge (0–100) alongside VIX, put/call ratio and advance/decline breadth
+- **Top movers** — ranked by absolute move with price, % change, volume and a `GAP` badge for moves over 5%
+- **ML direction signals** — 5-day model prediction with confidence bar per ticker
+- **Earnings this week** — BMO/AMC badge, date and EPS estimate per company
+- **Key macro events** — ISM, Retail Sales, NFP, CPI and FOMC with high/medium impact ratings
+- **Sector rotation** — 2×5 heatmap of the 10 SPDR sectors across 3M/6M/YTD/1Y, leaders on the left, laggards on the right
+- **Company names everywhere** — full legal names from `/api/fundamentals-db`, with a per-symbol fallback for tickers outside the bulk list
+- **Floating tooltips** — hover any ticker for its full name plus sector and industry; hover futures, macro events and sectors to see what each row measures
+- **Per-section loading indicators** — every card shows an animated `LOADING` state while its data is in flight, then swaps to content
+- **Auto-refreshes every 60 minutes** — plus a manual `↻ Refresh` button
+
+The dashboard needs no API key configuration of its own: it calls the same-origin `/api/*` paths through nginx, so it works unchanged behind a reverse proxy.
+
+#### Where to find it
+
+| Entry point | What you see |
+|---|---|
+| **Header nav** on every page | A `Briefing` link, last in the primary nav |
+| **Stock Screen** (`index.html`) | A promo banner above the Market Radar, with a "Refreshes hourly" badge |
+| **Search** (`search.html`) | A "Market Briefing" quick-link pill |
+| **Direct URL** | `/dashboard.html` |
+
+### 11. Database Infrastructure
 
 - **TimescaleDB** (PostgreSQL extension) as the primary time-series store for price history and technical indicators
 - **Hypertable partitioning** on `price_history` and `technical_indicators` tables for fast queries on large datasets
@@ -547,6 +589,22 @@ Run cache tests: `pytest tests/test_cache_layer.py -v`
   - News & Sentiment Analysis (AI-powered sentiment from recent news)
 - **Responsive Design**: Optimized for desktop and tablet viewing
 
+### 📋 Market Briefing Dashboard
+- **One-Screen Daily Overview**: The whole day's market picture on a single viewport — no scrolling
+- **Nine Live Cards**:
+  - Index snapshot (SPY / QQQ / DIA / IWM) with fund names
+  - Futures & pre-market (ES, NQ, RTY, CL, GC, DXY)
+  - Sentiment gauge with Fear & Greed, VIX, put/call and breadth
+  - Top movers ranked by absolute move, with a `GAP` badge past 5%
+  - ML direction signals with confidence bars
+  - Earnings this week with BMO/AMC timing and EPS estimates
+  - Key macro events with high/medium impact ratings
+  - Sector rotation heatmap (10 SPDR sectors × 3M/6M/YTD/1Y)
+- **Company Names Everywhere**: Bulk-loaded from `/api/fundamentals-db` with per-symbol fallback
+- **Floating Tooltips**: Full company name plus sector and industry on every ticker
+- **Per-Section Loading States**: Each card shows its own animated loading indicator
+- **Auto-Refresh**: Rebuilds itself every 60 minutes
+
 ### 🤖 Advanced AI & LLM Capabilities
 - **LLM-Powered Intelligence**: Integrated Ollama LLM (huihui_ai/llama3.2-abliterate:3b) for sophisticated AI analysis
 - **9 Specialized AI Analysis Functions**: Fundamental, technical, balance sheet, income statement, and full report generation
@@ -589,7 +647,7 @@ OOBIR maintains strict code quality standards with multi-language linting:
 - **Bandit** (`flow_api.py`, `db.py`, `db_timescale.py`, `ml/`): Security analysis — 0 High, 0 Medium, 0 Low issues (2 intentional `# nosec` suppressions)
 - **pylint** (`flow_api.py`, `db.py`, `db_timescale.py`): 10.00/10 score, 0 errors
 - **ESLint** (`web/*.js`): 0 errors, 0 warnings — consistent JS across all web pages
-- **Pytest** (`tests/`): 311 tests passing (ignore=tests/ui), 76% code coverage
+- **Pytest** (`tests/`): 420 tests passing (ignore=tests/ui), 76% code coverage
 
 ```bash
 # Run all linters
@@ -696,6 +754,11 @@ cd web && python -m http.server 2009
    - **News & Sentiment**: AI analysis of recent news and market sentiment
    - Results appear below each button after processing
 
+5. **Open the Market Briefing for the day's overview**
+   - Browse straight to `http://localhost:2009/dashboard.html`
+   - One screen shows indices, futures, sentiment, top movers, ML signals, earnings, macro events and sector rotation
+   - Each card fills in as its data arrives, then refreshes on its own every 60 minutes
+
 ### Web UI Files
 
 ```
@@ -705,6 +768,7 @@ web/
 ├── screener.html          # Fundamental screener
 ├── markets.html           # International market indexes
 ├── search.html            # Search landing page
+├── dashboard.html         # Market Briefing — single-page daily market overview
 ├── crypto.html            # Crypto dashboard
 ├── metals.html            # Metals dashboard
 ├── commodities.html       # Commodities dashboard
@@ -851,7 +915,25 @@ docker compose up -d
 - `DELETE /api/cache/{symbol}` — Clear all cache entries for a symbol
 - `DELETE /api/cache/expired` — Purge all expired cache entries
 
+**Fundamentals Database Endpoints:**
+- `GET /api/fundamentals-db` — Search/filter stored fundamentals (sector, market cap, P/E, ROE, …); `limit` is capped at 500
+- `GET /api/fundamentals-db/sectors` — Distinct sectors available in the database
+- `GET /api/fundamentals-db/{symbol}` — Stored fundamentals for one symbol
+
 Caching applies to both data endpoints and AI endpoints. AI caching includes an Ollama availability check before inference; plain-string AI responses are cached safely.
+
+### Endpoints Used by the Market Briefing
+
+The dashboard (`web/dashboard.html`) is built entirely on the existing API — no bespoke endpoint is required:
+
+| Endpoint | Used for |
+|---|---|
+| `GET /api/price-history/{symbol}?days=2` | Index snapshot and top movers |
+| `GET /api/fundamentals-db?limit=500` | Company names in one bulk call |
+| `GET /api/fundamentals/{symbol}` | Fallback name lookup for tickers outside the bulk list |
+| `GET /api/predict/{symbol}?horizon=5` | ML direction signals |
+
+> 📖 **Deep dive:** see [`docs/MARKET_BRIEFING.md`](docs/MARKET_BRIEFING.md) for the layout, company-name resolution, tooltip system, loading-state design and the test strategy behind the dashboard.
 
 ### Example API Calls
 
@@ -1396,6 +1478,10 @@ The project includes comprehensive test coverage across multiple layers:
 - **API Endpoint Tests** (`tests/test_data_endpoints.py`): Tests for data API endpoints with mocked external services
 - **AI Analysis Tests** (`tests/test_ai_analysis_endpoints.py`): Tests for AI analysis endpoints with Ollama LLM integration
 - **Technical Indicator Tests** (`tests/test_technical_indicators.py`): Tests for technical indicator calculations
+- **ML Tests** (`tests/test_ml.py`): Tests for the model factory, feature pipeline, walk-forward backtesting and scoring
+- **Flow Helper Tests** (`tests/test_flow_helpers.py`): Tests for the `flow.py` data-fetch helpers, including the ownership and analyst endpoints
+- **Dashboard UI Tests** (`tests/test_dashboard_ui.py`): Static contract tests for the Market Briefing page — section ids, loading states, company-name wiring, tooltip system, the API routes it calls, and discoverability (nav link on every page, landing-page promo, search quick link)
+- **Static UI Contract Tests** (`tests/test_ui_static_files.py`): HTML/JS structure contracts for every page
 - **UI Tests** (`tests/ui/test_ui.py`): Selenium-based browser automation tests for frontend interactions
 
 ### Running Tests
@@ -1410,6 +1496,7 @@ Run specific test file:
 pytest tests/test_cache_layer.py -v
 pytest tests/test_data_endpoints.py -v
 pytest tests/test_ai_analysis_endpoints.py -v
+pytest tests/test_dashboard_ui.py -v
 ```
 
 Run tests with coverage report:
