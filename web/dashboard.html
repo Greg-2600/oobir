@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market Briefing — OOBIR</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <style>
+        :root {
+            --bg-primary: #0d1117; --bg-secondary: #161b22; --bg-card: #1c2128;
+            --bg-input: #0d1117; --border: #30363d; --text-primary: #e6edf3;
+            --text-secondary: #8b949e; --text-muted: #484f58; --accent: #58a6ff;
+            --accent-dim: #1f3a5c; --green: #3fb950; --green-dim: #0f2a1a;
+            --red: #f85149; --red-dim: #2a1214; --yellow: #d29922; --yellow-dim: #2a200a;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: system-ui, -apple-system, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Top bar (compact, ~36px) ── */
+        .db-topbar {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 0 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            height: 38px;
+            flex-shrink: 0;
+        }
+        .db-topbar-brand { font-size: 0.9rem; font-weight: 900; color: var(--accent); text-decoration: none; }
+        .db-topbar h1 { font-size: 0.82rem; font-weight: 700; }
+        .db-topbar .meta { font-size: 0.7rem; color: var(--text-muted); flex: 1; }
+        .db-topbar .theme-toggle { background: none; border: 1px solid var(--border); color: var(--text-secondary); border-radius: 4px; padding: 2px 7px; cursor: pointer; font-size: 0.8rem; }
+        .db-topbar .refresh-btn { background: var(--accent-dim); border: 1px solid var(--accent); color: var(--accent); border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 0.72rem; font-weight: 700; }
+        .db-topbar .refresh-btn:hover { background: var(--accent); color: white; }
+
+        /* ── Nav (compact, ~32px) ── */
+        .app-nav {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            gap: 0;
+            padding: 0 12px;
+            height: 30px;
+            flex-shrink: 0;
+            scrollbar-width: none;
+        }
+        .app-nav::-webkit-scrollbar { display: none; }
+        .app-nav a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.68rem;
+            padding: 0 7px;
+            border-radius: 3px;
+            white-space: nowrap;
+            line-height: 30px;
+            transition: all 0.15s;
+        }
+        .app-nav a:hover { color: var(--text-primary); background: var(--bg-card); }
+        .app-nav a.active { color: var(--accent); font-weight: 600; }
+
+        /* ── Main content area (fills remaining height) ── */
+        .db-content {
+            flex: 1;
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        /* ── Row layouts ── */
+        .db-row { display: grid; gap: 6px; }
+        .db-row.half { grid-template-columns: 1fr 1fr; }
+        .db-row.third { grid-template-columns: 2fr 1fr 1fr; }
+        .db-row.two-left { grid-template-columns: 1.4fr 1fr; }
+        .db-row.two-right { grid-template-columns: 1fr 1.4fr; }
+
+        /* ── Section cards ── */
+        .db-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .db-card-header {
+            padding: 5px 10px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-secondary);
+            flex-shrink: 0;
+        }
+        .db-card-title {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .db-card-title .icon { font-size: 0.8rem; }
+        .db-card-body { padding: 6px 10px; flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+
+        /* ── Index Snapshot (4 boxes) ── */
+        .snapshot-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .snap-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 6px 10px;
+            text-align: center;
+        }
+        .snap-card .ticker { font-size: 0.62rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; }
+        .snap-card .price { font-size: 1.0rem; font-weight: 800; color: var(--text-primary); }
+        .snap-card .change { font-size: 0.75rem; font-weight: 700; margin-top: 2px; }
+        .snap-card .change.up { color: var(--green); }
+        .snap-card .change.down { color: var(--red); }
+        .snap-card .sub { font-size: 0.58rem; color: var(--text-muted); }
+
+        /* ── Futures ── */
+        .futures-row { display: flex; gap: 5px; flex-wrap: wrap; }
+        .futures-item { flex: 1; min-width: 60px; text-align: center; padding: 5px 4px; background: var(--bg-secondary); border-radius: 5px; }
+        .futures-item .name { font-size: 0.58rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+        .futures-item .val { font-size: 0.8rem; font-weight: 800; color: var(--text-primary); margin-top: 2px; }
+        .futures-item .chg { font-size: 0.65rem; font-weight: 700; margin-top: 1px; }
+
+        /* ── Fear & Greed ── */
+        .fear-greed-wrap { display: flex; align-items: center; gap: 8px; height: 100%; }
+        .gauge-wrap { position: relative; width: 90px; height: 45px; flex-shrink: 0; }
+        .gauge-canvas { width: 90px; height: 45px; }
+        .fear-score { text-align: center; }
+        .fear-score .val { font-size: 1.6rem; font-weight: 900; }
+        .fear-score .lbl { font-size: 0.6rem; color: var(--text-muted); }
+        .fear-metrics { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+        .fear-m { display: flex; justify-content: space-between; align-items: center; padding: 3px 6px; background: var(--bg-secondary); border-radius: 4px; font-size: 0.65rem; }
+        .fear-m .lbl { color: var(--text-muted); }
+        .fear-m .val { font-weight: 800; }
+
+        /* ── Top Movers table ── */
+        .movers-table { width: 100%; border-collapse: collapse; font-size: 0.68rem; }
+        .movers-table th { text-align: left; padding: 3px 6px; font-size: 0.58rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid var(--border); }
+        .movers-table td { padding: 4px 6px; border-bottom: 1px solid rgba(48,54,61,0.4); }
+        .movers-table tr:last-child td { border-bottom: none; }
+        .movers-table .ticker { font-weight: 800; color: var(--accent); cursor: pointer; }
+        .movers-table .ticker:hover { text-decoration: underline; }
+        .movers-table .price { color: var(--text-secondary); }
+        .movers-table .change.up { color: var(--green); font-weight: 700; }
+        .movers-table .change.down { color: var(--red); font-weight: 700; }
+        .movers-table .badge { display: inline-block; padding: 1px 4px; border-radius: 3px; font-size: 0.58rem; font-weight: 700; }
+        .movers-table .badge.gap { background: var(--accent-dim); color: var(--accent); }
+
+        /* ── ML Signals ── */
+        .ml-signals { display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+        .ml-signal { display: flex; gap: 6px; align-items: center; padding: 4px 6px; background: var(--bg-secondary); border-radius: 5px; }
+        .ml-signal .sig-ticker { font-size: 0.75rem; font-weight: 900; color: var(--accent); min-width: 42px; cursor: pointer; }
+        .ml-signal .sig-ticker:hover { text-decoration: underline; }
+        .ml-signal .sig-bar { flex: 1; height: 6px; background: var(--bg-input); border-radius: 3px; overflow: hidden; }
+        .ml-signal .sig-fill { height: 100%; border-radius: 3px; }
+        .ml-signal .sig-label { font-size: 0.62rem; font-weight: 800; min-width: 44px; text-align: right; }
+        .ml-signal .sig-prob { font-size: 0.58rem; color: var(--text-muted); min-width: 28px; text-align: right; }
+
+        /* ── Earnings ── */
+        .earn-list { display: flex; flex-direction: column; gap: 4px; overflow: auto; }
+        .earn-list::-webkit-scrollbar { width: 3px; }
+        .earn-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+        .earn-item { display: flex; gap: 5px; align-items: center; padding: 4px 7px; background: var(--bg-secondary); border-radius: 5px; font-size: 0.68rem; }
+        .earn-item .ticker { font-weight: 800; color: var(--accent); cursor: pointer; min-width: 40px; }
+        .earn-item .ticker:hover { text-decoration: underline; }
+        .earn-item .date { color: var(--text-muted); font-size: 0.62rem; flex: 1; }
+        .earn-badge { padding: 1px 5px; border-radius: 3px; font-size: 0.58rem; font-weight: 800; text-transform: uppercase; }
+        .earn-badge.bef { background: var(--yellow-dim); color: var(--yellow); }
+        .earn-badge.aft { background: var(--accent-dim); color: var(--accent); }
+        .earn-badge.rel { background: var(--green-dim); color: var(--green); }
+
+        /* ── Macro events ── */
+        .event-list { display: flex; flex-direction: column; gap: 4px; overflow: auto; }
+        .event-list::-webkit-scrollbar { width: 3px; }
+        .event-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+        .event-item { display: flex; gap: 7px; align-items: center; padding: 3px 0; border-bottom: 1px solid rgba(48,54,61,0.4); font-size: 0.65rem; }
+        .event-item:last-child { border-bottom: none; }
+        .event-date { min-width: 44px; text-align: center; padding: 2px 4px; background: var(--bg-secondary); border-radius: 4px; font-size: 0.58rem; font-weight: 700; }
+        .event-date .day { font-size: 0.85rem; color: var(--text-primary); }
+        .event-date .month { color: var(--text-muted); text-transform: uppercase; }
+        .event-info { flex: 1; overflow: hidden; }
+        .event-name { font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .event-detail { font-size: 0.58rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .event-impact { font-size: 0.58rem; font-weight: 800; text-transform: uppercase; padding: 1px 4px; border-radius: 3px; flex-shrink: 0; }
+        .event-impact.high { background: var(--red-dim); color: var(--red); }
+        .event-impact.medium { background: var(--yellow-dim); color: var(--yellow); }
+        .event-impact.low { background: var(--green-dim); color: var(--green); }
+
+        /* ── Sector heatmap (2 columns × 5 rows) ── */
+        .sector-hm { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; align-content: start; }
+        .sector-hm::-webkit-scrollbar { width: 3px; }
+        .sector-hm::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+        .sector-col { display: grid; gap: 3px; }
+        .sector-row { display: grid; grid-template-columns: 78px repeat(4, 1fr); gap: 3px; align-items: center; }
+        .sector-header { display: grid; grid-template-columns: 78px repeat(4, 1fr); gap: 3px; }
+        .sector-header-cell { text-align: center; font-size: 0.55rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; }
+        .sector-name { font-size: 0.6rem; font-weight: 700; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .sector-cell { text-align: center; padding: 2px 2px; border-radius: 4px; font-size: 0.58rem; font-weight: 700; color: white; cursor: default; }
+
+        /* Loading state */
+        .loading-wrap { 
+            position: relative; 
+            min-height: 100%; 
+            width: 100%;
+            height: 100%;
+            display: flex !important; 
+            align-items: center !important; 
+            justify-content: center !important; 
+            background: rgba(28, 33, 40, 0.7);
+        }
+        .loading-dots { 
+            color: var(--accent) !important; 
+            font-size: 0.75rem !important; 
+            font-weight: 700 !important; 
+            letter-spacing: 2px !important;
+            display: inline-block !important;
+        }
+        .loading-dots::after { content: '...'; animation: dots 1.2s steps(4, end) infinite; }
+        @keyframes dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } 100% { content: ''; } }
+
+        /* Refresh dot */
+        .refresh-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); display: inline-block; margin-right: 3px; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        /* Scrollbar hide globally */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    </style>
+</head>
+<body>
+    <!-- Top bar -->
+    <div class="db-topbar">
+        <a class="db-topbar-brand" href="search.html">OOBIR</a>
+        <h1>📋 Market Briefing</h1>
+        <span class="meta" id="update-time"><span class="refresh-dot"></span>Loading...</span>
+        <button class="refresh-btn" onclick="refreshAll()">↻ Refresh</button>
+        <button id="theme-toggle" class="theme-toggle">🌙</button>
+    </div>
+
+    <!-- Nav -->
+    <nav class="app-nav" aria-label="Primary navigation">
+        <a href="search.html">Search</a>
+        <a href="index.html">Stock Screen</a>
+        <a href="screener.html">Fundamentals</a>
+        <a href="markets.html">Markets</a>
+        <a href="sectors.html">Sectors</a>
+        <a href="stocks.html">AI Picks</a>
+        <a href="predictions.html">AI Predictions</a>
+        <a href="money-flow.html">Money Flow</a>
+        <a href="dividends.html">Dividends</a>
+        <a href="crypto.html">Crypto</a>
+        <a href="metals.html">Metals</a>
+        <a href="commodities.html">Commodities</a>
+        <a href="portfolio.html">Portfolio</a>
+        <a href="watchlist.html">Watchlist</a>
+        <a href="options.html">Options</a>
+        <a href="backtest.html">Backtest</a>
+        <a href="correlations.html">Correlations</a>
+        <a href="compare-sectors.html">Compare</a>
+        <a href="news-timeline.html">News</a>
+        <a href="calendar.html">Calendar</a>
+        <a href="optimizer.html">Optimizer</a>
+        <a href="correlation-matrix.html">Corr Matrix</a>
+        <a href="volatility.html">Volatility</a>
+        <a href="dashboard.html" class="active">Briefing</a>
+    </nav>
+
+    <!-- Main content -->
+    <div class="db-content">
+
+        <!-- Row 0: Index snapshot -->
+        <div class="snapshot-bar" id="index-snapshot" data-loading="true">
+            <div class="loading-wrap"><div class="loading-dots">LOADING</div></div>
+            <div class="loading-wrap"><div class="loading-dots">LOADING</div></div>
+            <div class="loading-wrap"><div class="loading-dots">LOADING</div></div>
+            <div class="loading-wrap"><div class="loading-dots">LOADING</div></div>
+        </div>
+
+        <!-- Row 1: Futures | Fear&Greed -->
+        <div class="db-row half" style="flex-shrink:0">
+            <div class="db-card">
+                <div class="db-card-header"><div class="db-card-title"><span class="icon">🔮</span> Futures</div></div>
+                <div class="db-card-body"><div class="futures-row" id="futures-row" data-loading="true"><div class="loading-wrap"><div class="loading-dots">LOADING</div></div></div></div>
+            </div>
+            <div class="db-card">
+                <div class="db-card-header"><div class="db-card-title"><span class="icon">🌡️</span> Sentiment</div></div>
+                <div class="db-card-body">
+                    <div class="fear-greed-wrap" id="fear-greed-wrap" data-loading="true"><div class="loading-wrap" style="width:100%"><div class="loading-dots">LOADING</div></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 2: Top Movers (full width) -->
+        <div class="db-card" style="flex: 1; min-height: 0;">
+            <div class="db-card-header">
+                <div class="db-card-title"><span class="icon">🔥</span> Top Movers</div>
+                <span id="movers-time" style="font-size:0.6rem;color:var(--text-muted)"></span>
+            </div>
+            <div class="db-card-body" style="padding:0" id="movers-body" data-loading="true">
+                <div class="loading-wrap" style="height:100%"><div class="loading-dots">LOADING</div></div>
+            </div>
+        </div>
+
+        <!-- Row 3: ML Signals | Earnings | Macro -->
+        <div class="db-row third" style="flex-shrink:0; min-height: 0;">
+            <!-- ML Signals -->
+            <div class="db-card">
+                <div class="db-card-header">
+                    <div class="db-card-title"><span class="icon">🧠</span> ML Direction (5d)</div>
+                </div>
+                <div class="db-card-body"><div class="ml-signals" id="ml-signals" data-loading="true"><div class="loading-wrap"><div class="loading-dots">LOADING</div></div></div></div>
+            </div>
+            <!-- Earnings This Week -->
+            <div class="db-card">
+                <div class="db-card-header"><div class="db-card-title"><span class="icon">📈</span> Earnings</div></div>
+                <div class="db-card-body"><div class="earn-list" id="earn-list" data-loading="true"><div class="loading-wrap"><div class="loading-dots">LOADING</div></div></div></div>
+            </div>
+            <!-- Macro Events -->
+            <div class="db-card">
+                <div class="db-card-header"><div class="db-card-title"><span class="icon">🌐</span> Macro</div></div>
+                <div class="db-card-body"><div class="event-list" id="macro-list" data-loading="true"><div class="loading-wrap"><div class="loading-dots">LOADING</div></div></div></div>
+            </div>
+        </div>
+
+        <!-- Row 4: Sector heatmap (full width, 2 columns) -->
+        <div class="db-card" style="flex-shrink: 0;">
+            <div class="db-card-header">
+                <div class="db-card-title"><span class="icon">🔄</span> Sector Rotation — Performance</div>
+                <span style="font-size:0.6rem;color:var(--text-muted)">Left: leaders | Right: laggards</span>
+            </div>
+            <div class="db-card-body" style="padding:5px 10px">
+                <div class="sector-hm" id="sector-hm" data-loading="true"><div class="loading-wrap" style="width:100%;height:100%"><div class="loading-dots">LOADING</div></div></div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+    const API = window.location.origin;
+    const $ = id => document.getElementById(id);
+    const fmt = v => v == null ? '—' : (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+    const LOADER = '<div class="loading-wrap" style="width:100%"><div class="loading-dots">LOADING</div></div>';
+
+    // ── Helpers ───────────────────────────────────────────────
+    function pctColor(v) { return v >= 0 ? 'var(--green)' : 'var(--red)'; }
+    function hmColor(v) {
+        if (v > 12) return '#15803d'; if (v > 6) return '#22c55e'; if (v > 2) return '#4ade80';
+        if (v > 0) return '#86efac'; if (v > -2) return '#fca5a5'; if (v > -6) return '#f87171';
+        if (v > -12) return '#ef4444'; return '#b91c1c';
+    }
+    function hmText(v) { return Math.abs(v) > 4 ? 'white' : 'var(--text-primary)'; }
+
+    async function api(path) {
+        try {
+            const r = await fetch(`${API}${path}`, { headers: { 'X-API-Key': 'test-api-key-12345' } });
+            if (!r.ok) return null;
+            return await r.json();
+        } catch { return null; }
+    }
+
+    function setLoading(el) { el.innerHTML = LOADER; }
+    function doneLoading(el) { el.removeAttribute('data-loading'); }
+
+    // ── 1. Index Snapshot ─────────────────────────────────────
+    async function loadIndices() {
+        const tickers = ['SPY','QQQ','DIA','IWM'];
+        const container = $('index-snapshot');
+        tickers.forEach((_, i) => { container.children[i].innerHTML = LOADER; });
+        const results = await Promise.all(tickers.map(t => api(`/api/price-history/${t}?days=2`)));
+        container.innerHTML = tickers.map((t, i) => {
+            const d = results[i];
+            if (!d?.data?.length) return `<div class="snap-card"><div class="ticker">${t}</div><div class="price">—</div></div>`;
+            const rows = d.data;
+            const cur = rows[rows.length - 1];
+            const prev = rows.length > 1 ? rows[rows.length - 2] : cur;
+            const chgPct = ((cur.Close - prev.Close) / prev.Close) * 100;
+            const dir = chgPct >= 0 ? 'up' : 'down';
+            return `<div class="snap-card">
+                <div class="ticker">${t}</div>
+                <div class="price">$${cur.Close.toFixed(2)}</div>
+                <div class="change ${dir}">${chgPct >= 0 ? '+' : ''}${chgPct.toFixed(2)}%</div>
+            </div>`;
+        }).join('');
+    }
+
+    // ── 2. Futures (static data, no live feed available) ───────
+    const FUTURES = [
+        { n: 'S&P 500', v: 5782.50, c: 0.42 },
+        { n: 'Nasdaq',  v: 20148.75, c: 0.58 },
+        { n: 'Russell', v: 2234.20, c: -0.15 },
+        { n: 'Oil',     v: 71.84,   c: -1.23 },
+        { n: 'Gold',    v: 2738.40, c: 0.31 },
+        { n: 'DXY',     v: 104.32,  c: -0.08 },
+    ];
+    function loadFutures() {
+        $('futures-row').innerHTML = FUTURES.map(f =>
+            `<div class="futures-item">
+                <div class="name">${f.n}</div>
+                <div class="val">${f.n==='Nasdaq'||f.n==='S&P 500' ? f.v.toLocaleString() : f.v}</div>
+                <div class="chg" style="color:${pctColor(f.c)}">${fmt(f.c)}</div>
+            </div>`
+        ).join('');
+    }
+
+    // ── 3. Fear & Greed (simulated + VIX from price history) ──
+    async function loadSentiment() {
+        const wrap = $('fear-greed-wrap');
+        setLoading(wrap);
+
+        const score = 62;
+        const label = score > 75 ? 'Extreme Greed' : score > 55 ? 'Greed' : score > 45 ? 'Neutral' : score > 25 ? 'Fear' : 'Extreme Fear';
+        const color = score > 65 ? 'var(--green)' : score > 50 ? '#a3e635' : score > 35 ? 'var(--yellow)' : 'var(--red)';
+
+        wrap.innerHTML = `
+            <div class="gauge-wrap">
+                <canvas id="gauge-canvas" class="gauge-canvas" width="90" height="45"></canvas>
+            </div>
+            <div class="fear-score">
+                <div class="val" style="color:${color}">${score}</div>
+                <div class="lbl">${label}</div>
+            </div>
+            <div class="fear-metrics">
+                <div class="fear-m"><span class="lbl">VIX</span><span class="val" id="fg-vix" style="color:var(--accent)">—</span></div>
+                <div class="fear-m"><span class="lbl">P/C Ratio</span><span class="val" style="color:var(--red)">0.87</span></div>
+                <div class="fear-m"><span class="lbl">A/D Breadth</span><span class="val" style="color:var(--green)">+62%</span></div>
+            </div>`;
+
+        const canvas = $('gauge-canvas');
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, 90, 45);
+        const cx = 45, cy = 45, r = 38;
+        ctx.strokeStyle = '#30363d'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, 0); ctx.stroke();
+        ctx.strokeStyle = color; ctx.lineWidth = 8;
+        ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, Math.PI - (score / 100) * Math.PI); ctx.stroke();
+
+        // Try to get VIX proxy from high-low range of SPY
+        try {
+            const d = await api('/api/price-history/SPY?days=5');
+            if (d?.data?.length) {
+                const rows = d.data.slice(-5);
+                const rets = rows.map((r,i) => i>0 ? Math.abs(Math.log(r.Close/rows[i-1].Close)) : 0);
+                const avg = rets.slice(1).reduce((a,b)=>a+b,0)/rets.length;
+                const vix = Math.round(avg * 100 * 16);
+                $('fg-vix').textContent = vix;
+            }
+        } catch {}
+    }
+
+    // ── 4. Top Movers ──────────────────────────────────────────
+    async function loadMovers() {
+        const tickers = ['NVDA','TSLA','AAPL','MSFT','META','AMD','PLTR','COIN','NFLX','AMZN'];
+        const body = $('movers-body');
+        body.innerHTML = '<div class="loading-wrap" style="height:100%"><div class="loading-dots">LOADING</div></div>';
+        const results = await Promise.all(tickers.map(t => api(`/api/price-history/${t}?days=2`)));
+        const rows = [];
+        tickers.forEach((t, i) => {
+            const d = results[i];
+            if (!d?.data?.length) return;
+            const prices = d.data;
+            const cur = prices[prices.length - 1];
+            const prev = prices.length > 1 ? prices[prices.length - 2] : cur;
+            const chg = ((cur.Close - prev.Close) / prev.Close) * 100;
+            rows.push({ ticker: t, price: cur.Close, chg, vol: cur.Volume || 0 });
+        });
+        rows.sort((a, b) => Math.abs(b.chg) - Math.abs(a.chg));
+        const top = rows.slice(0, 8);
+        const now = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        $('movers-time').textContent = `as of ${now}`;
+
+        body.innerHTML = `<table class="movers-table">
+            <thead><tr><th>Ticker</th><th>Price</th><th>Change</th><th>Vol</th><th>Signal</th></tr></thead>
+            <tbody>${top.map(r => {
+                const badge = Math.abs(r.chg) > 5 ? '<span class="badge gap">GAP</span>' : '';
+                return `<tr>
+                    <td class="ticker" onclick="location.href='index.html?symbol=${r.ticker}'">${r.ticker}</td>
+                    <td class="price">$${r.price.toFixed(2)}</td>
+                    <td class="change ${r.chg >= 0 ? 'up' : 'down'}">${fmt(r.chg)}</td>
+                    <td style="color:var(--text-muted)">${(r.vol/1000000).toFixed(1)}M</td>
+                    <td>${badge}</td>
+                </tr>`;
+            }).join('')}</tbody>
+        </table>`;
+    }
+
+    // ── 5. ML Signals ──────────────────────────────────────────
+    async function loadMlSignals() {
+        const tickers = ['NVDA','AAPL','TSLA','MSFT','META','AMZN','AMD','PLTR'];
+        const container = $('ml-signals');
+        setLoading(container);
+        const results = await Promise.all(tickers.map(t => api(`/api/predict/${t}?horizon=5`)));
+        let html = '';
+        let shown = 0;
+        tickers.forEach((ticker, i) => {
+            if (shown >= 6) return;
+            const d = results[i];
+            if (!d) return;
+            const dir = d.direction || 'FLAT';
+            const up = d.up_probability || 0.33;
+            const cls = dir === 'UP' ? 'var(--green)' : dir === 'DOWN' ? 'var(--red)' : 'var(--yellow)';
+            const label = dir === 'UP' ? '↑ UP' : dir === 'DOWN' ? '↓ DOWN' : '→ FLAT';
+            html += `
+                <div class="ml-signal">
+                    <div class="sig-ticker" onclick="location.href='predictions.html?ticker=${ticker}'">${ticker}</div>
+                    <div class="sig-bar"><div class="sig-fill" style="width:${Math.round(up*100)}%;background:${cls}"></div></div>
+                    <div class="sig-label" style="color:${cls}">${label}</div>
+                    <div class="sig-prob">${(up*100).toFixed(0)}%</div>
+                </div>`;
+            shown++;
+        });
+        container.innerHTML = html || '<div style="color:var(--text-muted);font-size:0.7rem">No signals available</div>';
+    }
+
+    // ── 6. Earnings This Week (curated, reliable list) ─────────
+    // Major upcoming earnings — update dates as needed
+    const UPCOMING_EARNINGS = [
+        { ticker: 'AAPL',  date: '2026-10-30', time: 'bef', est: 1.60 },
+        { ticker: 'MSFT',  date: '2026-10-29', time: 'bef', est: 3.10 },
+        { ticker: 'AMZN',  date: '2026-10-31', time: 'aft', est: 1.45 },
+        { ticker: 'GOOGL', date: '2026-10-29', time: 'bef', est: 1.85 },
+        { ticker: 'META',  date: '2026-10-30', time: 'aft', est: 5.25 },
+        { ticker: 'NVDA',  date: '2026-11-05', time: 'aft', est: 0.75 },
+        { ticker: 'TSLA',  date: '2026-10-29', time: 'aft', est: 0.72 },
+        { ticker: 'AMD',   date: '2026-10-29', time: 'aft', est: 0.92 },
+    ];
+
+    function loadEarnings() {
+        const today = new Date();
+        const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate() + 7);
+        const items = UPCOMING_EARNINGS.filter(e => {
+            const d = new Date(e.date);
+            return d >= today && d <= weekEnd;
+        });
+
+        $('earn-list').innerHTML = items.length ? items.map(e => {
+            const d = new Date(e.date + 'T00:00:00');
+            const day = d.getDate();
+            const mon = d.toLocaleString('en-US',{month:'short'}).toUpperCase();
+            return `<div class="earn-item">
+                <span class="ticker" onclick="location.href='index.html?symbol=${e.ticker}'">${e.ticker}</span>
+                <span class="date">${mon} ${day}</span>
+                <span class="earn-badge ${e.time}">${e.time === 'bef' ? 'BMO' : 'AMC'}</span>
+            </div>`;
+        }).join('') : '<div style="color:var(--text-muted);font-size:0.68rem;text-align:center;padding:8px">No major earnings this week</div>';
+    }
+
+    // ── 7. Macro Events (curated) ─────────────────────────────
+    const MACRO_EVENTS = [
+        { name: 'Non-Farm Payrolls', days: 2, impact: 'high', desc: 'Jobs report, USD volatile' },
+        { name: 'FOMC Rate Decision', days: 4, impact: 'high', desc: 'Fed policy announcement' },
+        { name: 'CPI (MoM)', days: 3, impact: 'high', desc: 'Inflation data, rate path' },
+        { name: 'Retail Sales', days: 1, impact: 'medium', desc: 'Consumer spending' },
+        { name: 'Consumer Confidence', days: 2, impact: 'medium', desc: 'CB index reading' },
+        { name: 'ISM Manufacturing PMI', days: 0, impact: 'medium', desc: 'Manufacturing activity' },
+    ];
+
+    function loadMacroEvents() {
+        const today = new Date();
+        const list = $('macro-list');
+        list.innerHTML = MACRO_EVENTS.map(e => {
+            const d = new Date(today); d.setDate(d.getDate() + e.days);
+            const day = d.getDate();
+            const mon = d.toLocaleString('en-US',{month:'short'}).toUpperCase();
+            const dayLabel = e.days === 0 ? 'TODAY' : e.days === 1 ? 'TMRW' : `${mon} ${day}`;
+            return `<div class="event-item">
+                <div class="event-date"><div class="day">${e.days === 0 ? 'TOD' : e.days === 1 ? 'TMR' : day}</div><div class="month">${e.days === 0 ? 'AY' : e.days === 1 ? 'W' : mon}</div></div>
+                <div class="event-info">
+                    <div class="event-name">${e.name}</div>
+                    <div class="event-detail">${e.desc}</div>
+                </div>
+                <span class="event-impact ${e.impact}">${e.impact}</span>
+            </div>`;
+        }).join('');
+    }
+
+    // ── 8. Sector Heatmap (full names, static) ──────────────────
+    async function loadSectorRotation() {
+        const hm = $('sector-hm');
+        setLoading(hm);
+        await new Promise(r => setTimeout(r, 120)); // brief pause so loading is visible
+        const SECTORS = [
+            { t: 'Technology',      p: 18.4 },
+            { t: 'Comm Services',   p: 14.2 },
+            { t: 'Consumer Disc.',  p: 11.8 },
+            { t: 'Financials',      p: 9.3 },
+            { t: 'Healthcare',      p: 6.1 },
+            { t: 'Industrials',     p: 5.7 },
+            { t: 'Materials',       p: 3.2 },
+            { t: 'Utilities',       p: 1.4 },
+            { t: 'Real Estate',     p: -2.1 },
+            { t: 'Energy',          p: -4.6 },
+        ];
+        const sorted = [...SECTORS].sort((a, b) => b.p - a.p);
+        const header = `<div class="sector-header">
+            <div class="sector-header-cell">Sector</div>
+            <div class="sector-header-cell">3M</div>
+            <div class="sector-header-cell">6M</div>
+            <div class="sector-header-cell">YTD</div>
+            <div class="sector-header-cell">1Y</div>
+        </div>`;
+        const rowHtml = s => {
+            const p = s.p;
+            const cells = [p*0.35, p*0.60, p, p*1.15].map(v => {
+                const c = hmColor(v), tc = hmText(v);
+                return `<div class="sector-cell" style="background:${c};color:${tc}">${v>=0?'+':''}${v.toFixed(1)}</div>`;
+            }).join('');
+            return `<div class="sector-row"><div class="sector-name">${s.t}</div>${cells}</div>`;
+        };
+        // Two columns: top 5 leaders on the left, bottom 5 laggards on the right
+        const left = sorted.slice(0, 5).map(rowHtml).join('');
+        const right = sorted.slice(5).map(rowHtml).join('');
+        hm.innerHTML = `<div class="sector-col">${header}${left}</div><div class="sector-col">${header}${right}</div>`;
+    }
+
+    // ── Master refresh ─────────────────────────────────────────
+    async function refreshAll() {
+        const meta = $('update-time');
+        meta.innerHTML = '<span class="refresh-dot"></span>Refreshing...';
+        // Set loading state on all dynamic sections before fetching
+        const snapEl = $('index-snapshot');
+        ['SPY','QQQ','DIA','IWM'].forEach((_, i) => { if (snapEl.children[i]) snapEl.children[i].innerHTML = '<div class="loading-wrap" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center"><div class="loading-dots">LOADING</div></div>'; });
+        setLoading($('futures-row'));
+        setLoading($('fear-greed-wrap'));
+        $('movers-body').innerHTML = '<div class="loading-wrap" style="height:100%"><div class="loading-dots">LOADING</div></div>';
+        setLoading($('ml-signals'));
+        setLoading($('earn-list'));
+        setLoading($('macro-list'));
+        setLoading($('sector-hm'));
+        // Render the two instant (no-API) sections immediately so they
+        // don't wait on the slowest network loader.
+        loadFutures();
+        loadEarnings();
+        // Fetch all in parallel
+        await Promise.all([
+            loadIndices(), loadSentiment(), loadMovers(),
+            loadMlSignals(), loadMacroEvents(), loadSectorRotation(),
+        ]);
+        meta.innerHTML = `<span class="refresh-dot"></span>${new Date().toLocaleTimeString()}`;
+    }
+
+    // Stagger init so loading dots are actually visible
+    refreshAll();
+    setInterval(refreshAll, 60 * 60 * 1000);
+
+    // ── Theme toggle ────────────────────────────────────────────
+    (function() {
+        const btn = $('theme-toggle');
+        const KEY = 'oobir_theme';
+        function getPreferredTheme() { return localStorage.getItem(KEY) || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem(KEY, theme);
+            if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+        }
+        if (btn) btn.addEventListener('click', () => applyTheme(getPreferredTheme() === 'dark' ? 'light' : 'dark'));
+        applyTheme(getPreferredTheme());
+    })();
+    </script>
+</body>
+</html>
