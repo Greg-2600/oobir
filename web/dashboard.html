@@ -84,7 +84,9 @@
         /* ── Row layouts ── */
         .db-row { display: grid; gap: 6px; }
         .db-row.half { grid-template-columns: 1fr 1fr; }
-        .db-row.third { grid-template-columns: 2fr 1fr 1fr; }
+        .db-row.third { grid-template-columns: 1.15fr 0.9fr 1fr; }
+        .db-row.three { grid-template-columns: 1.5fr 1fr 0.9fr; }
+        .db-row.macro-sector { grid-template-columns: 0.85fr 1.15fr; }
         .db-row.two-left { grid-template-columns: 1.4fr 1fr; }
         .db-row.two-right { grid-template-columns: 1fr 1.4fr; }
 
@@ -162,7 +164,7 @@
 
         /* ── Top Movers table ── */
         .movers-table { width: 100%; border-collapse: collapse; font-size: 0.68rem; }
-        .movers-table th { text-align: left; padding: 3px 6px; font-size: 0.58rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid var(--border); }
+        .movers-table th { text-align: left; padding: 3px 6px; font-size: 0.58rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg-card); }
         .movers-table td { padding: 4px 6px; border-bottom: 1px solid rgba(48,54,61,0.4); }
         .movers-table tr:last-child td { border-bottom: none; }
         .movers-table .ticker { font-weight: 800; color: var(--accent); cursor: pointer; }
@@ -174,7 +176,9 @@
         .movers-table .badge.gap { background: var(--accent-dim); color: var(--accent); }
 
         /* ── ML Signals ── */
-        .ml-signals { display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+        .ml-signals { display: flex; flex-direction: column; gap: 4px; overflow: auto; flex: 1; }
+        .ml-signals::-webkit-scrollbar { width: 3px; }
+        .ml-signals::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
         .ml-signal { display: flex; gap: 6px; align-items: center; padding: 4px 6px; background: var(--bg-secondary); border-radius: 5px; }
         .ml-signal .sig-ticker { font-size: 0.75rem; font-weight: 900; color: var(--accent); min-width: 42px; cursor: pointer; }
         .ml-signal .sig-ticker:hover { text-decoration: underline; }
@@ -184,7 +188,7 @@
         .ml-signal .sig-prob { font-size: 0.58rem; color: var(--text-muted); min-width: 28px; text-align: right; }
 
         /* ── Earnings ── */
-        .earn-list { display: flex; flex-direction: column; gap: 4px; overflow: auto; }
+        .earn-list { display: flex; flex-direction: column; gap: 4px; overflow: auto; flex: 1; min-height: 0; }
         .earn-list::-webkit-scrollbar { width: 3px; }
         .earn-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
         .earn-item { display: flex; gap: 5px; align-items: center; padding: 4px 7px; background: var(--bg-secondary); border-radius: 5px; font-size: 0.68rem; }
@@ -197,32 +201,71 @@
         .earn-badge.rel { background: var(--green-dim); color: var(--green); }
 
         /* ── Macro events ── */
-        .event-list { display: flex; flex-direction: column; gap: 4px; overflow: auto; }
+        .event-list { display: flex; flex-direction: column; gap: 3px; overflow: auto; }
         .event-list::-webkit-scrollbar { width: 3px; }
         .event-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-        .event-item { display: flex; gap: 7px; align-items: center; padding: 3px 0; border-bottom: 1px solid rgba(48,54,61,0.4); font-size: 0.65rem; }
+        .event-item { display: flex; gap: 7px; align-items: center; padding: 2px 0; border-bottom: 1px solid rgba(48,54,61,0.4); font-size: 0.65rem; }
         .event-item:last-child { border-bottom: none; }
-        .event-date { min-width: 44px; text-align: center; padding: 2px 4px; background: var(--bg-secondary); border-radius: 4px; font-size: 0.58rem; font-weight: 700; }
-        .event-date .day { font-size: 0.85rem; color: var(--text-primary); }
-        .event-date .month { color: var(--text-muted); text-transform: uppercase; }
-        .event-info { flex: 1; overflow: hidden; }
-        .event-name { font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .event-date { min-width: 46px; text-align: center; padding: 3px 5px; background: var(--bg-secondary); border-radius: 4px; font-size: 0.58rem; font-weight: 700; flex-shrink: 0; color: var(--text-secondary); }
+        .event-date .day { color: var(--text-primary); font-size: 0.62rem; }
+        .event-date .month { color: var(--text-muted); font-size: 0.55rem; }
+        .event-info { flex: 1; overflow: hidden; display: flex; align-items: baseline; gap: 6px; }
+        .event-name { font-weight: 600; color: var(--text-primary); white-space: nowrap; }
         .event-detail { font-size: 0.58rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .event-impact { font-size: 0.58rem; font-weight: 800; text-transform: uppercase; padding: 1px 4px; border-radius: 3px; flex-shrink: 0; }
+        .event-impact { font-size: 0.55rem; font-weight: 800; text-transform: uppercase; padding: 1px 4px; border-radius: 3px; flex-shrink: 0; }
         .event-impact.high { background: var(--red-dim); color: var(--red); }
         .event-impact.medium { background: var(--yellow-dim); color: var(--yellow); }
         .event-impact.low { background: var(--green-dim); color: var(--green); }
 
         /* ── Sector heatmap (2 columns × 5 rows) ── */
-        .sector-hm { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; align-content: start; }
+        .sector-hm { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; flex: 1; min-height: 0; }
         .sector-hm::-webkit-scrollbar { width: 3px; }
         .sector-hm::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-        .sector-col { display: grid; gap: 3px; }
-        .sector-row { display: grid; grid-template-columns: 78px repeat(4, 1fr); gap: 3px; align-items: center; }
-        .sector-header { display: grid; grid-template-columns: 78px repeat(4, 1fr); gap: 3px; }
+        .sector-col { display: grid; grid-template-rows: auto repeat(5, 1fr); gap: 4px; min-height: 0; }
+        .sector-row { display: grid; grid-template-columns: 92px repeat(4, 1fr); gap: 3px; align-items: stretch; }
+        .sector-header { display: grid; grid-template-columns: 92px repeat(4, 1fr); gap: 3px; }
         .sector-header-cell { text-align: center; font-size: 0.55rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; }
-        .sector-name { font-size: 0.6rem; font-weight: 700; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .sector-cell { text-align: center; padding: 2px 2px; border-radius: 4px; font-size: 0.58rem; font-weight: 700; color: white; cursor: default; }
+        .sector-name { font-size: 0.62rem; font-weight: 700; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; }
+        .sector-cell { text-align: center; padding: 2px; border-radius: 4px; font-size: 0.6rem; font-weight: 700; color: white; cursor: default; display: flex; align-items: center; justify-content: center; }
+
+        /* ── Floating tooltip ── */
+        #oobir-tip {
+            position: fixed;
+            z-index: 9999;
+            background: #1f2937;
+            color: #f3f4f6;
+            border: 1px solid #374151;
+            border-radius: 6px;
+            padding: 7px 10px;
+            font-size: 0.72rem;
+            line-height: 1.45;
+            max-width: 280px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.12s ease;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+        }
+        #oobir-tip.show { opacity: 1; }
+        #oobir-tip .tip-title { font-weight: 800; color: #fff; display: block; margin-bottom: 2px; }
+        #oobir-tip .tip-sub { color: #9ca3af; display: block; font-size: 0.68rem; }
+        .tip-host { cursor: help; border-bottom: 1px dotted var(--text-muted); }
+
+        /* ── Snapshot card with name ── */
+        .snap-card .name { font-size: 0.56rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 1px; }
+        .snap-card .ticker { font-size: 0.62rem; font-weight: 800; color: var(--accent); text-transform: uppercase; }
+
+        /* ── Movers table: company name column ── */
+        .movers-table .company { color: var(--text-secondary); font-size: 0.66rem; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* ── ML signal with name ── */
+        .ml-signal .sig-name { font-size: 0.6rem; color: var(--text-muted); min-width: 92px; max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* ── Earnings with name ── */
+        .earn-item .company { color: var(--text-secondary); font-size: 0.62rem; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .earn-item .eps { color: var(--text-muted); font-size: 0.6rem; white-space: nowrap; }
+
+        /* ── Futures with name ── */
+        .futures-item .desc { font-size: 0.55rem; color: var(--text-muted); margin-top: 1px; }
 
         /* Loading state */
         .loading-wrap { 
@@ -317,19 +360,19 @@
             </div>
         </div>
 
-        <!-- Row 2: Top Movers (full width) -->
-        <div class="db-card" style="flex: 1; min-height: 0;">
-            <div class="db-card-header">
-                <div class="db-card-title"><span class="icon">🔥</span> Top Movers</div>
-                <span id="movers-time" style="font-size:0.6rem;color:var(--text-muted)"></span>
+        <!-- Row 2: Top Movers | ML Signals | Earnings -->
+        <div class="db-row three" style="flex: 1 1 auto; min-height: 190px;">
+            <!-- Top Movers -->
+            <div class="db-card">
+                <div class="db-card-header">
+                    <div class="db-card-title"><span class="icon">🔥</span> Top Movers</div>
+                    <span id="movers-time" style="font-size:0.6rem;color:var(--text-muted)"></span>
+                </div>
+                <div class="db-card-body" style="padding:0; overflow:auto" id="movers-body" data-loading="true">
+                    <div class="loading-wrap" style="height:100%"><div class="loading-dots">LOADING</div></div>
+                </div>
             </div>
-            <div class="db-card-body" style="padding:0" id="movers-body" data-loading="true">
-                <div class="loading-wrap" style="height:100%"><div class="loading-dots">LOADING</div></div>
-            </div>
-        </div>
 
-        <!-- Row 3: ML Signals | Earnings | Macro -->
-        <div class="db-row third" style="flex-shrink:0; min-height: 0;">
             <!-- ML Signals -->
             <div class="db-card">
                 <div class="db-card-header">
@@ -337,26 +380,31 @@
                 </div>
                 <div class="db-card-body"><div class="ml-signals" id="ml-signals" data-loading="true"><div class="loading-wrap"><div class="loading-dots">LOADING</div></div></div></div>
             </div>
+
             <!-- Earnings This Week -->
             <div class="db-card">
                 <div class="db-card-header"><div class="db-card-title"><span class="icon">📈</span> Earnings</div></div>
                 <div class="db-card-body"><div class="earn-list" id="earn-list" data-loading="true"><div class="loading-wrap"><div class="loading-dots">LOADING</div></div></div></div>
             </div>
-            <!-- Macro Events -->
-            <div class="db-card">
-                <div class="db-card-header"><div class="db-card-title"><span class="icon">🌐</span> Macro</div></div>
-                <div class="db-card-body"><div class="event-list" id="macro-list" data-loading="true"><div class="loading-wrap"><div class="loading-dots">LOADING</div></div></div></div>
-            </div>
         </div>
 
-        <!-- Row 4: Sector heatmap (full width, 2 columns) -->
-        <div class="db-card" style="flex-shrink: 0;">
-            <div class="db-card-header">
-                <div class="db-card-title"><span class="icon">🔄</span> Sector Rotation — Performance</div>
-                <span style="font-size:0.6rem;color:var(--text-muted)">Left: leaders | Right: laggards</span>
+        <!-- Row 3: Macro | Sector Rotation -->
+        <div class="db-row macro-sector" style="flex: 0 1 auto; min-height: 150px;">
+            <!-- Macro Events -->
+            <div class="db-card">
+                <div class="db-card-header"><div class="db-card-title"><span class="icon">🌐</span> Key Macro Events</div></div>
+                <div class="db-card-body"><div class="event-list" id="macro-list" data-loading="true"><div class="loading-wrap"><div class="loading-dots">LOADING</div></div></div></div>
             </div>
-            <div class="db-card-body" style="padding:5px 10px">
-                <div class="sector-hm" id="sector-hm" data-loading="true"><div class="loading-wrap" style="width:100%;height:100%"><div class="loading-dots">LOADING</div></div></div>
+
+            <!-- Sector Rotation -->
+            <div class="db-card">
+                <div class="db-card-header">
+                    <div class="db-card-title"><span class="icon">🔄</span> Sector Rotation — Performance</div>
+                    <span style="font-size:0.6rem;color:var(--text-muted)">Left: leaders | Right: laggards</span>
+                </div>
+                <div class="db-card-body" style="padding:5px 10px">
+                    <div class="sector-hm" id="sector-hm" data-loading="true"><div class="loading-wrap" style="width:100%;height:100%"><div class="loading-dots">LOADING</div></div></div>
+                </div>
             </div>
         </div>
 
@@ -388,6 +436,109 @@
     function setLoading(el) { el.innerHTML = LOADER; }
     function doneLoading(el) { el.removeAttribute('data-loading'); }
 
+    // ── Company names ─────────────────────────────────────────
+    // Populated once from /api/fundamentals-db (single bulk call).
+    const COMPANY_NAMES = {};
+    const COMPANY_META = {};
+    const ETF_NAMES = {
+        SPY: 'SPDR S&P 500 ETF Trust',
+        QQQ: 'Invesco QQQ Trust (Nasdaq 100)',
+        DIA: 'SPDR Dow Jones Industrial Average ETF',
+        IWM: 'iShares Russell 2000 ETF',
+    };
+
+    // Shared ticker lists (also used to backfill missing company names)
+    const MOVERS_TICKERS = ['NVDA','TSLA','AAPL','MSFT','META','AMD','PLTR','COIN','NFLX','AMZN','AVGO','GOOGL','INTC','QCOM','ARM'];
+    const ML_TICKERS = ['NVDA','AAPL','TSLA','MSFT','META','AMZN','AMD','PLTR','COIN','NFLX','AVGO','GOOGL'];
+    const EARNINGS_TICKERS = ['AAPL','MSFT','AMZN','GOOGL','META','NVDA','TSLA','AMD','AVGO','NFLX','INTC','QCOM'];
+    const FUTURES_DESC = {
+        'S&P 500': 'E-mini S&P 500 futures',
+        'Nasdaq': 'E-mini Nasdaq-100 futures',
+        'Russell': 'E-mini Russell 2000 futures',
+        'Oil': 'WTI crude oil futures',
+        'Gold': 'Gold futures',
+        'DXY': 'US Dollar index futures',
+    };
+
+    function companyName(ticker) {
+        return COMPANY_NAMES[ticker] || ETF_NAMES[ticker] || ticker;
+    }
+    function fullName(ticker) {
+        return COMPANY_NAMES[ticker] || ETF_NAMES[ticker] || ticker;
+    }
+
+    async function loadCompanyNames() {
+        const d = await api('/api/fundamentals-db?limit=500');
+        const results = d && d.results ? d.results : [];
+        results.forEach(x => {
+            if (!x || !x.ticker) return;
+            COMPANY_NAMES[x.ticker] = x.long_name || x.short_name || x.ticker;
+            COMPANY_META[x.ticker] = { sector: x.sector, industry: x.industry, exchange: x.exchange };
+        });
+    }
+
+    // Fill in names for tickers missing from the bulk list (e.g. small caps, ETFs).
+    async function loadMissingNames(tickers) {
+        const missing = tickers.filter(t => t && !COMPANY_NAMES[t] && !ETF_NAMES[t]);
+        if (!missing.length) return;
+        const results = await Promise.all(missing.map(t => api(`/api/fundamentals/${t}`)));
+        results.forEach((d, i) => {
+            const t = missing[i];
+            if (d && (d.longName || d.shortName)) {
+                COMPANY_NAMES[t] = d.longName || d.shortName;
+            }
+        });
+    }
+
+    // ── Floating tooltip ───────────────────────────────────────
+    let tipEl = null;
+    function initTooltip() {
+        tipEl = document.createElement('div');
+        tipEl.id = 'oobir-tip';
+        document.body.appendChild(tipEl);
+
+        document.addEventListener('mouseover', e => {
+            const host = e.target.closest ? e.target.closest('[data-tip]') : null;
+            if (!host) return;
+            const title = host.getAttribute('data-tip-title');
+            const sub = host.getAttribute('data-tip-sub');
+            tipEl.innerHTML = (title ? `<span class="tip-title">${title}</span>` : '')
+                + (sub ? `<span class="tip-sub">${sub}</span>` : '');
+            tipEl.classList.add('show');
+            positionTip(e);
+        });
+        document.addEventListener('mousemove', e => {
+            if (tipEl && tipEl.classList.contains('show')) positionTip(e);
+        });
+        document.addEventListener('mouseout', e => {
+            const host = e.target.closest ? e.target.closest('[data-tip]') : null;
+            if (!host) return;
+            tipEl.classList.remove('show');
+        });
+        document.addEventListener('scroll', () => tipEl && tipEl.classList.remove('show'), true);
+    }
+    function positionTip(e) {
+        if (!tipEl) return;
+        const pad = 12;
+        const rect = tipEl.getBoundingClientRect();
+        let x = e.clientX + pad;
+        let y = e.clientY - rect.height - pad;
+        if (y < 4) y = e.clientY + pad + 8;
+        if (x + rect.width > window.innerWidth - 4) x = e.clientX - rect.width - pad;
+        tipEl.style.left = Math.max(4, x) + 'px';
+        tipEl.style.top = Math.max(4, y) + 'px';
+    }
+
+    function tipAttrs(ticker, extra) {
+        const meta = COMPANY_META[ticker] || {};
+        const subParts = [];
+        if (meta.sector) subParts.push(meta.sector);
+        if (meta.industry) subParts.push(meta.industry);
+        if (extra) subParts.push(extra);
+        return `data-tip="${fullName(ticker)}" data-tip-title="${fullName(ticker)}"` +
+            (subParts.length ? ` data-tip-sub="${subParts.join(' · ')}"` : '');
+    }
+
     // ── 1. Index Snapshot ─────────────────────────────────────
     async function loadIndices() {
         const tickers = ['SPY','QQQ','DIA','IWM'];
@@ -396,14 +547,16 @@
         const results = await Promise.all(tickers.map(t => api(`/api/price-history/${t}?days=2`)));
         container.innerHTML = tickers.map((t, i) => {
             const d = results[i];
-            if (!d?.data?.length) return `<div class="snap-card"><div class="ticker">${t}</div><div class="price">—</div></div>`;
+            const nm = companyName(t);
+            if (!d?.data?.length) return `<div class="snap-card"><div class="ticker">${t}</div><div class="name tip-host" ${tipAttrs(t)}>${nm}</div><div class="price">—</div></div>`;
             const rows = d.data;
             const cur = rows[rows.length - 1];
             const prev = rows.length > 1 ? rows[rows.length - 2] : cur;
             const chgPct = ((cur.Close - prev.Close) / prev.Close) * 100;
             const dir = chgPct >= 0 ? 'up' : 'down';
             return `<div class="snap-card">
-                <div class="ticker">${t}</div>
+                <div class="ticker tip-host" ${tipAttrs(t)}>${t}</div>
+                <div class="name tip-host" ${tipAttrs(t)}>${nm}</div>
                 <div class="price">$${cur.Close.toFixed(2)}</div>
                 <div class="change ${dir}">${chgPct >= 0 ? '+' : ''}${chgPct.toFixed(2)}%</div>
             </div>`;
@@ -421,8 +574,10 @@
     ];
     function loadFutures() {
         $('futures-row').innerHTML = FUTURES.map(f =>
-            `<div class="futures-item">
+            `<div class="futures-item tip-host"
+                 data-tip="${f.n}" data-tip-title="${f.n}" data-tip-sub="${FUTURES_DESC[f.n] || ''}">
                 <div class="name">${f.n}</div>
+                <div class="desc">${FUTURES_DESC[f.n] || ''}</div>
                 <div class="val">${f.n==='Nasdaq'||f.n==='S&P 500' ? f.v.toLocaleString() : f.v}</div>
                 <div class="chg" style="color:${pctColor(f.c)}">${fmt(f.c)}</div>
             </div>`
@@ -476,7 +631,7 @@
 
     // ── 4. Top Movers ──────────────────────────────────────────
     async function loadMovers() {
-        const tickers = ['NVDA','TSLA','AAPL','MSFT','META','AMD','PLTR','COIN','NFLX','AMZN'];
+        const tickers = MOVERS_TICKERS;
         const body = $('movers-body');
         body.innerHTML = '<div class="loading-wrap" style="height:100%"><div class="loading-dots">LOADING</div></div>';
         const results = await Promise.all(tickers.map(t => api(`/api/price-history/${t}?days=2`)));
@@ -491,16 +646,18 @@
             rows.push({ ticker: t, price: cur.Close, chg, vol: cur.Volume || 0 });
         });
         rows.sort((a, b) => Math.abs(b.chg) - Math.abs(a.chg));
-        const top = rows.slice(0, 8);
+        const top = rows.slice(0, 9);
         const now = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
         $('movers-time').textContent = `as of ${now}`;
 
         body.innerHTML = `<table class="movers-table">
-            <thead><tr><th>Ticker</th><th>Price</th><th>Change</th><th>Vol</th><th>Signal</th></tr></thead>
+            <thead><tr><th>Ticker</th><th>Company</th><th>Price</th><th>Change</th><th>Vol</th><th>Signal</th></tr></thead>
             <tbody>${top.map(r => {
                 const badge = Math.abs(r.chg) > 5 ? '<span class="badge gap">GAP</span>' : '';
+                const nm = companyName(r.ticker);
                 return `<tr>
-                    <td class="ticker" onclick="location.href='index.html?symbol=${r.ticker}'">${r.ticker}</td>
+                    <td class="ticker tip-host" ${tipAttrs(r.ticker)} onclick="location.href='index.html?symbol=${r.ticker}'">${r.ticker}</td>
+                    <td class="company tip-host" ${tipAttrs(r.ticker)}>${nm}</td>
                     <td class="price">$${r.price.toFixed(2)}</td>
                     <td class="change ${r.chg >= 0 ? 'up' : 'down'}">${fmt(r.chg)}</td>
                     <td style="color:var(--text-muted)">${(r.vol/1000000).toFixed(1)}M</td>
@@ -512,14 +669,14 @@
 
     // ── 5. ML Signals ──────────────────────────────────────────
     async function loadMlSignals() {
-        const tickers = ['NVDA','AAPL','TSLA','MSFT','META','AMZN','AMD','PLTR'];
+        const tickers = ML_TICKERS;
         const container = $('ml-signals');
         setLoading(container);
         const results = await Promise.all(tickers.map(t => api(`/api/predict/${t}?horizon=5`)));
         let html = '';
         let shown = 0;
         tickers.forEach((ticker, i) => {
-            if (shown >= 6) return;
+            if (shown >= 8) return;
             const d = results[i];
             if (!d) return;
             const dir = d.direction || 'FLAT';
@@ -528,7 +685,8 @@
             const label = dir === 'UP' ? '↑ UP' : dir === 'DOWN' ? '↓ DOWN' : '→ FLAT';
             html += `
                 <div class="ml-signal">
-                    <div class="sig-ticker" onclick="location.href='predictions.html?ticker=${ticker}'">${ticker}</div>
+                    <div class="sig-ticker tip-host" ${tipAttrs(ticker)} onclick="location.href='predictions.html?ticker=${ticker}'">${ticker}</div>
+                    <div class="sig-name tip-host" ${tipAttrs(ticker)}>${companyName(ticker)}</div>
                     <div class="sig-bar"><div class="sig-fill" style="width:${Math.round(up*100)}%;background:${cls}"></div></div>
                     <div class="sig-label" style="color:${cls}">${label}</div>
                     <div class="sig-prob">${(up*100).toFixed(0)}%</div>
@@ -549,22 +707,26 @@
         { ticker: 'NVDA',  date: '2026-11-05', time: 'aft', est: 0.75 },
         { ticker: 'TSLA',  date: '2026-10-29', time: 'aft', est: 0.72 },
         { ticker: 'AMD',   date: '2026-10-29', time: 'aft', est: 0.92 },
+        { ticker: 'AVGO',  date: '2026-10-31', time: 'aft', est: 1.35 },
+        { ticker: 'NFLX',  date: '2026-10-30', time: 'aft', est: 5.10 },
     ];
-
     function loadEarnings() {
         const today = new Date();
         const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate() + 7);
         const items = UPCOMING_EARNINGS.filter(e => {
             const d = new Date(e.date);
             return d >= today && d <= weekEnd;
-        });
+        }).slice(0, 9);
 
         $('earn-list').innerHTML = items.length ? items.map(e => {
             const d = new Date(e.date + 'T00:00:00');
             const day = d.getDate();
             const mon = d.toLocaleString('en-US',{month:'short'}).toUpperCase();
+            const nm = companyName(e.ticker);
             return `<div class="earn-item">
-                <span class="ticker" onclick="location.href='index.html?symbol=${e.ticker}'">${e.ticker}</span>
+                <span class="ticker tip-host" ${tipAttrs(e.ticker, 'Earnings ' + mon + ' ' + day)} onclick="location.href='index.html?symbol=${e.ticker}'">${e.ticker}</span>
+                <span class="company tip-host" ${tipAttrs(e.ticker, 'Earnings ' + mon + ' ' + day)}>${nm}</span>
+                <span class="eps">${e.est != null ? 'EPS $' + e.est.toFixed(2) : ''}</span>
                 <span class="date">${mon} ${day}</span>
                 <span class="earn-badge ${e.time}">${e.time === 'bef' ? 'BMO' : 'AMC'}</span>
             </div>`;
@@ -573,12 +735,11 @@
 
     // ── 7. Macro Events (curated) ─────────────────────────────
     const MACRO_EVENTS = [
+        { name: 'ISM Manufacturing PMI', days: 0, impact: 'medium', desc: 'Manufacturing activity index' },
+        { name: 'Retail Sales', days: 1, impact: 'medium', desc: 'Consumer spending data' },
         { name: 'Non-Farm Payrolls', days: 2, impact: 'high', desc: 'Jobs report, USD volatile' },
-        { name: 'FOMC Rate Decision', days: 4, impact: 'high', desc: 'Fed policy announcement' },
         { name: 'CPI (MoM)', days: 3, impact: 'high', desc: 'Inflation data, rate path' },
-        { name: 'Retail Sales', days: 1, impact: 'medium', desc: 'Consumer spending' },
-        { name: 'Consumer Confidence', days: 2, impact: 'medium', desc: 'CB index reading' },
-        { name: 'ISM Manufacturing PMI', days: 0, impact: 'medium', desc: 'Manufacturing activity' },
+        { name: 'FOMC Rate Decision', days: 4, impact: 'high', desc: 'Fed policy announcement' },
     ];
 
     function loadMacroEvents() {
@@ -589,8 +750,8 @@
             const day = d.getDate();
             const mon = d.toLocaleString('en-US',{month:'short'}).toUpperCase();
             const dayLabel = e.days === 0 ? 'TODAY' : e.days === 1 ? 'TMRW' : `${mon} ${day}`;
-            return `<div class="event-item">
-                <div class="event-date"><div class="day">${e.days === 0 ? 'TOD' : e.days === 1 ? 'TMR' : day}</div><div class="month">${e.days === 0 ? 'AY' : e.days === 1 ? 'W' : mon}</div></div>
+            return `<div class="event-item tip-host" data-tip="${e.name}" data-tip-title="${e.name}" data-tip-sub="${e.desc}">
+                <div class="event-date"><span class="month">${e.days === 0 ? 'TODAY' : e.days === 1 ? 'TMRW' : mon}</span> <span class="day">${e.days === 0 || e.days === 1 ? '' : day}</span></div>
                 <div class="event-info">
                     <div class="event-name">${e.name}</div>
                     <div class="event-detail">${e.desc}</div>
@@ -606,16 +767,16 @@
         setLoading(hm);
         await new Promise(r => setTimeout(r, 120)); // brief pause so loading is visible
         const SECTORS = [
-            { t: 'Technology',      p: 18.4 },
-            { t: 'Comm Services',   p: 14.2 },
-            { t: 'Consumer Disc.',  p: 11.8 },
-            { t: 'Financials',      p: 9.3 },
-            { t: 'Healthcare',      p: 6.1 },
-            { t: 'Industrials',     p: 5.7 },
-            { t: 'Materials',       p: 3.2 },
-            { t: 'Utilities',       p: 1.4 },
-            { t: 'Real Estate',     p: -2.1 },
-            { t: 'Energy',          p: -4.6 },
+            { t: 'Technology',      p: 18.4, d: 'Software, semiconductors, hardware' },
+            { t: 'Comm Services',   p: 14.2, d: 'Media, telecom, internet services' },
+            { t: 'Consumer Disc.',  p: 11.8, d: 'Retail, autos, travel, leisure' },
+            { t: 'Financials',      p: 9.3,  d: 'Banks, insurance, capital markets' },
+            { t: 'Healthcare',      p: 6.1,  d: 'Pharma, biotech, medical devices' },
+            { t: 'Industrials',     p: 5.7,  d: 'Aerospace, machinery, transport' },
+            { t: 'Materials',       p: 3.2,  d: 'Chemicals, mining, construction' },
+            { t: 'Utilities',       p: 1.4,  d: 'Electric, gas, water utilities' },
+            { t: 'Real Estate',     p: -2.1, d: 'REITs, residential, commercial property' },
+            { t: 'Energy',          p: -4.6, d: 'Oil, gas, renewables, services' },
         ];
         const sorted = [...SECTORS].sort((a, b) => b.p - a.p);
         const header = `<div class="sector-header">
@@ -631,7 +792,7 @@
                 const c = hmColor(v), tc = hmText(v);
                 return `<div class="sector-cell" style="background:${c};color:${tc}">${v>=0?'+':''}${v.toFixed(1)}</div>`;
             }).join('');
-            return `<div class="sector-row"><div class="sector-name">${s.t}</div>${cells}</div>`;
+            return `<div class="sector-row"><div class="sector-name tip-host" data-tip="${s.t}" data-tip-title="${s.t}" data-tip-sub="${s.d}">${s.t}</div>${cells}</div>`;
         };
         // Two columns: top 5 leaders on the left, bottom 5 laggards on the right
         const left = sorted.slice(0, 5).map(rowHtml).join('');
@@ -653,6 +814,11 @@
         setLoading($('earn-list'));
         setLoading($('macro-list'));
         setLoading($('sector-hm'));
+        // Fetch company names first so every renderer can use them
+        if (!Object.keys(COMPANY_NAMES).length) {
+            await loadCompanyNames();
+            await loadMissingNames(MOVERS_TICKERS.concat(ML_TICKERS).concat(EARNINGS_TICKERS));
+        }
         // Render the two instant (no-API) sections immediately so they
         // don't wait on the slowest network loader.
         loadFutures();
@@ -666,6 +832,7 @@
     }
 
     // Stagger init so loading dots are actually visible
+    initTooltip();
     refreshAll();
     setInterval(refreshAll, 60 * 60 * 1000);
 
