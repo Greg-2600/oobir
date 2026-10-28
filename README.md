@@ -5,7 +5,7 @@
 ![Docker](https://img.shields.io/badge/Cloud_Native-Docker-blue?logo=docker)
 ![AI](https://img.shields.io/badge/AI-Ollama_LLM-purple?logo=ai)
 ![HTML5](https://img.shields.io/badge/Web_UI-HTML5_CSS3_JS-orange?logo=html5)
-![Tests](https://img.shields.io/badge/Tests-406_Passing-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-420_Passing-brightgreen)
 ![Status](https://img.shields.io/badge/Status-Production_Ready-success)
 
 > **Enterprise-grade stock analysis combining REST APIs, AI-powered insights, technical & fundamental analysis in a cloud-native architecture**
@@ -197,6 +197,7 @@ docker compose exec daily-sync python scripts/daily_sync.py --fundamentals-only
 - **Per-section loading states** so every card shows progress while its data is in flight
 - **Full company names and floating tooltips** with sector and industry detail on hover
 - **Zero-config** — resolves the API from the serving origin, so it works behind any reverse proxy
+- **Easy to find** — linked from the header nav on every page, plus a promo banner on the landing page and a quick link on the search page
 
 ### 3. Comprehensive REST API
 - **44 production endpoints** spanning data, ownership/analyst data, AI analysis, trading strategy, ML prediction, batch export, screener, caching, and health checks
@@ -361,6 +362,15 @@ The single-page daily market overview — everything worth knowing at a glance, 
 - **Auto-refreshes every 60 minutes** — plus a manual `↻ Refresh` button
 
 The dashboard needs no API key configuration of its own: it calls the same-origin `/api/*` paths through nginx, so it works unchanged behind a reverse proxy.
+
+#### Where to find it
+
+| Entry point | What you see |
+|---|---|
+| **Header nav** on every page | A `Briefing` link, last in the primary nav |
+| **Stock Screen** (`index.html`) | A promo banner above the Market Radar, with a "Refreshes hourly" badge |
+| **Search** (`search.html`) | A "Market Briefing" quick-link pill |
+| **Direct URL** | `/dashboard.html` |
 
 ### 11. Database Infrastructure
 
@@ -637,7 +647,7 @@ OOBIR maintains strict code quality standards with multi-language linting:
 - **Bandit** (`flow_api.py`, `db.py`, `db_timescale.py`, `ml/`): Security analysis — 0 High, 0 Medium, 0 Low issues (2 intentional `# nosec` suppressions)
 - **pylint** (`flow_api.py`, `db.py`, `db_timescale.py`): 10.00/10 score, 0 errors
 - **ESLint** (`web/*.js`): 0 errors, 0 warnings — consistent JS across all web pages
-- **Pytest** (`tests/`): 406 tests passing (ignore=tests/ui), 76% code coverage
+- **Pytest** (`tests/`): 420 tests passing (ignore=tests/ui), 76% code coverage
 
 ```bash
 # Run all linters
@@ -1470,7 +1480,7 @@ The project includes comprehensive test coverage across multiple layers:
 - **Technical Indicator Tests** (`tests/test_technical_indicators.py`): Tests for technical indicator calculations
 - **ML Tests** (`tests/test_ml.py`): Tests for the model factory, feature pipeline, walk-forward backtesting and scoring
 - **Flow Helper Tests** (`tests/test_flow_helpers.py`): Tests for the `flow.py` data-fetch helpers, including the ownership and analyst endpoints
-- **Dashboard UI Tests** (`tests/test_dashboard_ui.py`): Static contract tests for the Market Briefing page — section ids, loading states, company-name wiring, tooltip system and the API routes it calls
+- **Dashboard UI Tests** (`tests/test_dashboard_ui.py`): Static contract tests for the Market Briefing page — section ids, loading states, company-name wiring, tooltip system, the API routes it calls, and discoverability (nav link on every page, landing-page promo, search quick link)
 - **Static UI Contract Tests** (`tests/test_ui_static_files.py`): HTML/JS structure contracts for every page
 - **UI Tests** (`tests/ui/test_ui.py`): Selenium-based browser automation tests for frontend interactions
 

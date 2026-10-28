@@ -34,16 +34,52 @@ DASHBOARD_REQUIRED_IDS = DASHBOARD_SECTION_IDS + [
 
 
 def _strip_js_noise(script: str) -> str:
-    """Remove comments and string literals so regex scans don't false-positive."""
-    # Block comments
-    script = re.sub(r"/\*.*?\*/", " ", script, flags=re.S)
-    # Line comments
-    script = re.sub(r"//[^\n]*", " ", script)
-    # Template literals, single- and double-quoted strings
-    script = re.sub(r"`(?:\\.|[^`\\])*`", "``", script, flags=re.S)
-    script = re.sub(r"'(?:\\.|[^'\\\n])*'", "''", script)
-    script = re.sub(r'"(?:\\.|[^"\\\n])*"', '""', script)
-    return script
+    """Remove comments and string literals so regex scans don't false-positive.
+
+    This is a single-pass scanner rather than a chain of regexes: sequential
+    regex passes get confused by an apostrophe inside a double-quoted string
+    (e.g. ``"don't"``), which can swallow braces and make a perfectly valid
+    script look unbalanced.
+    """
+    out = []
+    index = 0
+    length = len(script)
+
+    while index < length:
+        char = script[index]
+        following = script[index + 1] if index + 1 < length else ""
+
+        # Line comment
+        if char == "/" and following == "/":
+            newline = script.find("\n", index)
+            index = length if newline == -1 else newline
+            continue
+
+        # Block comment
+        if char == "/" and following == "*":
+            end = script.find("*/", index + 2)
+            index = length if end == -1 else end + 2
+            continue
+
+        # String literal (single, double or template)
+        if char in ('"', "'", "`"):
+            quote = char
+            index += 1
+            while index < length:
+                if script[index] == "\\":
+                    index += 2
+                    continue
+                if script[index] == quote:
+                    index += 1
+                    break
+                index += 1
+            out.append('""')
+            continue
+
+        out.append(char)
+        index += 1
+
+    return "".join(out)
 
 
 def _scoped_declarations(script: str):
@@ -414,6 +450,190 @@ class TestDashboardApiContract(unittest.TestCase):
         """Requests must carry the API key header."""
         html = DASHBOARD.read_text(encoding="utf-8")
         self.assertIn("X-API-Key", html)
+
+
+class TestDashboardDiscovery(unittest.TestCase):
+    """Ensure the dashboard is reachable from the header nav and main pages.
+
+    A dashboard nobody can find is worthless, so every page's primary nav
+    must link to it, and the two main entry points should feature it
+    prominently rather than only in a long nav strip.
+    """
+
+    def _nav_pages(self):
+        """Every HTML page that renders the shared app-nav."""
+        return sorted(p.name for p in WEB_DIR.glob("*.html"))
+
+    def test_every_page_nav_links_to_dashboard(self):
+        """Each page's primary nav should offer a link to the dashboard."""
+        missing = []
+        for name in self._nav_pages():
+            html = (WEB_DIR / name).read_text(encoding="utf-8")
+            nav = re.search(r'<nav class="app-nav".*?</nav>', html, flags=re.S)
+            if not nav:
+                continue
+            if 'href="dashboard.html"' not in nav.group(0):
+                missing.append(name)
+
+        self.assertEqual(missing, [], f"Pages without a dashboard nav link: {missing}")
+
+    def test_dashboard_nav_link_is_last_in_nav(self):
+        """The dashboard link should sit at the end of the nav for consistency."""
+        out_of_place = []
+        for name in self._nav_pages():
+            html = (WEB_DIR / name).read_text(encoding="utf-8")
+            nav = re.search(r'<nav class="app-nav".*?</nav>', html, flags=re.S)
+            if not nav:
+                continue
+            links = re.findall(r'<a href="([^"]+)"', nav.group(0))
+            if "dashboard.html" in links and links[-1] != "dashboard.html":
+                out_of_place.append(f"{name}: {links[-1]}")
+
+        self.assertEqual(
+            out_of_place, [], f"Dashboard link is not last: {out_of_place}"
+        )
+
+    def test_dashboard_is_active_on_its_own_page(self):
+        """The dashboard should be marked active in its own nav."""
+        html = (WEB_DIR / "dashboard.html").read_text(encoding="utf-8")
+        self.assertIn('href="dashboard.html" class="active"', html)
+
+    def test_no_other_page_marks_dashboard_active(self):
+        """Only the dashboard itself may mark the link active."""
+        offenders = []
+        for name in self._nav_pages():
+            if name == "dashboard.html":
+                continue
+            html = (WEB_DIR / name).read_text(encoding="utf-8")
+            if 'href="dashboard.html" class="active"' in html:
+                offenders.append(name)
+
+        self.assertEqual(
+            offenders, [], f"Pages wrongly marking dashboard active: {offenders}"
+        )
+
+    def test_main_page_has_briefing_promo(self):
+        """index.html should feature the dashboard in a prominent banner."""
+        html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+        self.assertIn('class="briefing-promo"', html)
+        self.assertIn('href="dashboard.html"', html)
+        self.assertIn("Market Briefing", html)
+
+    def test_briefing_promo_is_an_anchor_to_dashboard(self):
+        """The promo must be a real link, not a div with a click handler."""
+        html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+        promo = re.search(r'<a class="briefing-promo"[^>]*>', html)
+        self.assertIsNotNone(promo, "briefing promo should be an <a> element")
+        self.assertIn('href="dashboard.html"', promo.group(0))
+
+    def test_search_page_has_market_briefing_quick_link(self):
+        """The landing page's quick links should include the briefing."""
+        html = (WEB_DIR / "search.html").read_text(encoding="utf-8")
+        row = re.search(r'<div class="link-row".*?</div>', html, flags=re.S)
+        self.assertIsNotNone(row, "search page should have a quick-link row")
+        self.assertIn('href="dashboard.html"', row.group(0))
+        self.assertIn("Market Briefing", row.group(0))
+
+    def test_briefing_promo_styles_defined(self):
+        """The promo banner needs its own styles in the shared stylesheet."""
+        css = (WEB_DIR / "styles.css").read_text(encoding="utf-8")
+        for selector in [
+            ".briefing-promo",
+            ".briefing-promo-icon",
+            ".briefing-promo-body",
+            ".briefing-promo-title",
+            ".briefing-promo-badge",
+            ".briefing-promo-sub",
+            ".briefing-promo-cta",
+        ]:
+            self.assertIn(selector, css, f"missing style {selector}")
+
+    def test_briefing_promo_has_dark_theme_variant(self):
+        """The promo must be legible in dark mode too."""
+        css = (WEB_DIR / "styles.css").read_text(encoding="utf-8")
+        self.assertIn('[data-theme="dark"] .briefing-promo', css)
+        self.assertIn('[data-theme="dark"] .briefing-promo-title', css)
+        self.assertIn('[data-theme="dark"] .briefing-promo-sub', css)
+
+
+class TestPageScriptValidity(unittest.TestCase):
+    """Guard every page's inline JavaScript against syntax errors.
+
+    A single malformed token — ``row.Reported EPS`` instead of
+    ``row['Reported EPS']`` — is a SyntaxError that makes the browser discard
+    the whole inline script block. The page then renders but never works,
+    with no visible clue in the UI.
+
+    These checks are static and dependency-free: they look for the specific
+    mistake patterns rather than running a full JS parser.
+    """
+
+    def _inline_script_blocks(self, path):
+        return _inline_scripts((WEB_DIR / path).read_text(encoding="utf-8"))
+
+    def test_no_bare_property_names_with_spaces(self):
+        """Multi-word API keys must use bracket notation, not dot notation."""
+        # `new Set(...)` and friends are keyword sequences, not property access.
+        keywords = {
+            "new",
+            "return",
+            "typeof",
+            "instanceof",
+            "in",
+            "of",
+            "await",
+            "delete",
+            "void",
+            "case",
+            "do",
+            "else",
+            "yield",
+            "throw",
+        }
+        offenders = []
+        for path in sorted(p.name for p in WEB_DIR.glob("*.html")):
+            for block in self._inline_script_blocks(path):
+                cleaned = _strip_js_noise(block)
+                # `obj.Word Word` — a dot followed by two identifiers.
+                for match in re.finditer(
+                    r"\.\s*([A-Za-z_$][\w$]*)\s+([A-Za-z_$][\w$]*)", cleaned
+                ):
+                    first, second = match.group(1), match.group(2)
+                    if first in keywords:
+                        continue
+                    offenders.append(f"{path}: .{first} {second}")
+
+        self.assertEqual(offenders, [], f"Invalid dotted property access: {offenders}")
+
+    def test_no_known_mangled_tickers(self):
+        """Sector/ETF tickers must be plain ASCII symbols."""
+        offenders = []
+        for path in sorted(p.name for p in WEB_DIR.glob("*.html")):
+            html = (WEB_DIR / path).read_text(encoding="utf-8")
+            for match in re.finditer(r"ticker:\s*'([^']*)'", html):
+                ticker = match.group(1)
+                if not ticker:
+                    continue
+                if not ticker.isascii() or not ticker.isalnum():
+                    offenders.append(f"{path}: ticker '{ticker}'")
+
+        self.assertEqual(offenders, [], f"Mangled ticker values: {offenders}")
+
+    def test_every_page_with_inline_script_has_balanced_braces(self):
+        """Inline scripts must have balanced braces, brackets and parens."""
+        problems = []
+        for path in sorted(p.name for p in WEB_DIR.glob("*.html")):
+            for index, block in enumerate(self._inline_script_blocks(path)):
+                cleaned = _strip_js_noise(block)
+                for opener, closer, label in [
+                    ("{", "}", "braces"),
+                    ("[", "]", "brackets"),
+                    ("(", ")", "parentheses"),
+                ]:
+                    if cleaned.count(opener) != cleaned.count(closer):
+                        problems.append(f"{path} block {index}: unbalanced {label}")
+
+        self.assertEqual(problems, [], "\n".join(problems))
 
 
 if __name__ == "__main__":

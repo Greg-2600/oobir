@@ -132,6 +132,7 @@
             <a href="optimizer.html">Optimizer</a>
             <a href="correlation-matrix.html">Corr Matrix</a>
             <a href="volatility.html">Volatility</a>
+            <a href="dashboard.html">Briefing</a>
         </nav>
 
         <div class="sr-content">
@@ -202,7 +203,7 @@
         { ticker: 'XLRE', name: 'Real Estate', color: '#84cc16' },
         { ticker: 'XLU', name: 'Utilities', color: '#14b8a6' },
         { ticker: 'XLB', name: 'Materials', color: '#a78bfa' },
-        { ticker: 'XL通信', name: 'Comm. Services', color: '#f43f5e' },
+        { ticker: 'XLC', name: 'Comm. Services', color: '#f43f5e' },
     ];
 
     // Simulated relative performance data — in production this would come from an API
@@ -234,8 +235,10 @@
     }
 
     function fmt(v) {
-        const cls = v > 0 ? 'up' : v < 0 ? 'down' : '';
-        return `<span class="change-cell ${cls}">${v > 0 ? '+' : ''}${v.toFixed(1)}%</span>`;
+        const n = typeof v === 'number' && isFinite(v) ? v : null;
+        const cls = n > 0 ? 'up' : n < 0 ? 'down' : '';
+        if (n === null) return '<span class="change-cell">—</span>';
+        return `<span class="change-cell ${cls}">${n > 0 ? '+' : ''}${n.toFixed(1)}%</span>`;
     }
 
     function getHeatmapColor(val) {

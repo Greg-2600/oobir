@@ -52,6 +52,14 @@ class TestIndexPageContracts(unittest.TestCase):
         self.assertIn('class="market-radar-section"', html)
         self.assertIn('id="market-radar-grid"', html)
 
+    def test_landing_page_has_market_briefing_promo(self):
+        """Landing page should feature the Market Briefing dashboard."""
+        html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+
+        self.assertIn('class="briefing-promo"', html)
+        self.assertIn('href="dashboard.html"', html)
+        self.assertIn("Market Briefing", html)
+
 
 class TestAppJsContracts(unittest.TestCase):
     """Ensure app.js includes UX behavior we rely on."""
@@ -159,16 +167,36 @@ ALL_NAV_PAGES = [
     "crypto.html",
     "metals.html",
     "commodities.html",
+    "dashboard.html",
 ]
+
+
+def _has_class(html: str, class_name: str) -> bool:
+    """Return True when an element carries ``class_name`` among its classes.
+
+    Matching the class *token* rather than the whole attribute string lets
+    pages add their own modifier classes (e.g. ``class="app-header
+    db-topbar"``) while still honouring the shared header contract.
+    """
+    for match in re.finditer(r'class="([^"]*)"', html):
+        if class_name in match.group(1).split():
+            return True
+    return False
 
 
 def _assert_shared_header(test_case: unittest.TestCase, html: str) -> None:
     """Assert canonical app-header structure is present."""
-    test_case.assertIn('class="app-header"', html)
-    test_case.assertIn('class="app-header-content"', html)
-    test_case.assertIn('class="app-header-left"', html)
-    test_case.assertIn('class="app-brand', html)
-    test_case.assertIn('class="app-nav"', html)
+    test_case.assertTrue(
+        _has_class(html, "app-header"), "canonical app-header class missing"
+    )
+    test_case.assertTrue(
+        _has_class(html, "app-header-content"), "canonical app-header-content missing"
+    )
+    test_case.assertTrue(
+        _has_class(html, "app-header-left"), "canonical app-header-left missing"
+    )
+    test_case.assertTrue(_has_class(html, "app-brand"), "canonical app-brand missing")
+    test_case.assertTrue(_has_class(html, "app-nav"), "canonical app-nav missing")
     for href in ALL_NAV_PAGES:
         test_case.assertIn(f'href="{href}"', html)
 
@@ -209,6 +237,10 @@ class TestNavConsistency(unittest.TestCase):
     def test_commodities_nav(self):
         """commodities.html nav is consistent."""
         self._check_page("commodities.html")
+
+    def test_dashboard_nav(self):
+        """dashboard.html nav is consistent."""
+        self._check_page("dashboard.html")
 
 
 class TestCryptoPageContracts(unittest.TestCase):

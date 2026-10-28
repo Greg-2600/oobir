@@ -123,6 +123,7 @@
             <a href="optimizer.html">Optimizer</a>
             <a href="correlation-matrix.html">Corr Matrix</a>
             <a href="volatility.html">Volatility</a>
+            <a href="dashboard.html">Briefing</a>
         </nav>
 
         <div class="ec-content">
@@ -305,8 +306,8 @@
                 return;
             }
             const rows = data.earnings_dates.map(row => {
-                const date = new Date(row.date || row.Earnings Date || Object.values(row)[0]);
-                const isConfirmed = row.Reported EPS !== null && row.Reported EPS !== undefined;
+                const date = new Date(row.date || row["Earnings Date"] || Object.values(row)[0]);
+                const isConfirmed = row['Reported EPS'] !== null && row['Reported EPS'] !== undefined;
                 const surprise = row['Surprise(%)'] !== undefined ? row['Surprise(%)'] : null;
                 return `<tr>
                     <td class="ticker-cell" onclick="location.href='index.html?symbol=${ticker}'">${ticker}</td>

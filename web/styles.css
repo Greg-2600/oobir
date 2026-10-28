@@ -328,6 +328,106 @@ input:focus-visible {
     margin-bottom: 32px;
 }
 
+/* ── Market Briefing promo banner ── */
+.briefing-promo {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 28px;
+    padding: 14px 18px;
+    border: 1px solid #3b82f6;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.10), rgba(59, 130, 246, 0.03));
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.briefing-promo:hover {
+    transform: translateY(-1px);
+    border-color: #2563eb;
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.18);
+}
+
+.briefing-promo-icon {
+    font-size: 1.8em;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.briefing-promo-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.briefing-promo-title {
+    font-size: 1em;
+    font-weight: 700;
+    color: #1f2937;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.briefing-promo-badge {
+    font-size: 0.65em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: #3b82f6;
+    color: #ffffff;
+}
+
+.briefing-promo-sub {
+    margin: 3px 0 0;
+    color: #6b7280;
+    font-size: 0.8em;
+}
+
+.briefing-promo-cta {
+    font-size: 0.82em;
+    font-weight: 700;
+    color: #2563eb;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+[data-theme="dark"] .briefing-promo {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.16), rgba(59, 130, 246, 0.05));
+    border-color: #1f6feb;
+}
+
+[data-theme="dark"] .briefing-promo:hover {
+    border-color: #388bfd;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="dark"] .briefing-promo-title {
+    color: #e8eaed;
+}
+
+[data-theme="dark"] .briefing-promo-sub {
+    color: #9aa0a6;
+}
+
+[data-theme="dark"] .briefing-promo-cta {
+    color: #58a6ff;
+}
+
+@media (max-width: 640px) {
+    .briefing-promo {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .briefing-promo-cta {
+        width: 100%;
+    }
+}
+
 .market-radar-header {
     margin-bottom: 16px;
 }

@@ -27,7 +27,33 @@ The Market Briefing collapses that into one screen:
 
 ---
 
-## 2. Layout
+## 2. Where to find it
+
+A dashboard nobody can find is worthless, so it is surfaced from three places:
+
+| Entry point | What you see |
+|---|---|
+| **Header nav** on all 26 pages | A `Briefing` link, last in the primary nav |
+| **Stock Screen** (`index.html`) | A promo banner above the Market Radar, with a "Refreshes hourly" badge |
+| **Search** (`search.html`) | A "Market Briefing" quick-link pill |
+| **Direct URL** | `/dashboard.html` |
+
+The dashboard also honours the shared `app-header` contract, so it inherits the
+app's branding, nav and theme toggle rather than looking like a bolted-on
+tool. Its compact styling is applied as dashboard-scoped overrides:
+
+```css
+/* Canonical classes, dashboard-specific sizing */
+.db-topbar .app-header-content {
+    max-width: none;
+    padding: 0 12px;
+    height: 38px;   /* the shared header is 60px+ — this page needs the room */
+}
+```
+
+---
+
+## 3. Layout
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -52,7 +78,7 @@ instead of clipping.
 
 ---
 
-## 3. The nine cards
+## 4. The nine cards
 
 | Card | Source | Notes |
 |---|---|---|
@@ -67,7 +93,7 @@ instead of clipping.
 
 ---
 
-## 4. Company names
+## 5. Company names
 
 Ticker codes alone are hard to scan, so every ticker is paired with its full
 company name.
@@ -97,7 +123,7 @@ The four index ETFs are not equities, so they carry static fund names:
 
 ---
 
-## 5. Tooltips
+## 6. Tooltips
 
 A single floating tooltip element (`#oobir-tip`) follows the cursor and is
 driven by data attributes, so any element can opt in:
@@ -121,7 +147,7 @@ cursor when there is no room above.
 
 ---
 
-## 6. Loading states
+## 7. Loading states
 
 Every card starts in a loading state and swaps to content when its own
 request settles:
@@ -156,7 +182,7 @@ refresh shows progress in every card rather than leaving stale data on screen.
 
 ---
 
-## 7. Refresh behaviour
+## 8. Refresh behaviour
 
 ```js
 refreshAll();
@@ -168,7 +194,7 @@ timestamp next to it shows when the last successful refresh completed.
 
 ---
 
-## 8. API base URL
+## 9. API base URL
 
 The dashboard resolves the API from the serving origin:
 
@@ -182,7 +208,7 @@ the nginx reverse proxy, or on any other host — requests go to
 
 ---
 
-## 9. Caching headers
+## 10. Caching headers
 
 `web/nginx.conf` marks live dashboards as uncacheable so browsers never serve
 a stale copy of the HTML:
@@ -198,9 +224,9 @@ location ~* ^/(dashboard|news-timeline|predictions|portfolio|watchlist|money-flo
 
 ---
 
-## 10. Testing
+## 11. Testing
 
-`tests/test_dashboard_ui.py` holds 31 static contract tests — no browser or
+`tests/test_dashboard_ui.py` holds 43 static contract tests — no browser or
 network required.
 
 | Group | Covers |
@@ -212,6 +238,31 @@ network required.
 | `TestDashboardRefreshBehaviour` | Hourly interval, instant sections render before the await, manual refresh, theme toggle |
 | `TestDashboardScriptValidity` | No duplicate declarations in the same scope, balanced braces, helpers defined |
 | `TestDashboardApiContract` | Every endpoint the page calls exists in `flow_api.py` |
+| `TestDashboardDiscovery` | Nav link on every page, link position, active state, landing-page promo, search quick link |
+| `TestPageScriptValidity` | Every page's inline script: no multi-word dotted property access, no mangled tickers, balanced braces |
+
+### The discoverability guard
+
+`TestDashboardDiscovery` walks every HTML page in `web/` and asserts each one
+renders a link to the dashboard in its primary nav. A new page added without
+the link fails the test rather than silently orphaning the dashboard:
+
+```python
+def test_every_page_nav_links_to_dashboard(self):
+    missing = []
+    for name in self._nav_pages():
+        html = (WEB_DIR / name).read_text(encoding="utf-8")
+        nav = re.search(r'<nav class="app-nav".*?</nav>', html, flags=re.S)
+        if not nav:
+            continue
+        if 'href="dashboard.html"' not in nav.group(0):
+            missing.append(name)
+
+    self.assertEqual(missing, [], f"Pages without a dashboard nav link: {missing}")
+```
+
+It also checks that only the dashboard itself marks the link `active`, so a
+copy-paste error cannot leave two pages claiming to be the briefing.
 
 ### The duplicate-declaration guard
 
@@ -248,7 +299,7 @@ pytest tests/test_dashboard_ui.py -v
 
 ---
 
-## 11. Limitations
+## 12. Limitations
 
 - **Futures, earnings and macro events are curated static data.** There is no
   live futures feed or economic-calendar API wired in yet; the values are
