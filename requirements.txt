@@ -14,7 +14,7 @@ python-dateutil>=2.9.0
 pytz>=2025.0
 
 # AI/LLM integration
-ollama>=0.6.0
+ollama>=0.6.3
 
 # Web framework and server
 fastapi>=0.128.0
