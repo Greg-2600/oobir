@@ -13,7 +13,7 @@
     "build:dev": "npm run build:js:dev && npm run build:predictions:dev"
   },
   "devDependencies": {
-    "esbuild": "^0.24.0",
+    "esbuild": "^0.28.2",
     "eslint": "^9.28.0",
     "globals": "^15.13.0"
   }
