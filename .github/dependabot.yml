@@ -1,0 +1,50 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "03:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - Greg-2600
+    labels:
+      - dependencies
+      - python
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - Greg-2600
+    labels:
+      - dependencies
+      - javascript
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "05:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - Greg-2600
+    labels:
+      - dependencies
+      - docker
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - Greg-2600
+    labels:
+      - dependencies
+      - github-actions
