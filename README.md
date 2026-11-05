@@ -1571,6 +1571,8 @@ pytest tests/test_data_endpoints.py -v
 
 See LICENSE file for details.
 
+Cite this software using [CITATION.cff](CITATION.cff).
+
 ## Support & Contributing
 
 For issues, questions, or contributions:
