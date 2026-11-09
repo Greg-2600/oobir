@@ -6,7 +6,7 @@ pandas>=3.0.0
 numpy>=2.4.0
 
 # Machine learning (prediction models and backtesting)
-scikit-learn>=1.4.0
+scikit-learn>=1.9.1
 
 # HTTP requests and utilities
 requests>=2.32.0
