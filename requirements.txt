@@ -30,7 +30,7 @@ pybreaker>=1.0.2
 
 # Database
 psycopg2-binary>=2.9.9
-peewee>=3.19.0
+peewee>=4.5.3
 
 # Utilities
 beautifulsoup4>=4.14.0
