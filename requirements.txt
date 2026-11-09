@@ -26,7 +26,7 @@ starlette>=0.50.0
 slowapi>=0.1.9
 
 # Circuit breaker
-pybreaker>=1.0.2
+pybreaker>=1.4.1
 
 # Database
 psycopg2-binary>=2.9.9
