@@ -20,7 +20,7 @@ ollama>=0.6.3
 fastapi>=0.128.0
 uvicorn>=0.54.0
 pydantic>=2.12.0
-starlette>=0.50.0
+starlette>=1.10.0
 
 # Rate limiting
 slowapi>=0.1.9
