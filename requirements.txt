@@ -29,7 +29,7 @@ slowapi>=0.1.9
 pybreaker>=1.4.1
 
 # Database
-psycopg2-binary>=2.9.9
+psycopg2-binary>=2.9.13
 peewee>=4.5.3
 
 # Utilities
