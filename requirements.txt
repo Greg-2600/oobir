@@ -3,7 +3,7 @@ yfinance>=1.1.0
 
 # Data processing and numerical computing
 pandas>=3.0.0
-numpy>=2.4.0
+numpy>=2.5.4
 
 # Machine learning (prediction models and backtesting)
 scikit-learn>=1.9.1
