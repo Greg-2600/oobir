@@ -1,5 +1,5 @@
 # Stock market data
-yfinance>=1.1.0
+yfinance>=1.8.0
 
 # Data processing and numerical computing
 pandas>=3.0.0
