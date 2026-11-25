@@ -1,5 +1,5 @@
 # Testing
-pytest>=7.4.0
+pytest>=9.2.0
 
 # Code quality - Linting and formatting
 pylint>=4.1.3
