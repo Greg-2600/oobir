@@ -215,6 +215,7 @@ class Predictor:
     def save(self, path: str | None = None) -> str:
         path = path or default_model_path()
         os.makedirs(os.path.dirname(path), exist_ok=True)
+        os.makedirs(config.MODEL_DIR, exist_ok=True)
         artifact = {
             "estimator": self.estimator,
             "feature_names": self.feature_names,
