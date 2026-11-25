@@ -1,8 +1,10 @@
 """Tests for /api/stock-snapshot and /api/screen-undervalued endpoints."""
 
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+
 from fastapi.testclient import TestClient
+
 import flow_api
 
 
@@ -163,15 +165,13 @@ class TestStockSnapshotEndpoint(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
 
     def test_snapshot_symbol_uppercased(self):
-        with patch("flow_api.get_fundamentals_payload") as mock_fund, patch(
-            "flow_api.get_price_history_payload"
-        ) as mock_price, patch(
-            "flow_api.get_related_stocks_payload"
-        ) as mock_related, patch(
-            "flow_api.get_decision_engine_payload"
-        ) as mock_decision, patch(
-            "flow_api.with_cache"
-        ) as mock_cache:
+        with (
+            patch("flow_api.get_fundamentals_payload") as mock_fund,
+            patch("flow_api.get_price_history_payload") as mock_price,
+            patch("flow_api.get_related_stocks_payload") as mock_related,
+            patch("flow_api.get_decision_engine_payload") as mock_decision,
+            patch("flow_api.with_cache") as mock_cache,
+        ):
             mock_fund.return_value = {"ticker": "AAPL"}
             mock_price.return_value = {"data": []}
             mock_related.return_value = []
@@ -282,7 +282,7 @@ class TestDecisionEnginePayload(unittest.TestCase):
         for i in range(60):
             price_data.append(
                 {
-                    "Date": f"2024-01-{i+1:02d}",
+                    "Date": f"2024-01-{i + 1:02d}",
                     "Close": 100.0 + i * 2,
                     "Open": 99.0 + i * 2,
                     "High": 102.0 + i * 2,

@@ -55,7 +55,7 @@ tool. Its compact styling is applied as dashboard-scoped overrides:
 
 ## 3. Layout
 
-```
+```text
 ┌──────────────────────────────────────────────────────────────────────┐
 │ SPY        QQQ        DIA        IWM          ← index snapshot        │
 │ name       name       name       name                                │

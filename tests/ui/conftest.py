@@ -36,9 +36,8 @@ else:
                 or shutil.which("chromium-browser")
             ):
                 _available.append("chrome")
-        elif b == "firefox":
-            if shutil.which("firefox"):
-                _available.append("firefox")
+        elif b == "firefox" and shutil.which("firefox"):
+            _available.append("firefox")
 
 if not _available:
     pytest.skip(

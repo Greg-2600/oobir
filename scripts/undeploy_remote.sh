@@ -30,7 +30,7 @@ fi
 echo "Remote working path: ${REMOTE_PATH_REMOTE}"
 
 # Execute cleanup on remote host
-ssh ${REMOTE} bash -s -- "${REMOTE_PATH_REMOTE}" <<'ENDSSH'
+ssh "${REMOTE}" bash -s -- "${REMOTE_PATH_REMOTE}" <<'ENDSSH'
 set -euo pipefail
 
 REMOTE_PATH="$1"

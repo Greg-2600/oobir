@@ -1,0 +1,8 @@
+# Extend the default rule set and allow only the documented test fixture key.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Test fixture API key used by unit and UI tests"
+regexTarget = "secret"
+regexes = ['''test-api-key-12345''']

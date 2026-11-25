@@ -235,7 +235,7 @@ class TestWebUIDataEndpoints(unittest.TestCase):
         for i in range(30):  # Provide 30 days for reliable RSI
             price_data.append(
                 {
-                    "Date": f"2024-01-{i+1:02d}",
+                    "Date": f"2024-01-{i + 1:02d}",
                     "Open": 150.0 + i,
                     "High": 152.0 + i,
                     "Low": 149.0 + i,
@@ -420,7 +420,9 @@ class TestTrendPredictionFeature(unittest.TestCase):
             close = base_price + (i * 0.5)
             price_data.append(
                 {
-                    "Date": f"2024-01-{i+1:02d}" if i < 31 else f"2024-02-{i-30:02d}",
+                    "Date": f"2024-01-{i + 1:02d}"
+                    if i < 31
+                    else f"2024-02-{i - 30:02d}",
                     "Open": close - 0.5,
                     "High": close + 1.0,
                     "Low": close - 1.0,

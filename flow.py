@@ -589,7 +589,8 @@ def get_money_flow_stocks(period="day", direction="in", limit=25):
                     "exchange": quote.get("exchange", ""),
                     "quoteType": quote.get("quoteType", "EQUITY"),
                 }
-            except Exception:
+            # Skip tickers whose upstream data is incomplete.
+            except Exception:  # nosec B112
                 continue
 
         results = list(ticker_data.values())
@@ -932,9 +933,7 @@ def get_ai_balance_sheet_analysis(ticker):
             ],
         )
 
-        balance_sheet_analysis = getattr(
-            response, "message", response
-        ).content  # pylint: disable=no-member
+        balance_sheet_analysis = getattr(response, "message", response).content  # pylint: disable=no-member
         return _coerce_balance_sheet_response(summary_metrics, balance_sheet_analysis)
 
     except Exception as exc:  # pylint: disable=broad-except
@@ -1045,9 +1044,7 @@ def get_ai_fundamental_analysis(ticker):
             messages=messages,
         )
 
-        fundamental_analysis = getattr(
-            response, "message", response
-        ).content  # pylint: disable=no-member
+        fundamental_analysis = getattr(response, "message", response).content  # pylint: disable=no-member
         return fundamental_analysis
 
     except Exception as exc:  # pylint: disable=broad-except
@@ -1400,7 +1397,8 @@ def _compute_technical_indicators(price_df):
             else None
         )
 
-    except Exception:
+    # Indicators are best effort; missing inputs should not fail analysis.
+    except Exception:  # nosec B110
         pass
 
     return indicators
@@ -1575,9 +1573,7 @@ def get_ai_technical_analysis(ticker):
             ],
         )
 
-        technical_analysis = getattr(
-            response, "message", response
-        ).content  # pylint: disable=no-member
+        technical_analysis = getattr(response, "message", response).content  # pylint: disable=no-member
         return technical_analysis
 
     except Exception as exc:  # pylint: disable=broad-except
@@ -1608,9 +1604,7 @@ def get_ai_action_recommendation(ticker):
             ],
         )
 
-        action_analysis = getattr(
-            response, "message", response
-        ).content  # pylint: disable=no-member
+        action_analysis = getattr(response, "message", response).content  # pylint: disable=no-member
         return action_analysis
     except Exception as exc:  # pylint: disable=broad-except
         print(f"An error occurred while performing AI action recommendation: {exc}")
@@ -1771,9 +1765,7 @@ def get_ai_full_report(ticker):
             ],
         )
 
-        full_report = getattr(
-            response, "message", response
-        ).content  # pylint: disable=no-member
+        full_report = getattr(response, "message", response).content  # pylint: disable=no-member
         return full_report
 
     except Exception as exc:  # pylint: disable=broad-except

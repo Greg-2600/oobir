@@ -30,10 +30,9 @@ RETRY_DELAY = 2  # wait 2 seconds between retries
 def pick_base_url(cli_url: str | None) -> str:
     """Return a reachable base URL, preferring CLI arg, else defaults."""
     # If user provided a URL, try it first
-    if cli_url:
-        if is_reachable(cli_url):
-            return cli_url
-        # fall through to defaults if not reachable
+    if cli_url and is_reachable(cli_url):
+        return cli_url
+    # fall through to defaults if not reachable
 
     # Try known defaults
     for candidate in DEFAULT_URLS:
@@ -59,7 +58,7 @@ def get_undervalued_tickers(base_url: str) -> list:
     r.raise_for_status()
     data = r.json()
     if not isinstance(data, list):
-        raise RuntimeError(f"Unexpected response for screen-undervalued: {data!r}")
+        raise TypeError(f"Unexpected response for screen-undervalued: {data!r}")
     return data
 
 
@@ -96,9 +95,9 @@ def get_technical_analysis(base_url: str, ticker: str) -> str:
                 )
                 time.sleep(RETRY_DELAY)
             else:
-                raise Exception(f"Timeout after {MAX_RETRIES} attempts: {exc}") from exc
-        except Exception as exc:
-            raise exc
+                raise RuntimeError(
+                    f"Timeout after {MAX_RETRIES} attempts: {exc}"
+                ) from exc
 
 
 def main(argv: list[str]) -> int:

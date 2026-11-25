@@ -12,7 +12,7 @@ import os
 import uuid
 from contextlib import asynccontextmanager
 from datetime import date, datetime
-from typing import Any
+from typing import Annotated, Any
 
 import numpy as np
 import pandas as pd
@@ -1301,7 +1301,7 @@ def predict_backtest(symbol: str, horizon: int | None = None):
 
 
 @app.get("/api/predict/{symbol}/explore")
-def predict_explore(symbol: str, params: ExploreParams = Depends()):
+def predict_explore(symbol: str, params: Annotated[ExploreParams, Depends()]):
     """Run an interactive model-lab experiment for a symbol from UI knobs.
 
     Trains a fresh model for the requested configuration and returns the live
@@ -2306,11 +2306,10 @@ def export_fundamentals(request: Request, symbol: str, format: str = "csv"):
         writer = csv.DictWriter(output, fieldnames=data.keys())
         writer.writeheader()
         writer.writerow(data)
-    elif isinstance(data, list):
-        if data and isinstance(data[0], dict):
-            writer = csv.DictWriter(output, fieldnames=data[0].keys())
-            writer.writeheader()
-            writer.writerows(data)
+    elif isinstance(data, list) and data and isinstance(data[0], dict):
+        writer = csv.DictWriter(output, fieldnames=data[0].keys())
+        writer.writeheader()
+        writer.writerows(data)
 
     output.seek(0)
     return StreamingResponse(
@@ -2351,11 +2350,10 @@ def export_price_history(request: Request, symbol: str, format: str = "csv"):
             writer = csv.DictWriter(output, fieldnames=rows[0].keys())
             writer.writeheader()
             writer.writerows(rows)
-    elif isinstance(data, list):
-        if data and isinstance(data[0], dict):
-            writer = csv.DictWriter(output, fieldnames=data[0].keys())
-            writer.writeheader()
-            writer.writerows(data)
+    elif isinstance(data, list) and data and isinstance(data[0], dict):
+        writer = csv.DictWriter(output, fieldnames=data[0].keys())
+        writer.writeheader()
+        writer.writerows(data)
 
     output.seek(0)
     return StreamingResponse(

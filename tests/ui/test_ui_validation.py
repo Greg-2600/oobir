@@ -18,7 +18,6 @@ class TestLandingPageStyling:
     def test_page_has_correct_background_color(self, browser, base_url):
         """Page background should be light gray (#f8fafc), not gradient."""
         browser.get(base_url)
-        wait = WebDriverWait(browser, 15)
 
         bg_color = browser.execute_script(
             "return window.getComputedStyle(document.querySelector('.unified-page')).backgroundColor;"
@@ -28,14 +27,13 @@ class TestLandingPageStyling:
             parts = bg_color.replace("rgb(", "").replace(")", "").split(",")
             bg_color = rgb_to_hex(int(parts[0]), int(parts[1]), int(parts[2]))
 
-        assert (
-            "f8fafc" in bg_color.lower() or "rgb(248, 250, 252)" in bg_color
-        ), f"Expected light gray background, got: {bg_color}"
+        assert "f8fafc" in bg_color.lower() or "rgb(248, 250, 252)" in bg_color, (
+            f"Expected light gray background, got: {bg_color}"
+        )
 
     def test_header_is_white_with_border(self, browser, base_url):
         """Header should be white with bottom border."""
         browser.get(base_url)
-        wait = WebDriverWait(browser, 15)
 
         header_bg = browser.execute_script(
             "return window.getComputedStyle(document.querySelector('.unified-header')).backgroundColor;"
@@ -58,9 +56,9 @@ class TestLandingPageStyling:
         header_border = rgb_to_hex(header_border)
 
         assert "ffffff" in header_bg.lower(), f"Expected white header, got: {header_bg}"
-        assert (
-            "e5e7eb" in header_border.lower()
-        ), f"Expected light border, got: {header_border}"
+        assert "e5e7eb" in header_border.lower(), (
+            f"Expected light border, got: {header_border}"
+        )
 
     def test_logo_has_correct_styling(self, browser, base_url):
         """Logo should have bold blue styling with red accent."""
@@ -140,15 +138,14 @@ class TestLandingPageStyling:
     def test_no_radial_gradients_on_body(self, browser, base_url):
         """Body should NOT have radial gradients (old yellow style)."""
         browser.get(base_url)
-        wait = WebDriverWait(browser, 15)
 
         body_bg = browser.execute_script(
             "return window.getComputedStyle(document.body).backgroundImage;"
         )
 
-        assert (
-            "radial-gradient" not in body_bg.lower()
-        ), f"Found radial gradient on body - old style not removed: {body_bg[:100]}"
+        assert "radial-gradient" not in body_bg.lower(), (
+            f"Found radial gradient on body - old style not removed: {body_bg[:100]}"
+        )
 
 
 class TestStockDetailPage:
@@ -168,8 +165,10 @@ class TestStockDetailPage:
         wait = WebDriverWait(browser, 30)
 
         wait.until(
-            lambda d: "hidden"
-            not in d.find_element(By.ID, "results-container").get_attribute("class")
+            lambda d: (
+                "hidden"
+                not in d.find_element(By.ID, "results-container").get_attribute("class")
+            )
         )
 
         fundamentals = wait.until(

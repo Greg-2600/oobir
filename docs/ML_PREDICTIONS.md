@@ -15,7 +15,7 @@ Lab**, and the design decisions behind them.
 For a ticker and a horizon `h` (trading days), the model predicts the direction
 of the forward return:
 
-```
+```text
 forward_return(t) = Close[t + h] / Close[t] - 1
 ```
 
@@ -30,7 +30,7 @@ Raising `margin` introduces a FLAT dead-band around zero.
 
 ## 2. Package layout
 
-```
+```text
 ml/
 ├── __init__.py      # package exports
 ├── config.py        # env-overridable defaults (OOOBIR_ML_*)
@@ -129,6 +129,7 @@ them).
 3. Roll forward and repeat for `folds` iterations.
 
 Metrics reported:
+
 - `accuracy`, `balanced_accuracy`, `baseline_accuracy` (majority class)
 - `beats_baseline` (accuracy > baseline)
 - per-class `precision`, `recall`, `f1`

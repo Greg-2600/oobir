@@ -40,9 +40,7 @@ class TestTechnicalIndicators(unittest.TestCase):
 
     def test_calculate_technical_indicators_contains_expected_sections(self):
         df = self._sample_price_df(60)
-        text = flow._calculate_technical_indicators(
-            df
-        )  # pylint: disable=protected-access
+        text = flow._calculate_technical_indicators(df)  # pylint: disable=protected-access
         self.assertIsInstance(text, str)
         self.assertIn("20-day SMA", text)
         self.assertIn("50-day SMA", text)

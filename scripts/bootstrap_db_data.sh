@@ -44,6 +44,7 @@ echo "Batch size: ${BATCH_SIZE}"
 "${COMPOSE_CMD[@]}" exec -T "${POSTGRES_SERVICE}" true
 
 echo "Starting fetch + load pipeline..."
+# shellcheck disable=SC2016  # The remote shell must expand these variables.
 "${COMPOSE_CMD[@]}" exec -T \
   -e TICKER_FILE="${TICKER_FILE}" \
   -e BATCH_SIZE="${BATCH_SIZE}" \

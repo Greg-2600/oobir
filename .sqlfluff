@@ -1,0 +1,9 @@
+[sqlfluff]
+dialect = postgres
+# LT01/LT02 are disabled because the schema files intentionally align column
+# types and continuation clauses for readability.
+exclude_rules = LT01,LT02
+
+[sqlfluff:rules:references.keywords]
+# Existing schema columns use these SQL keywords as identifiers.
+ignore_words = close,date

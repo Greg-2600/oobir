@@ -24,9 +24,8 @@ class TestCacheOperations(unittest.TestCase):
     def setUp(self):
         """Set up test database."""
         # Use in-memory SQLite for tests
-        self.test_db = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
-        self.test_db.close()
-        self.db_path = self.test_db.name
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as test_db:
+            self.db_path = test_db.name
 
         # Patch DB_FILE to use test database
         self.db_patcher = patch.object(db, "DB_FILE", Path(self.db_path))
@@ -140,9 +139,8 @@ class TestMarketAwareCaching(unittest.TestCase):
 
     def setUp(self):
         """Set up test database."""
-        self.test_db = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
-        self.test_db.close()
-        self.db_path = self.test_db.name
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as test_db:
+            self.db_path = test_db.name
 
         self.db_patcher = patch.object(db, "DB_FILE", Path(self.db_path))
         self.db_patcher.start()
@@ -235,9 +233,8 @@ class TestCacheStats(unittest.TestCase):
 
     def setUp(self):
         """Set up test database."""
-        self.test_db = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
-        self.test_db.close()
-        self.db_path = self.test_db.name
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as test_db:
+            self.db_path = test_db.name
 
         self.db_patcher = patch.object(db, "DB_FILE", Path(self.db_path))
         self.db_patcher.start()
@@ -283,9 +280,8 @@ class TestDataSerialization(unittest.TestCase):
 
     def setUp(self):
         """Set up test database."""
-        self.test_db = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
-        self.test_db.close()
-        self.db_path = self.test_db.name
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as test_db:
+            self.db_path = test_db.name
 
         self.db_patcher = patch.object(db, "DB_FILE", Path(self.db_path))
         self.db_patcher.start()

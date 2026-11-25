@@ -785,7 +785,7 @@ class TestConfigEnvOverrides(unittest.TestCase):
 
         orig = os.environ.get("OOOBIR_ML_HORIZON")
         os.environ["OOOBIR_ML_HORIZON"] = "10"
-        cfg.HORIZON_DAYS  # re-evaluated at import time in module; just check it parses
+        self.assertIsInstance(cfg.HORIZON_DAYS, int)
         if orig is None:
             del os.environ["OOOBIR_ML_HORIZON"]
         else:
@@ -796,7 +796,7 @@ class TestConfigValidation(unittest.TestCase):
     """Tests for ml.config constants and validation."""
 
     def test_config_constants_are_integers(self):
-        from ml.config import HORIZON_DAYS, WINDOW, MIN_HISTORY
+        from ml.config import HORIZON_DAYS, MIN_HISTORY, WINDOW
 
         self.assertIsInstance(HORIZON_DAYS, int)
         self.assertIsInstance(WINDOW, int)
@@ -820,7 +820,7 @@ class TestConfigValidation(unittest.TestCase):
         self.assertEqual(MODEL_VERSION, "1.0.0")
 
     def test_config_backtest_params(self):
-        from ml.config import BACKTEST_MIN_TRAIN, BACKTEST_FOLDS, BACKTEST_MAX_TRAIN
+        from ml.config import BACKTEST_FOLDS, BACKTEST_MAX_TRAIN, BACKTEST_MIN_TRAIN
 
         self.assertIsInstance(BACKTEST_MIN_TRAIN, int)
         self.assertIsInstance(BACKTEST_FOLDS, int)
@@ -902,13 +902,15 @@ class TestTrainCLI(unittest.TestCase):
         import ml.train as train_mod
 
         mock_labelled.return_value = pd.DataFrame()
-        with patch.object(
-            train_mod, "_historical_path", return_value="/tmp/nonexistent.json"
+        with (
+            patch.object(
+                train_mod, "_historical_path", return_value="/tmp/nonexistent.json"
+            ),
+            patch("os.path.exists", return_value=True),
+            patch("builtins.open", side_effect=FileNotFoundError()),
+            self.assertRaises(FileNotFoundError),
         ):
-            with patch("os.path.exists", return_value=True):
-                with patch("builtins.open", side_effect=FileNotFoundError()):
-                    with self.assertRaises(FileNotFoundError):
-                        train_mod.predict_ticker("INVALID")
+            train_mod.predict_ticker("INVALID")
 
     def test_cli_train_command_help(self):
         from ml.train import _cli
@@ -1088,13 +1090,13 @@ class TestModelFunctions(unittest.TestCase):
         self.assertIsNotNone(est)
 
     def test_model_specs_have_required_keys(self):
-        for name, spec in model.MODEL_SPECS.items():
+        for spec in model.MODEL_SPECS.values():
             self.assertIn("label", spec)
             self.assertIn("description", spec)
             self.assertIn("factory", spec)
 
     def test_model_specs_factory_returns_estimator(self):
-        for name, spec in model.MODEL_SPECS.items():
+        for spec in model.MODEL_SPECS.values():
             est = spec["factory"]()
             self.assertTrue(hasattr(est, "fit"))
             self.assertTrue(hasattr(est, "predict"))

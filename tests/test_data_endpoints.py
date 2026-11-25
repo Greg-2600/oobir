@@ -989,12 +989,12 @@ class TestDataEndpoints(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("csv", response.json()["detail"])
 
-    def test_export_fundamentals_invalid_format(self):
+    def test_export_fundamentals_invalid_format_simple(self):
         """Test export fundamentals returns 400 for invalid format."""
         response = self.client.get("/api/export/fundamentals/AAPL?format=xml")
         self.assertEqual(response.status_code, 400)
 
-    def test_export_price_history_invalid_format(self):
+    def test_export_price_history_invalid_format_simple(self):
         """Test export price history returns 400 for invalid format."""
         response = self.client.get("/api/export/price-history/AAPL?format=xml")
         self.assertEqual(response.status_code, 400)

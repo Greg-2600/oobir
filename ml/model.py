@@ -222,6 +222,7 @@ class Predictor:
             "meta": self.meta,
         }
         joblib.dump(artifact, path)
+        os.makedirs(os.path.dirname(metadata_path()), exist_ok=True)
         with open(metadata_path(), "w", encoding="utf-8") as fh:
             json.dump(self.meta, fh, indent=2)
         return path
