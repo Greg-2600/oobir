@@ -54,7 +54,7 @@ containing `NaN` are dropped, so a minimum of ~50 rows of history is required
 before any feature is usable.
 
 | Feature | Description |
-|---------|-------------|
+| --------- | ------------- |
 | `ret_1`, `ret_5`, `ret_10` | Close-to-close returns over 1/5/10 days |
 | `log_ret_1` | 1-day log return |
 | `volatility_10`, `volatility_20` | Rolling std of log returns |
@@ -71,7 +71,7 @@ before any feature is usable.
 Features are grouped so the lab can toggle whole signal families:
 
 | Group | Count | Members |
-|-------|-------|---------|
+| ------- | ------- | --------- |
 | `returns` | 4 | `ret_1`, `ret_5`, `ret_10`, `log_ret_1` |
 | `volatility` | 3 | `volatility_10`, `volatility_20`, `return_std_10` |
 | `volume` | 1 | `volume_zscore_20` |
@@ -91,7 +91,7 @@ order, de-duplicated. An empty selection resolves to all features.
 description, and an estimator factory:
 
 | Key | Estimator | Notes |
-|-----|-----------|-------|
+| ----- | ----------- | ------- |
 | `hist_gbm` | `HistGradientBoostingClassifier` | Default workhorse; native missing-value handling |
 | `random_forest` | `RandomForestClassifier` | Bagged trees; robust, slower |
 | `extra_trees` | `ExtraTreesClassifier` | Randomized splits; fast, high-variance |
@@ -157,7 +157,7 @@ accuracy.
 ### Knob bounds
 
 | Knob | Param | Min | Max | Default |
-|------|-------|-----|-----|---------|
+| ------ | ------- | ----- | ----- | --------- |
 | Model | `model_name` | — | — | `hist_gbm` |
 | Horizon | `horizon` | 1 | 60 | `5` |
 | Margin | `margin` | 0.0 | 0.10 | `0.0` |
@@ -172,7 +172,7 @@ resolve to all groups.
 ## 7. API reference
 
 | Method | Path | Purpose |
-|--------|------|---------|
+| -------- | ------ | --------- |
 | `GET` | `/api/ml/options` | Models, feature groups, defaults, and bounds |
 | `GET` | `/api/predict/{symbol}?horizon=5` | Cached-model directional forecast |
 | `GET` | `/api/predict/{symbol}/backtest?horizon=5` | Cached walk-forward backtest |
@@ -212,7 +212,7 @@ Example response (abridged):
 ### Status codes
 
 | Code | Meaning |
-|------|---------|
+| ------ | --------- |
 | `200` | Success |
 | `422` | Insufficient history (< `OOOBIR_ML_MIN_HISTORY` rows) or no labelled rows |
 | `503` | Cached model not trained (only for `/predict`, `/backtest`, `/features`) |
@@ -252,7 +252,7 @@ All settings are environment-overridable via the `OOOBIR_ML_*` prefix (see
 `ml/config.py`):
 
 | Variable | Default | Purpose |
-|----------|---------|---------|
+| ---------- | --------- | --------- |
 | `OOOBIR_ML_HORIZON` | `5` | Default forecast horizon (days) |
 | `OOOBIR_ML_MARGIN` | `0.0` | FLAT dead-band |
 | `OOOBIR_ML_WINDOW` | `250` | Trailing feature window |

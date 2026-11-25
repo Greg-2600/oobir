@@ -40,7 +40,7 @@
 ### Technology Stack
 
 | Layer | Technology | Purpose |
-|-------|-----------|---------|
+| ------- | ----------- | --------- |
 | **Backend** | Python 3.11+ | Core business logic and data processing |
 | **REST API** | FastAPI | High-performance async API endpoints |
 | **AI/LLM** | Ollama (Llama 3.2) | Local, privacy-preserving AI analysis |
@@ -401,7 +401,7 @@ The dashboard needs no API key configuration of its own: it calls the same-origi
 #### Where to find it
 
 | Entry point | What you see |
-|---|---|
+| --- | --- |
 | **Header nav** on every page | A `Briefing` link, last in the primary nav |
 | **Stock Screen** (`index.html`) | A promo banner above the Market Radar, with a "Refreshes hourly" badge |
 | **Search** (`search.html`) | A "Market Briefing" quick-link pill |
@@ -510,7 +510,7 @@ Tuesday 9:31 AM → Market opens: cache expires (old data from before open)
 #### Cache Features
 
 | Feature | Details |
-|---------|---------|
+| --------- | --------- |
 | **Storage** | SQLite database (`cache.db`, auto-initialized) |
 | **Endpoints** | All data endpoints leverage caching automatically |
 | **Statistics** | Track hits, misses, and memory usage via API |
@@ -992,7 +992,7 @@ Caching applies to both data endpoints and AI endpoints. AI caching includes an 
 The dashboard (`web/dashboard.html`) is built entirely on the existing API — no bespoke endpoint is required:
 
 | Endpoint | Used for |
-|---|---|
+| --- | --- |
 | `GET /api/price-history/{symbol}?days=2` | Index snapshot and top movers |
 | `GET /api/fundamentals-db?limit=500` | Company names in one bulk call |
 | `GET /api/fundamentals/{symbol}` | Fallback name lookup for tickers outside the bulk list |
@@ -1027,7 +1027,7 @@ OOBIR ships a scikit-learn **price-direction model** plus an interactive **AI Pr
 ### How it works
 
 | Stage | Module | What it does |
-|-------|--------|--------------|
+| ------- | -------- | -------------- |
 | Features | `ml/features.py` | Builds 17 trailing technical features (returns, volatility, volume, SMA gaps, RSI, Bollinger %B, MACD). All windows end at row `t`, so there is **no look-ahead leakage**. |
 | Labels | `ml/labels.py` | Labels each row by the sign of `Close[t+h] / Close[t] - 1`; returns inside a symmetric `margin` band become FLAT. |
 | Models | `ml/model.py` | Selectable estimator families with versioned `.joblib` persistence and permutation-importance feature drivers. |
@@ -1039,7 +1039,7 @@ OOBIR ships a scikit-learn **price-direction model** plus an interactive **AI Pr
 The 17 features are organised into toggleable families so you can isolate signal:
 
 | Group | Features | Count |
-|-------|----------|-------|
+| ------- | ---------- | ------- |
 | `returns` | `ret_1`, `ret_5`, `ret_10`, `log_ret_1` | 4 |
 | `volatility` | `volatility_10`, `volatility_20`, `return_std_10` | 3 |
 | `volume` | `volume_zscore_20` | 1 |
@@ -1051,7 +1051,7 @@ The 17 features are organised into toggleable families so you can isolate signal
 ### Model families
 
 | Key | Label | Notes |
-|-----|-------|-------|
+| ----- | ------- | ------- |
 | `hist_gbm` | Hist Gradient Boosting | Default workhorse; fast, handles missing values natively. |
 | `random_forest` | Random Forest | Bagged trees; robust, slower to fit. |
 | `extra_trees` | Extra Trees | Randomized splits; fast and high-variance. |
@@ -1081,7 +1081,7 @@ Artifacts are written to `models/` (gitignored). If `/api/predict/{symbol}` repo
 Key knobs can be set via environment variables (defaults in `ml/config.py`):
 
 | Variable | Default | Purpose |
-|----------|---------|---------|
+| ---------- | --------- | --------- |
 | `OOOBIR_ML_HORIZON` | `5` | Forward-return horizon in trading days |
 | `OOOBIR_ML_MARGIN` | `0.0` | Symmetric band around zero treated as "FLAT" |
 | `OOOBIR_ML_WINDOW` | `250` | Trailing window used per feature vector |
@@ -1096,7 +1096,7 @@ Key knobs can be set via environment variables (defaults in `ml/config.py`):
 The **AI Predictions** page (`web/predictions.html`) exposes a *Model Lab* panel where you can tune the experiment live — no retraining script required. Every run calls `GET /api/predict/{symbol}/explore` with these knobs:
 
 | Knob | Endpoint param | Range | Effect |
-|------|----------------|-------|--------|
+| ------ | ---------------- | ------- | -------- |
 | Model family | `model_name` | `hist_gbm`, `random_forest`, `extra_trees`, `logistic` | Estimator used for both the live call and the backtest |
 | Forecast horizon | `horizon` | 1–60 | Forward-return window for the label |
 | Flat band | `margin` | 0–0.10 | Returns within ±band labelled FLAT (0 = pure up/down) |
@@ -1182,7 +1182,7 @@ Removes containers, volumes, and cleans up resources while preserving the Ollama
 ### Data Functions (9)
 
 | Function | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | `get_fundamentals(ticker)` | Quarterly fundamentals (P/E, market cap, EPS, etc.) |
 | `get_price_history(ticker)` | 121 days of historical OHLCV data |
 | `get_analyst_price_targets(ticker)` | Analyst consensus and price targets |
@@ -1198,7 +1198,7 @@ Removes containers, volumes, and cleans up resources while preserving the Ollama
 Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model installed.
 
 | Function | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | `get_ai_fundamental_analysis(ticker)` | AI analysis of fundamental metrics |
 | `get_ai_balance_sheet_analysis(ticker)` | AI insights on balance sheet health |
 | `get_ai_quarterly_income_stm_analysis(ticker)` | AI analysis of income trends |
@@ -1329,7 +1329,7 @@ OOBIR employs a rigorous testing strategy across API, cache, and UI layers, with
 #### Test Breakdown
 
 | Category | Coverage |
-|----------|----------|
+| ---------- | ---------- |
 | Data Endpoints | Data retrieval, formatting, and endpoint responses |
 | AI Analysis Endpoints | AI analysis paths, prompts, and error handling |
 | Technical Indicators | Indicator calculations and integration hooks |

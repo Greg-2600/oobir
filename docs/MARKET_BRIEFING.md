@@ -32,7 +32,7 @@ The Market Briefing collapses that into one screen:
 A dashboard nobody can find is worthless, so it is surfaced from three places:
 
 | Entry point | What you see |
-|---|---|
+| --- | --- |
 | **Header nav** on all 26 pages | A `Briefing` link, last in the primary nav |
 | **Stock Screen** (`index.html`) | A promo banner above the Market Radar, with a "Refreshes hourly" badge |
 | **Search** (`search.html`) | A "Market Briefing" quick-link pill |
@@ -81,7 +81,7 @@ instead of clipping.
 ## 4. The nine cards
 
 | Card | Source | Notes |
-|---|---|---|
+| --- | --- | --- |
 | **Index snapshot** | `/api/price-history/{symbol}?days=2` | SPY, QQQ, DIA, IWM — price and % change vs. prior close |
 | **Futures & pre-market** | static | ES, NQ, RTY, CL, GC, DXY with instrument descriptions |
 | **Sentiment** | derived from SPY history | Fear & Greed gauge, VIX proxy, put/call ratio, A/D breadth |
@@ -115,7 +115,7 @@ and `exchange`. `loadMissingNames()` fills the gaps from
 The four index ETFs are not equities, so they carry static fund names:
 
 | Ticker | Name |
-|---|---|
+| --- | --- |
 | SPY | SPDR S&P 500 ETF Trust |
 | QQQ | Invesco QQQ Trust (Nasdaq 100) |
 | DIA | SPDR Dow Jones Industrial Average ETF |
@@ -138,7 +138,7 @@ driven by data attributes, so any element can opt in:
 cursor when there is no room above.
 
 | Hover target | Tooltip shows |
-|---|---|
+| --- | --- |
 | Any ticker | Full company name, sector, industry |
 | Futures card | Instrument name and what it tracks |
 | Macro event | Event name and what it measures |
@@ -230,7 +230,7 @@ location ~* ^/(dashboard|news-timeline|predictions|portfolio|watchlist|money-flo
 network required.
 
 | Group | Covers |
-|---|---|
+| --- | --- |
 | `TestDashboardPageContracts` | Section ids exist, ids are unique, relative API base, nav links |
 | `TestDashboardLoadingStates` | Loading styles exist, sections start in loading state, loading is set before awaiting |
 | `TestDashboardCompanyNames` | Bulk name load, per-symbol fallback, static ETF names, name rendering |

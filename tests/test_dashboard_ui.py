@@ -125,7 +125,9 @@ def _scoped_declarations(script: str):
 def _inline_scripts(html: str) -> list:
     """Return the contents of every inline <script> block (no src=)."""
     return re.findall(
-        r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", html, flags=re.DOTALL
+        r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>",
+        html,
+        flags=re.DOTALL | re.IGNORECASE,
     )
 
 
