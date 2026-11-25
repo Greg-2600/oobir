@@ -193,7 +193,9 @@ def clear_cache(endpoint: str | None = None, symbol: str | None = None) -> int:
                     (endpoint, symbol),  # type: ignore[arg-type]
                 )
             elif endpoint:
-                cursor = conn.execute("DELETE FROM cache WHERE endpoint = ?", (endpoint,))  # type: ignore[arg-type]
+                cursor = conn.execute(
+                    "DELETE FROM cache WHERE endpoint = ?", (endpoint,)
+                )  # type: ignore[arg-type]
             elif symbol:
                 cursor = conn.execute("DELETE FROM cache WHERE symbol = ?", (symbol,))  # type: ignore[arg-type]
             else:

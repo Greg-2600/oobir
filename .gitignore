@@ -13,3 +13,10 @@ web/dist/
 # ML model artifacts
 models/
 *.joblib
+
+# Coverage and test reports
+.coverage
+.coverage.*
+coverage.xml
+coverage.json
+htmlcov/

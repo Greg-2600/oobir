@@ -65,14 +65,14 @@ class TestTickerURLEDParameter:
         wait = WebDriverWait(browser, 30)
 
         wait.until(
-            lambda d: "hidden"
-            not in d.find_element(By.ID, "results-container").get_attribute("class"),
+            lambda d: (
+                "hidden"
+                not in d.find_element(By.ID, "results-container").get_attribute("class")
+            ),
             message="Results container should be visible after auto-search",
         )
 
-        symbol = wait.until(
-            EC.text_to_be_present_in_element((By.ID, "stock-symbol"), "CHTR")
-        )
+        wait.until(EC.text_to_be_present_in_element((By.ID, "stock-symbol"), "CHTR"))
         stock_symbol = browser.find_element(By.ID, "stock-symbol")
         assert stock_symbol.text.strip().upper() == "CHTR"
 
@@ -92,8 +92,10 @@ class TestTickerURLEDParameter:
         wait = WebDriverWait(browser, 30)
 
         wait.until(
-            lambda d: "hidden"
-            not in d.find_element(By.ID, "results-container").get_attribute("class")
+            lambda d: (
+                "hidden"
+                not in d.find_element(By.ID, "results-container").get_attribute("class")
+            )
         )
 
         fundamentals = wait.until(
@@ -108,8 +110,10 @@ class TestTickerURLEDParameter:
         wait = WebDriverWait(browser, 30)
 
         wait.until(
-            lambda d: "hidden"
-            not in d.find_element(By.ID, "results-container").get_attribute("class")
+            lambda d: (
+                "hidden"
+                not in d.find_element(By.ID, "results-container").get_attribute("class")
+            )
         )
 
         price_history = wait.until(
@@ -123,8 +127,10 @@ class TestTickerURLEDParameter:
         wait = WebDriverWait(browser, 30)
 
         wait.until(
-            lambda d: "hidden"
-            not in d.find_element(By.ID, "results-container").get_attribute("class")
+            lambda d: (
+                "hidden"
+                not in d.find_element(By.ID, "results-container").get_attribute("class")
+            )
         )
 
         stock_symbol = wait.until(
@@ -142,16 +148,18 @@ class TestAPIConnection:
         wait = WebDriverWait(browser, 30)
 
         wait.until(
-            lambda d: "hidden"
-            not in d.find_element(By.ID, "results-container").get_attribute("class")
+            lambda d: (
+                "hidden"
+                not in d.find_element(By.ID, "results-container").get_attribute("class")
+            )
         )
 
         api_base = browser.execute_script(
             "return window.OOBIR_API_BASE || window.CONFIG?.API_BASE_URL || window.API_BASE_URL;"
         )
-        assert (
-            api_base is not None and len(api_base) > 0
-        ), f"API_BASE_URL should be configured, got: {api_base}"
+        assert api_base is not None and len(api_base) > 0, (
+            f"API_BASE_URL should be configured, got: {api_base}"
+        )
 
     def test_fundamentals_section_exists(self, browser, base_url):
         """Fundamentals section should exist and render on results page."""
@@ -159,8 +167,10 @@ class TestAPIConnection:
         wait = WebDriverWait(browser, 30)
 
         wait.until(
-            lambda d: "hidden"
-            not in d.find_element(By.ID, "results-container").get_attribute("class")
+            lambda d: (
+                "hidden"
+                not in d.find_element(By.ID, "results-container").get_attribute("class")
+            )
         )
 
         fundamentals = wait.until(
@@ -178,8 +188,10 @@ class TestSearchFromResultsPage:
         wait = WebDriverWait(browser, 30)
 
         wait.until(
-            lambda d: "hidden"
-            not in d.find_element(By.ID, "results-container").get_attribute("class")
+            lambda d: (
+                "hidden"
+                not in d.find_element(By.ID, "results-container").get_attribute("class")
+            )
         )
 
         compact_input = wait.until(
@@ -194,8 +206,9 @@ class TestSearchFromResultsPage:
         submit.click()
 
         wait.until(
-            lambda d: d.find_element(By.ID, "stock-symbol").text.strip().upper()
-            == "AAPL",
+            lambda d: (
+                d.find_element(By.ID, "stock-symbol").text.strip().upper() == "AAPL"
+            ),
             message="Stock symbol should update to AAPL after search",
         )
 
@@ -208,8 +221,10 @@ class TestSearchFromResultsPage:
         wait = WebDriverWait(browser, 30)
 
         wait.until(
-            lambda d: "hidden"
-            not in d.find_element(By.ID, "results-container").get_attribute("class")
+            lambda d: (
+                "hidden"
+                not in d.find_element(By.ID, "results-container").get_attribute("class")
+            )
         )
 
         logo = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "logo-small")))

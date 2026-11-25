@@ -103,9 +103,11 @@ class TestHealthEndpoints(unittest.TestCase):
 
     def test_health_deps_endpoint(self):
         """Test /health/deps endpoint structure."""
-        with patch("requests.get") as mock_get, patch(
-            "db.get_cache_stats"
-        ) as mock_cache, patch("db_timescale.get_conn") as mock_conn:
+        with (
+            patch("requests.get") as mock_get,
+            patch("db.get_cache_stats") as mock_cache,
+            patch("db_timescale.get_conn") as mock_conn,
+        ):
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_get.return_value = mock_response

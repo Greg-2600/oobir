@@ -25,7 +25,6 @@ TEST_SCREENING=true
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Parse arguments
@@ -130,7 +129,8 @@ test_health_endpoints() {
     
     # Main API health - use temp file to avoid curl issues
     curl -s -o /tmp/health.json -w "%{http_code}" "$API/health" > /tmp/http_code.txt 2>/dev/null || true
-    local http_code=$(cat /tmp/http_code.txt 2>/dev/null || echo "000")
+    local http_code
+    http_code=$(cat /tmp/http_code.txt 2>/dev/null || echo "000")
     
     if [[ "$http_code" == "200" ]]; then
         print_status "pass" "Main API Health Check"
@@ -144,7 +144,7 @@ test_health_endpoints() {
     
     if [[ "$http_code" == "200" ]]; then
         if [[ "$RAW_OUTPUT" == true ]]; then
-            cat /tmp/ollama.json 2>/dev/null | head -c 200
+            head -c 200 /tmp/ollama.json 2>/dev/null
         fi
         print_status "pass" "Ollama Health Check"
     else
@@ -194,7 +194,8 @@ test_screening_endpoint() {
     response=$(echo "$response" | sed '$d')
     
     if [[ "$http_code" == "200" ]]; then
-        local count=$(echo "$response" | grep -o '"' | wc -l)
+        local count
+        count=$(echo "$response" | grep -o '"' | wc -l)
         if [[ "$RAW_OUTPUT" == true ]]; then
             echo "$response" | head -c 200
             echo ""
@@ -243,7 +244,10 @@ main() {
     
     print_summary
     
-    return $([[ $FAILED -eq 0 ]] && echo 0 || echo 1)
+    if [[ $FAILED -eq 0 ]]; then
+        return 0
+    fi
+    return 1
 }
 
 main

@@ -108,16 +108,15 @@ def _scoped_declarations(script: str):
         elif char == "}":
             if len(scope) > 1:
                 scope.pop()
-        elif char.isalpha() or char in "_$":
+        elif (char.isalpha() or char in "_$") and (
+            i == 0 or not (cleaned[i - 1].isalnum() or cleaned[i - 1] in "_$")
+        ):
             # Only start a word at a token boundary.
-            if i == 0 or not (cleaned[i - 1].isalnum() or cleaned[i - 1] in "_$"):
-                match = decl_re.match(cleaned, i)
-                if match:
-                    found.append(
-                        (tuple(scope), match.group(0).split()[0], match.group(1))
-                    )
-                    i = match.end()
-                    continue
+            match = decl_re.match(cleaned, i)
+            if match:
+                found.append((tuple(scope), match.group(0).split()[0], match.group(1)))
+                i = match.end()
+                continue
         i += 1
 
     return found
@@ -125,7 +124,11 @@ def _scoped_declarations(script: str):
 
 def _inline_scripts(html: str) -> list:
     """Return the contents of every inline <script> block (no src=)."""
-    return re.findall(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", html, flags=re.S)
+    return re.findall(
+        r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script[^>]*>",
+        html,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
 
 
 class TestDashboardPageContracts(unittest.TestCase):
@@ -469,7 +472,7 @@ class TestDashboardDiscovery(unittest.TestCase):
         missing = []
         for name in self._nav_pages():
             html = (WEB_DIR / name).read_text(encoding="utf-8")
-            nav = re.search(r'<nav class="app-nav".*?</nav>', html, flags=re.S)
+            nav = re.search(r'<nav class="app-nav".*?</nav>', html, flags=re.DOTALL)
             if not nav:
                 continue
             if 'href="dashboard.html"' not in nav.group(0):
@@ -482,7 +485,7 @@ class TestDashboardDiscovery(unittest.TestCase):
         out_of_place = []
         for name in self._nav_pages():
             html = (WEB_DIR / name).read_text(encoding="utf-8")
-            nav = re.search(r'<nav class="app-nav".*?</nav>', html, flags=re.S)
+            nav = re.search(r'<nav class="app-nav".*?</nav>', html, flags=re.DOTALL)
             if not nav:
                 continue
             links = re.findall(r'<a href="([^"]+)"', nav.group(0))
@@ -529,7 +532,7 @@ class TestDashboardDiscovery(unittest.TestCase):
     def test_search_page_has_market_briefing_quick_link(self):
         """The landing page's quick links should include the briefing."""
         html = (WEB_DIR / "search.html").read_text(encoding="utf-8")
-        row = re.search(r'<div class="link-row".*?</div>', html, flags=re.S)
+        row = re.search(r'<div class="link-row".*?</div>', html, flags=re.DOTALL)
         self.assertIsNotNone(row, "search page should have a quick-link row")
         self.assertIn('href="dashboard.html"', row.group(0))
         self.assertIn("Market Briefing", row.group(0))

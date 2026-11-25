@@ -46,13 +46,14 @@ echo "Copying archive to ${REMOTE}:${TMP_ARCHIVE}"
 scp "${TMP_ARCHIVE}" "${REMOTE}:${TMP_ARCHIVE}"
 
 echo "Extracting on remote host into ${REMOTE_PATH_REMOTE}"
-ssh ${REMOTE} "mkdir -p '${REMOTE_PATH_REMOTE}' && tar xzf '${TMP_ARCHIVE}' -C '${REMOTE_PATH_REMOTE}' && rm -f '${TMP_ARCHIVE}' || true"
+# shellcheck disable=SC2029  # The remote path is intentionally expanded locally.
+ssh "${REMOTE}" "mkdir -p '${REMOTE_PATH_REMOTE}' && tar xzf '${TMP_ARCHIVE}' -C '${REMOTE_PATH_REMOTE}' && rm -f '${TMP_ARCHIVE}' || true"
 
 # clean up local temporary archive
 rm -f "${TMP_ARCHIVE}"
 
 echo "Running remote setup on ${REMOTE}"
-ssh ${REMOTE} bash -s -- "${REMOTE_PATH_REMOTE}" <<'ENDSSH'
+ssh "${REMOTE}" bash -s -- "${REMOTE_PATH_REMOTE}" <<'ENDSSH'
 set -euo pipefail
 
 # $1 will be the expanded remote path passed as an argument to this ssh session

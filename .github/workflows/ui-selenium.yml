@@ -3,6 +3,13 @@ name: UI Selenium Smoke
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-selenium-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   selenium-smoke:
     runs-on: ubuntu-latest
@@ -10,15 +17,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
-          python-version: "3.11"
+          python-version: "3.13"
 
       - name: Set up Chrome
-        uses: browser-actions/setup-chrome@v2
+        uses: browser-actions/setup-chrome@48ad923757ca74d66703209fe939badbdf80f2f4  # v2.2.0
 
       - name: Install dependencies
         run: |
@@ -27,13 +34,16 @@ jobs:
 
       - name: Start API and web servers
         run: |
-          nohup python -m uvicorn flow_api:app --host 127.0.0.1 --port 8000 > /tmp/oobir-api.log 2>&1 &
-          nohup python -m http.server 8081 --directory web > /tmp/oobir-web.log 2>&1 &
+          nohup python -m uvicorn flow_api:app \
+            --host 127.0.0.1 --port 8000 > /tmp/oobir-api.log 2>&1 &
+          nohup python -m http.server 8081 \
+            --directory web > /tmp/oobir-web.log 2>&1 &
 
       - name: Wait for services
         run: |
-          for i in $(seq 1 60); do
-            if curl -sSf http://127.0.0.1:8000/health >/dev/null && curl -sSf http://127.0.0.1:8081/index.html >/dev/null; then
+          for _ in $(seq 1 60); do
+            if curl -sSf http://127.0.0.1:8000/health >/dev/null \
+              && curl -sSf http://127.0.0.1:8081/index.html >/dev/null; then
               exit 0
             fi
             sleep 2

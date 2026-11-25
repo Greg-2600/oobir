@@ -139,12 +139,16 @@ class TestResultsPageDisplay:
         search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
         search_button.click()
         wait.until(
-            lambda d: "hidden"
-            not in d.find_element(By.ID, "results-page").get_attribute("class")
+            lambda d: (
+                "hidden"
+                not in d.find_element(By.ID, "results-page").get_attribute("class")
+            )
         )
         wait.until(
-            lambda d: "hidden"
-            not in d.find_element(By.ID, "results-container").get_attribute("class")
+            lambda d: (
+                "hidden"
+                not in d.find_element(By.ID, "results-container").get_attribute("class")
+            )
         )
 
     def test_results_page_shows_company_info(self, browser, base_url, wait_timeout):
@@ -212,8 +216,10 @@ class TestRecommendationsSection:
         search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
         search_button.click()
         wait.until(
-            lambda d: "hidden"
-            not in d.find_element(By.ID, "results-container").get_attribute("class")
+            lambda d: (
+                "hidden"
+                not in d.find_element(By.ID, "results-container").get_attribute("class")
+            )
         )
 
     def test_trading_strategy_card_loads(self, browser, base_url, wait_timeout):
@@ -251,8 +257,10 @@ class TestDataTables:
         search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
         search_button.click()
         wait.until(
-            lambda d: "hidden"
-            not in d.find_element(By.ID, "results-container").get_attribute("class")
+            lambda d: (
+                "hidden"
+                not in d.find_element(By.ID, "results-container").get_attribute("class")
+            )
         )
 
     def test_fundamentals_section_loads(self, browser, base_url, wait_timeout):
@@ -292,8 +300,10 @@ class TestUIInteractions:
         search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
         search_button.click()
         wait.until(
-            lambda d: "hidden"
-            not in d.find_element(By.ID, "results-container").get_attribute("class")
+            lambda d: (
+                "hidden"
+                not in d.find_element(By.ID, "results-container").get_attribute("class")
+            )
         )
 
     def test_logo_click_returns_home(self, browser, base_url, wait_timeout):
@@ -319,8 +329,10 @@ class TestUIInteractions:
         search_input.send_keys(Keys.RETURN)
 
         wait.until(
-            lambda d: "hidden"
-            not in d.find_element(By.ID, "results-container").get_attribute("class")
+            lambda d: (
+                "hidden"
+                not in d.find_element(By.ID, "results-container").get_attribute("class")
+            )
         )
         assert (
             browser.find_element(By.ID, "stock-symbol").text.strip().upper() == "AAPL"
@@ -387,8 +399,10 @@ class TestEnhancedNavigationUX:
         search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
         search_button.click()
         wait.until(
-            lambda d: "hidden"
-            not in d.find_element(By.ID, "results-container").get_attribute("class")
+            lambda d: (
+                "hidden"
+                not in d.find_element(By.ID, "results-container").get_attribute("class")
+            )
         )
 
     @staticmethod
@@ -411,10 +425,13 @@ class TestEnhancedNavigationUX:
         price_chip.click()
 
         wait.until(
-            lambda d: "active"
-            in d.find_element(
-                By.CSS_SELECTOR, ".section-chip[data-target='section-price-history']"
-            ).get_attribute("class")
+            lambda d: (
+                "active"
+                in d.find_element(
+                    By.CSS_SELECTOR,
+                    ".section-chip[data-target='section-price-history']",
+                ).get_attribute("class")
+            )
         )
 
         top = browser.execute_script(
@@ -505,8 +522,9 @@ class TestEnhancedNavigationUX:
         )
         compact_submit.click()
         wait.until(
-            lambda d: d.find_element(By.ID, "stock-symbol").text.strip().upper()
-            == "MSFT"
+            lambda d: (
+                d.find_element(By.ID, "stock-symbol").text.strip().upper() == "MSFT"
+            )
         )
 
         compact_input = wait.until(
@@ -519,13 +537,16 @@ class TestEnhancedNavigationUX:
         )
         compact_submit.click()
         wait.until(
-            lambda d: d.find_element(By.ID, "stock-symbol").text.strip().upper()
-            == "AAPL"
+            lambda d: (
+                d.find_element(By.ID, "stock-symbol").text.strip().upper() == "AAPL"
+            )
         )
 
         wait.until(
-            lambda d: "since last view"
-            in d.find_element(By.ID, "since-last-view").text.lower()
+            lambda d: (
+                "since last view"
+                in d.find_element(By.ID, "since-last-view").text.lower()
+            )
         )
         revisit_badge_text = browser.find_element(By.ID, "since-last-view").text
         assert "since last view" in revisit_badge_text.lower()
@@ -553,8 +574,9 @@ class TestEnhancedNavigationUX:
             By.CSS_SELECTOR, "#search-form-compact button[type='submit']"
         ).click()
         wait.until(
-            lambda d: d.find_element(By.ID, "stock-symbol").text.strip().upper()
-            == "MSFT"
+            lambda d: (
+                d.find_element(By.ID, "stock-symbol").text.strip().upper() == "MSFT"
+            )
         )
 
         compact_input = wait.until(
@@ -566,8 +588,9 @@ class TestEnhancedNavigationUX:
             By.CSS_SELECTOR, "#search-form-compact button[type='submit']"
         ).click()
         wait.until(
-            lambda d: d.find_element(By.ID, "stock-symbol").text.strip().upper()
-            == "AAPL"
+            lambda d: (
+                d.find_element(By.ID, "stock-symbol").text.strip().upper() == "AAPL"
+            )
         )
 
         badge = wait.until(
@@ -576,8 +599,10 @@ class TestEnhancedNavigationUX:
             )
         )
         wait.until(
-            lambda d: "Compared against your previous viewed price"
-            in (badge.get_attribute("title") or "")
+            lambda d: (
+                "Compared against your previous viewed price"
+                in (badge.get_attribute("title") or "")
+            )
         )
         assert "Compared against your previous viewed price" in (
             badge.get_attribute("title") or ""
@@ -620,8 +645,10 @@ class TestEnhancedNavigationUX:
 
         toggle.click()
         wait.until(
-            lambda d: d.find_element(By.ID, "revisit-marker-toggle-status").text.strip()
-            == "Off"
+            lambda d: (
+                d.find_element(By.ID, "revisit-marker-toggle-status").text.strip()
+                == "Off"
+            )
         )
         related_item = wait.until(
             EC.presence_of_element_located(
@@ -638,8 +665,10 @@ class TestEnhancedNavigationUX:
         )
         toggle.click()
         wait.until(
-            lambda d: d.find_element(By.ID, "revisit-marker-toggle-status").text.strip()
-            == "On"
+            lambda d: (
+                d.find_element(By.ID, "revisit-marker-toggle-status").text.strip()
+                == "On"
+            )
         )
         related_item = wait.until(
             EC.presence_of_element_located(
@@ -650,8 +679,9 @@ class TestEnhancedNavigationUX:
             )
         )
         wait.until(
-            lambda d: len(related_item.find_elements(By.CSS_SELECTOR, ".seen-marker"))
-            >= 1
+            lambda d: (
+                len(related_item.find_elements(By.CSS_SELECTOR, ".seen-marker")) >= 1
+            )
         )
         assert len(related_item.find_elements(By.CSS_SELECTOR, ".seen-marker")) >= 1
 
@@ -723,8 +753,10 @@ class TestRelatedStocksExplorer:
         search_button = browser.find_element(By.CSS_SELECTOR, "button[type='submit']")
         search_button.click()
         wait.until(
-            lambda d: "hidden"
-            not in d.find_element(By.ID, "results-container").get_attribute("class")
+            lambda d: (
+                "hidden"
+                not in d.find_element(By.ID, "results-container").get_attribute("class")
+            )
         )
 
     def test_related_stocks_card_visible_after_search(

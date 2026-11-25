@@ -11,6 +11,7 @@ os.environ["OOBIR_AUTH_ENABLED"] = "true"
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
+
 import flow_api
 
 flow_api.API_KEYS.add(TEST_API_KEY)
@@ -39,9 +40,8 @@ _TC.__init__ = _patched_tc_init
 # ---------------------------------------------------------------------------
 import tempfile
 
-_test_db_file = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-_test_db_path = Path(_test_db_file.name)
-_test_db_file.close()
+with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as _test_db_file:
+    _test_db_path = Path(_test_db_file.name)
 
 import db as _db_module
 

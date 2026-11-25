@@ -1,4 +1,4 @@
--- Remove redundant fundamentals indexes that are not used by current query plans.
+-- Remove redundant fundamentals indexes unused by current query plans.
 -- Safe to run multiple times.
 
 DROP INDEX IF EXISTS idx_fundamentals_sector_ticker_fetched;

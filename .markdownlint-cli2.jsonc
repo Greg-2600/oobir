@@ -1,0 +1,7 @@
+{
+  // Line length is not enforced: the README uses wide tables and badges.
+  "config": {
+    "MD013": false,
+    "MD024": { "siblings_only": true }
+  }
+}
