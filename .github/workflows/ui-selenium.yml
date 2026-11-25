@@ -1,7 +1,17 @@
 name: UI Selenium Smoke
 
+# Manual only. Automatic push and pull_request runs were removed after
+# the June 2026 UI and port changes, when every Actions smoke run failed.
+# Dispatch this when a local API and web UI are available. It is not a merge gate.
 on:
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oobir-selenium-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   selenium-smoke:
