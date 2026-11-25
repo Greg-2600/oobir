@@ -3,6 +3,7 @@ message: If you use this software, please cite it using the metadata from 'CITAT
 type: software
 title: oobir
 version: 1.0.0
+doi: 10.5281/zenodo.23966300
 date-released: '2026-11-04'
 license: MIT
 repository-code: 'https://github.com/Greg-2600/oobir'
@@ -20,3 +21,10 @@ keywords:
   - FastAPI
   - Docker
   - Ollama
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.23966300
+    description: This version
+  - type: doi
+    value: 10.5281/zenodo.23966299
+    description: All versions

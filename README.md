@@ -7,6 +7,7 @@
 ![HTML5](https://img.shields.io/badge/Web_UI-HTML5_CSS3_JS-orange?logo=html5)
 ![Tests](https://img.shields.io/badge/Tests-420_Passing-brightgreen)
 ![Status](https://img.shields.io/badge/Status-Production_Ready-success)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23966299.svg)](https://doi.org/10.5281/zenodo.23966299)
 
 > **Enterprise-grade stock analysis combining REST APIs, AI-powered insights, technical & fundamental analysis in a cloud-native architecture**
 
@@ -1571,7 +1572,7 @@ pytest tests/test_data_endpoints.py -v
 
 See LICENSE file for details.
 
-Cite this software using [CITATION.cff](CITATION.cff).
+Cite this software using [CITATION.cff](CITATION.cff). DOI: [10.5281/zenodo.23966300](https://doi.org/10.5281/zenodo.23966300).
 
 ## Support & Contributing
 
@@ -1583,6 +1584,6 @@ For issues, questions, or contributions:
 ---
 
 **Last Updated**: October 2026
-**Version**: 2.0.0
+**Version**: 1.0.0
 **Status**: ✅ Production Ready  
 **Features**: AI Analysis • Market-Aware Caching • Technical Indicators • REST API • Cloud-Native
