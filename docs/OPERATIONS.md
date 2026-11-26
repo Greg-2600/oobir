@@ -34,12 +34,17 @@ starts Uvicorn on `0.0.0.0:2009`.
 | -------- | ------- | --------- |
 | `OOBIR_API_KEYS` | `flow_api.py` | Comma-separated list of accepted keys. If unset or empty, the API uses a built-in development key. Compose supplies a development default when the variable is unset. |
 | `OOBIR_AUTH_ENABLED` | `flow_api.py` | Defaults to enabled. Set to `false` to disable key checks. When enabled, requests to `/api/*` require the `X-API-Key` header, except `/api/health*` and `/api/cache*`. |
+| `OOBIR_CORS_ORIGINS` | `flow_api.py` | Comma-separated list of origins allowed by CORS, for example `https://ui.example.com,https://admin.example.com`. Whitespace around entries is trimmed and empty entries are ignored. If unset or empty, the built-in local and LAN origin list is used unchanged. Setting `*` allows any origin and automatically turns off credentialed CORS requests. |
 | `OLLAMA_HOST` | `flow.py`, `flow_api.py` | Ollama base URL. Code default is `http://ollama:11434`; the `Dockerfile` sets `http://oobir_ollama:11434`; Compose overrides it for the app with `http://ollama:11434`. |
 | `HOST` | `flow_api.py` (`__main__`) | Bind address for a direct `python flow_api.py` run. Default `127.0.0.1`. |
 | `PORT` | `flow_api.py` (`__main__`) | Bind port for a direct `python flow_api.py` run. Default `8000`. |
 
 Never commit API key values. Supply `OOBIR_API_KEYS` through the environment or
 your deployment secret store.
+
+Browsers reject `Access-Control-Allow-Origin: *` together with credentials, so
+a wildcard in `OOBIR_CORS_ORIGINS` disables `allow_credentials`. Use explicit
+origins for clients that send cookies or `Authorization` headers.
 
 `flow.py` also derives `OLLAMA_URL` and `OLLAMA_BASE_URL` from the selected
 Ollama host so the Ollama client sees a consistent setting.

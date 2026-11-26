@@ -1128,6 +1128,13 @@ One-click presets (**Baseline**, **Trend**, **Long-horizon**) are included. Iden
 
 See the [Operations Guide](docs/OPERATIONS.md) for ports, environment variables, cache and data paths, and the `daily-sync` container.
 
+The API's CORS origins can be overridden with `OOBIR_CORS_ORIGINS`, a
+comma-separated list such as `https://ui.example.com,https://admin.example.com`
+(whitespace is trimmed and empty entries ignored). When unset or empty, the
+built-in local and LAN origins are used. Setting `*` allows any origin but
+automatically disables credentialed CORS requests; use explicit origins for
+authenticated browsers.
+
 ### Local Deployment
 
 ```bash
