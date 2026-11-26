@@ -97,8 +97,8 @@ app = FastAPI(
 
 app.state.limiter = limiter
 
-# CORS for web UI (allow local and LAN UI origins)
-allowed_origins = [
+# CORS for web UI (allow local and LAN UI origins by default)
+DEFAULT_ALLOWED_ORIGINS = [
     "http://localhost",
     "http://localhost:8080",
     "http://localhost:8081",
@@ -113,10 +113,37 @@ allowed_origins = [
     "http://127.0.0.1:2009",
 ]
 
+
+def cors_origins_from_env(raw_origins: str | None) -> tuple[list[str], bool]:
+    """Resolve CORS origins and credential support from OOBIR_CORS_ORIGINS.
+
+    An unset or empty value keeps the default origin list. Entries are trimmed
+    and blank entries ignored. A wildcard origin disables credentials because
+    browsers never allow `Access-Control-Allow-Origin: *` with credentials.
+    """
+    if not raw_origins:
+        return list(DEFAULT_ALLOWED_ORIGINS), True
+
+    origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+    if not origins:
+        return list(DEFAULT_ALLOWED_ORIGINS), True
+
+    allow_credentials = "*" not in origins
+    if not allow_credentials:
+        logger.warning(
+            "OOBIR_CORS_ORIGINS contains '*'; credentialed CORS requests disabled"
+        )
+    return origins, allow_credentials
+
+
+allowed_origins, allow_credentials = cors_origins_from_env(
+    os.getenv("OOBIR_CORS_ORIGINS")
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_credentials=True,
+    allow_credentials=allow_credentials,
     allow_methods=["GET"],
     allow_headers=["*"],
 )
