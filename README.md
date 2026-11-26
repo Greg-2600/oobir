@@ -31,6 +31,7 @@
 
 - [Quick Start](#-quick-start-2-minutes)
 - [Bootstrapping Historical Data](#bootstrapping-historical-data)
+- [Operations Guide](docs/OPERATIONS.md)
 - [Key Features](#-key-features)
 - [Machine Learning Predictions](#machine-learning-predictions)
 - [REST API](#rest-api)
@@ -1124,6 +1125,8 @@ One-click presets (**Baseline**, **Trend**, **Long-horizon**) are included. Iden
 > Predictions are advisory and not investment advice. Market regimes change — the ML signal is intended to complement (not replace) the LLM analysis and your own judgment. Short-horizon directional accuracy is typically close to the majority-class baseline; the backtest endpoint reports `balanced_accuracy` and `beats_baseline` so you can judge the model honestly rather than relying on headline accuracy.
 
 ## Docker Deployment
+
+See the [Operations Guide](docs/OPERATIONS.md) for ports, environment variables, cache and data paths, and the `daily-sync` container.
 
 ### Local Deployment
 
