@@ -9,6 +9,7 @@ import json
 import logging
 import math
 import os
+import time
 import uuid
 from contextlib import asynccontextmanager
 from datetime import date, datetime
@@ -29,16 +30,18 @@ from fastapi import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 from pydantic import BaseModel, field_validator
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
+from starlette.routing import Match
 
 import db
 import db_timescale
 import flow
 import ml
+from request_metrics import PROMETHEUS_CONTENT_TYPE, REQUEST_METRICS
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -183,13 +186,14 @@ async def add_correlation_id(request: Request, call_next):
 
 @app.middleware("http")
 async def require_api_key_middleware(request: Request, call_next):
-    """Enforce API key authentication on all /api/ endpoints."""
-    if (
-        request.url.path.startswith("/api/")
-        and not request.url.path.startswith("/api/health")
-        and not request.url.path.startswith("/api/cache")
-        and os.getenv("OOBIR_AUTH_ENABLED", "true").lower() != "false"
-    ):
+    """Enforce API key authentication on all non-health API endpoints and /metrics."""
+    path = request.url.path
+    protected = (
+        path.startswith("/api/")
+        and not path.startswith("/api/health")
+        and not path.startswith("/api/cache")
+    ) or path == "/metrics"
+    if protected and os.getenv("OOBIR_AUTH_ENABLED", "true").lower() != "false":
         api_key = request.headers.get("X-API-Key")
         if not api_key:
             return JSONResponse(
@@ -198,6 +202,40 @@ async def require_api_key_middleware(request: Request, call_next):
         if api_key not in API_KEYS:
             return JSONResponse(status_code=403, content={"detail": "Invalid API key"})
     return await call_next(request)
+
+
+def _route_template(request: Request) -> str:
+    """Resolve a bounded route template, never the raw request path."""
+    template = getattr(request.scope.get("route"), "path", None)
+    if isinstance(template, str):
+        return template
+    for candidate in request.app.routes:
+        match, _ = candidate.matches(request.scope)
+        if match in (Match.FULL, Match.PARTIAL):
+            template = getattr(candidate, "path", None)
+            if isinstance(template, str):
+                return template
+    return "unmatched"
+
+
+@app.middleware("http")
+async def record_request_metrics(request: Request, call_next):
+    """Record counts, status classes, and latency for every HTTP request."""
+    started = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        REQUEST_METRICS.record(
+            request.method, _route_template(request), 500, time.perf_counter() - started
+        )
+        raise
+    REQUEST_METRICS.record(
+        request.method,
+        _route_template(request),
+        response.status_code,
+        time.perf_counter() - started,
+    )
+    return response
 
 
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
@@ -438,6 +476,14 @@ def health_check_deps(request: Request):
             "status": "healthy" if all_healthy else "degraded",
             "dependencies": deps,
         },
+    )
+
+
+@app.get("/metrics")
+def metrics_endpoint() -> PlainTextResponse:
+    """Expose in-process request metrics in Prometheus text format."""
+    return PlainTextResponse(
+        REQUEST_METRICS.render(), media_type=PROMETHEUS_CONTENT_TYPE
     )
 
 

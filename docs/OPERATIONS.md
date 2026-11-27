@@ -128,6 +128,28 @@ is degraded. An unconfigured database does not fail the check. Dependency
 errors are reduced to a status and a generic error label, so passwords, hosts,
 and connection strings are never included in the response.
 
+## Request metrics
+
+`GET /metrics` exposes lightweight in-process request metrics in Prometheus text
+format (`text/plain; version=0.0.4; charset=utf-8`). It is not a health route:
+when `OOBIR_AUTH_ENABLED` is not `false`, it requires the same `X-API-Key` header
+as other non-health endpoints. The web container's Nginx config does not proxy
+it, so scrape the app port directly.
+
+Three metric families are exposed:
+
+- `oobir_http_requests_total`: request count labelled with `method`, `route`,
+  and `status_class` (`2xx`, `3xx`, `4xx`, `5xx`, or `other`).
+- `oobir_http_request_errors_total`: requests in the `4xx`, `5xx`, or `other`
+  classes, with the same labels.
+- `oobir_http_request_duration_seconds`: a summary with `_count` and `_sum`
+  samples per `method` and `route`; divide the sum by the count for mean latency.
+
+`route` is the route template (for example `/api/fundamentals/{symbol}`), and
+unmatched requests use `unmatched` instead of the raw URL, keeping label
+cardinality bounded. Counters are in memory per process and reset on restart;
+they are not aggregated across replicas.
+
 ## Cache and data paths
 
 | Path | Location | Notes |
