@@ -142,14 +142,13 @@ class TestHealthDepsBranches(unittest.TestCase):
             mock_ticker.return_value.fast_info = {}
             response = self.client.get("/health/deps")
         self.assertEqual(response.status_code, 503)
-        self.assertEqual(
-            response.json()["dependencies"]["cache"]["status"], "unhealthy"
-        )
+        self.assertEqual(response.json()["dependencies"]["cache"]["status"], "degraded")
 
     def test_timescale_exception_degrades(self):
         with (
             patch("requests.get", return_value=MagicMock(status_code=200)),
             patch("db.get_cache_stats", return_value={"entries": 1}),
+            patch("db_timescale.is_configured", return_value=True),
             patch("db_timescale.get_conn", side_effect=RuntimeError("db down")),
             patch("yfinance.Ticker") as mock_ticker,
         ):
@@ -157,7 +156,7 @@ class TestHealthDepsBranches(unittest.TestCase):
             response = self.client.get("/health/deps")
         self.assertEqual(response.status_code, 503)
         self.assertEqual(
-            response.json()["dependencies"]["timescale"]["status"], "unhealthy"
+            response.json()["dependencies"]["timescale"]["status"], "degraded"
         )
 
     def test_yfinance_exception_reports_degraded_but_healthy(self):

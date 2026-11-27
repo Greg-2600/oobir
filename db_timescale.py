@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
@@ -9,15 +10,52 @@ from datetime import UTC, datetime, timedelta
 import psycopg2
 from psycopg2.extras import RealDictCursor, execute_values
 
+logger = logging.getLogger(__name__)
 
-def get_conn():
-    return psycopg2.connect(
-        host=os.environ.get("PGHOST", "localhost"),
-        port=int(os.environ.get("PGPORT", "5432")),
-        dbname=os.environ.get("PGDATABASE", "oobir"),
-        user=os.environ.get("PGUSER", "oobir"),
-        password=os.environ.get("PGPASSWORD", "oobir"),
-    )
+PG_ENV_VARS = ("PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD")
+HEALTH_CHECK_TIMEOUT_SECONDS = 2
+
+
+def is_configured() -> bool:
+    """Return whether any PostgreSQL/TimescaleDB setting is configured."""
+    return any(os.environ.get(name) for name in PG_ENV_VARS)
+
+
+def get_conn(connect_timeout: int | None = None):
+    params = {
+        "host": os.environ.get("PGHOST", "localhost"),
+        "port": int(os.environ.get("PGPORT", "5432")),
+        "dbname": os.environ.get("PGDATABASE", "oobir"),
+        "user": os.environ.get("PGUSER", "oobir"),
+        "password": os.environ.get("PGPASSWORD", "oobir"),
+    }
+    if connect_timeout is not None:
+        params["connect_timeout"] = connect_timeout
+    return psycopg2.connect(**params)
+
+
+def check_health(timeout: int = HEALTH_CHECK_TIMEOUT_SECONDS) -> dict:
+    """Probe PostgreSQL/TimescaleDB when it is configured.
+
+    Uses a short connection timeout and never raises. Only a sanitized status
+    and error label are returned, so connection details and credentials cannot
+    leak through the health endpoint.
+    """
+    if not is_configured():
+        return {"status": "unconfigured"}
+
+    try:
+        conn = get_conn(connect_timeout=timeout)
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+                cur.fetchone()
+        finally:
+            conn.close()
+    except Exception as exc:
+        logger.error("TimescaleDB health check failed: %s", type(exc).__name__)
+        return {"status": "degraded", "error": "database health check failed"}
+    return {"status": "ok"}
 
 
 def get_ticker_date_range(conn, ticker: str) -> tuple[datetime | None, datetime | None]:

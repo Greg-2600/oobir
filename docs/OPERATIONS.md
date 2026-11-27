@@ -108,6 +108,26 @@ ML settings use the `OOOBIR_ML_*` prefix and are read in `ml/config.py`.
 | `OOOBIR_ML_BT_FOLDS` | `3` | Default walk-forward folds. |
 | `OOOBIR_ML_BT_MAX_TRAIN` | `200` | Cap on each fold's training window. |
 
+## Health checks
+
+`GET /health` is a lightweight application check and `GET /health/ollama`
+probes the Ollama service. `GET /health/deps` reports the state of each
+dependency:
+
+- `ollama` probes the Ollama tags endpoint.
+- `cache` opens the SQLite cache and runs a trivial `SELECT 1` query, then
+  includes the usual cache statistics.
+- `timescale` probes PostgreSQL/TimescaleDB only when at least one of
+  `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, or `PGPASSWORD` is set. It uses a
+  two-second connection timeout and reports `ok`, `degraded`, or
+  `unconfigured`.
+- `yfinance` reports `healthy` or `degraded` for the Yahoo Finance client.
+
+The endpoint returns HTTP 503 when Ollama, the cache, or a configured database
+is degraded. An unconfigured database does not fail the check. Dependency
+errors are reduced to a status and a generic error label, so passwords, hosts,
+and connection strings are never included in the response.
+
 ## Cache and data paths
 
 | Path | Location | Notes |
