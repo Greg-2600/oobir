@@ -1,0 +1,3 @@
+# Treat the static dashboard as vendored assets so GitHub Linguist
+# reports Python as the primary language of this API project.
+web/** linguist-vendored
