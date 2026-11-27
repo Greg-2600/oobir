@@ -376,7 +376,7 @@ def health_check_deps(request: Request):
 
     Returns status of:
     - yfinance (Yahoo Finance API)
-    - TimescaleDB (PostgreSQL)
+    - TimescaleDB (PostgreSQL), only when configured
     - Ollama (LLM service)
     - SQLite cache
     """
@@ -396,27 +396,15 @@ def health_check_deps(request: Request):
         all_healthy = False
     deps["ollama"] = {"status": ollama_status, "host": OLLAMA_HOST}
 
-    cache_status = "healthy"
-    try:
-        stats = db.get_cache_stats()
-        deps["cache"] = {"status": cache_status, "stats": stats}
-    except Exception:
-        deps["cache"] = {"status": "unhealthy", "error": str(Exception)}
+    cache_health = db.check_cache_health()
+    deps["cache"] = cache_health
+    if cache_health["status"] != "ok":
         all_healthy = False
 
-    timescale_status = "unhealthy"
-    try:
-        conn = db_timescale.get_conn()
-        try:
-            cur = conn.cursor()
-            cur.execute("SELECT 1")
-            cur.close()
-            timescale_status = "healthy"
-        finally:
-            conn.close()
-    except Exception:
+    timescale_health = db_timescale.check_health()
+    deps["timescale"] = timescale_health
+    if timescale_health["status"] == "degraded":
         all_healthy = False
-    deps["timescale"] = {"status": timescale_status}
 
     yfinance_status = "healthy"
     try:

@@ -247,6 +247,31 @@ def get_cache_stats() -> dict:
         return {"error": str(e)}
 
 
+def check_cache_health():
+    """Check that the SQLite cache can be opened and queried.
+
+    Runs a trivial query and collects cache statistics. The check never raises
+    so callers can use it in health endpoints. Returns ``ok`` or ``degraded``
+    plus the usual stats when they are available.
+    """
+    try:
+        with get_db_connection() as conn:
+            conn.execute("SELECT 1").fetchone()
+        stats = get_cache_stats()
+    except Exception as exc:
+        logger.error("SQLite cache health check failed: %s", type(exc).__name__)
+        return {"status": "degraded", "error": "SQLite cache health check failed"}
+
+    if not isinstance(stats, dict):
+        return {"status": "degraded", "error": "SQLite cache stats unavailable"}
+    if stats.get("error"):
+        return {
+            "status": "degraded",
+            "stats": {"error": "SQLite cache stats unavailable"},
+        }
+    return {"status": "ok", "stats": stats}
+
+
 def clear_symbol_cache(symbol: str) -> int:
     """Clear cache for a specific symbol."""
     return clear_cache(symbol=symbol)
