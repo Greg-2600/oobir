@@ -17,7 +17,7 @@ pytz>=2026.6
 ollama>=0.6.3
 
 # Web framework and server
-fastapi>=0.128.0
+fastapi>=0.165.0
 uvicorn>=0.54.0
 pydantic>=2.12.0
 starlette>=1.10.0
