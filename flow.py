@@ -31,6 +31,58 @@ _CHAT = None
 _CHAT_RESPONSE = None
 
 
+class MarketDataError(Exception):
+    """Raised when the market data provider is unavailable or throttling."""
+
+    def __init__(self, message, retry_after=None):
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
+_RATE_LIMIT_MARKERS = (
+    "429",
+    "rate limit",
+    "rate-limit",
+    "ratelimit",
+    "too many requests",
+    "throttl",
+    "quota exceeded",
+)
+_NETWORK_MARKERS = (
+    "connection",
+    "timed out",
+    "timeout",
+    "network",
+    "temporary failure",
+    "name resolution",
+    "ssl",
+    "certificate",
+    "remote end closed",
+    "bad gateway",
+    "service unavailable",
+    "gateway timeout",
+    "http error",
+    "502",
+    "503",
+    "504",
+    "curl",
+)
+
+
+def _raise_if_market_data_failure(exc):
+    """Re-raise yfinance outages/throttling as a clear MarketDataError."""
+    text = f"{type(exc).__name__} {exc}".lower()
+    if any(marker in text for marker in _RATE_LIMIT_MARKERS):
+        raise MarketDataError(
+            "Yahoo Finance is throttling requests. Please retry shortly.",
+            retry_after=60,
+        ) from exc
+    if any(marker in text for marker in _NETWORK_MARKERS):
+        raise MarketDataError(
+            "Yahoo Finance is currently unreachable. Please try again later."
+        ) from exc
+
+
 def ensure_ollama(host: str | None = None):
     """
     Initialize the Ollama client and configure the host environment variables.
@@ -127,6 +179,7 @@ def get_fundamentals(ticker):
         return fundamentals_json
 
     except Exception as exc:  # pylint: disable=broad-except
+        _raise_if_market_data_failure(exc)
         print(f"An error occurred while fetching fundamentals: {exc}")
         return None
 
@@ -166,6 +219,7 @@ def get_price_history(ticker):
         return price_history_json
 
     except Exception as exc:  # pylint: disable=broad-except
+        _raise_if_market_data_failure(exc)
         print(f"An error occurred while fetching price_history: {exc}")
         return None
 
@@ -203,6 +257,7 @@ def get_analyst_price_targets(ticker):
             return analyst_price_targets
 
     except Exception as exc:  # pylint: disable=broad-except
+        _raise_if_market_data_failure(exc)
         print(f"An error occurred while fetching analyst_price_targets: {exc}")
         return None
 
@@ -249,6 +304,7 @@ def get_calendar(ticker):
                 return dict(calendar)
 
     except Exception as exc:  # pylint: disable=broad-except
+        _raise_if_market_data_failure(exc)
         print(f"An error occurred while fetching calendar: {exc}")
         return None
 
@@ -288,6 +344,7 @@ def get_quarterly_income_stmt(ticker):
             return quarterly_income_stmt
 
     except Exception as exc:  # pylint: disable=broad-except
+        _raise_if_market_data_failure(exc)
         print(f"An error occurred while fetching quarterly_income_stmt: {exc}")
         return None
 
@@ -335,6 +392,7 @@ def get_option_chain(ticker):
                 return option_chain
 
     except Exception as exc:  # pylint: disable=broad-except
+        _raise_if_market_data_failure(exc)
         print(f"An error occurred while fetching option_chain: {exc}")
         return None
 
@@ -351,6 +409,7 @@ def get_recommendations(ticker):
         df.index = df.index.astype(str)
         return df.to_dict()
     except Exception as exc:  # pylint: disable=broad-except
+        _raise_if_market_data_failure(exc)
         print(f"An error occurred while fetching recommendations: {exc}")
         return None
 
@@ -365,6 +424,7 @@ def get_institutional_holders(ticker):
         df.index = df.index.astype(str)
         return df.to_dict()
     except Exception as exc:  # pylint: disable=broad-except
+        _raise_if_market_data_failure(exc)
         print(f"An error occurred while fetching institutional holders: {exc}")
         return None
 
@@ -379,6 +439,7 @@ def get_insider_transactions(ticker):
         df.index = df.index.astype(str)
         return df.to_dict()
     except Exception as exc:  # pylint: disable=broad-except
+        _raise_if_market_data_failure(exc)
         print(f"An error occurred while fetching insider transactions: {exc}")
         return None
 
@@ -393,6 +454,7 @@ def get_analyst_upgrades_downgrades(ticker):
         df.index = df.index.astype(str)
         return df.to_dict()
     except Exception as exc:  # pylint: disable=broad-except
+        _raise_if_market_data_failure(exc)
         print(f"An error occurred while fetching analyst upgrades/downgrades: {exc}")
         return None
 
@@ -405,6 +467,7 @@ def get_news(ticker):
         return news
 
     except Exception as exc:  # pylint: disable=broad-except
+        _raise_if_market_data_failure(exc)
         print(f"An error occurred while fetching news: {exc}")
         return None
 
@@ -449,6 +512,7 @@ def get_balance_sheet(ticker):
             return balance_sheet
 
     except Exception as exc:  # pylint: disable=broad-except
+        _raise_if_market_data_failure(exc)
         print(f"An error occurred while fetching balance_sheet: {exc}")
         return None
 
@@ -461,6 +525,7 @@ def get_screen_undervalued_large_caps():
         return tickers
 
     except Exception as exc:  # pylint: disable=broad-except
+        _raise_if_market_data_failure(exc)
         print(f"An error occurred while fetching undervalued_large_caps: {exc}")
         return None
 
@@ -603,6 +668,7 @@ def get_money_flow_stocks(period="day", direction="in", limit=25):
         return results[:limit]
 
     except Exception as exc:  # pylint: disable=broad-except
+        _raise_if_market_data_failure(exc)
         print(f"An error occurred while fetching money flow stocks: {exc}")
         return None
 

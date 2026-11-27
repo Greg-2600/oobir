@@ -531,17 +531,14 @@ class TestWebUIErrorHandling(unittest.TestCase):
 
     @patch("flow.get_fundamentals")
     def test_invalid_ticker_returns_error(self, mock_get_fundamentals):
-        """Test API handles invalid ticker gracefully."""
+        """Test API surfaces a clear error when no fundamentals are returned."""
         mock_get_fundamentals.return_value = None
 
         response = self.client.get("/api/fundamentals/INVALID")
 
-        # API returns 200 with null data for invalid tickers
-        self.assertEqual(response.status_code, 200)
-        # Response should be valid JSON (null) that Web UI can handle
-        data = response.json()
-        # Web UI checks for null and displays error message
-        self.assertIsNone(data)
+        # Empty upstream data is an error, not a misleading 200/null success.
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("No fundamentals returned", response.json()["detail"])
 
     @patch("flow.ensure_ollama")
     @patch("flow.get_ai_technical_analysis")
