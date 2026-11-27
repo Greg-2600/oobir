@@ -11,7 +11,7 @@ scikit-learn>=1.9.1
 # HTTP requests and utilities
 requests>=2.32.0
 python-dateutil>=4.0.0
-pytz>=2025.0
+pytz>=2026.6
 
 # AI/LLM integration
 ollama>=0.6.3
