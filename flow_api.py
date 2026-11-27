@@ -203,6 +203,19 @@ async def require_api_key_middleware(request: Request, call_next):
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
 
+@app.exception_handler(flow.MarketDataError)
+async def market_data_error_handler(_request: Request, exc: flow.MarketDataError):
+    """Return 503 for genuine Yahoo Finance throttling or transport failures."""
+    headers = {}
+    if exc.retry_after is not None:
+        headers["Retry-After"] = str(int(exc.retry_after))
+    return JSONResponse(
+        status_code=503,
+        content={"detail": str(exc)},
+        headers=headers,
+    )
+
+
 class ExploreParams(BaseModel):
     model_name: str = "hist_gbm"
     horizon: int = 5
@@ -428,6 +441,12 @@ def health_check_deps(request: Request):
     )
 
 
+def _call_flow(flow_function, *args, **kwargs):
+    """Call a flow helper and let genuine yfinance failures propagate."""
+    with flow.raise_market_data_errors():
+        return flow_function(*args, **kwargs)
+
+
 def with_cache(endpoint: str, symbol: str, flow_function, *args, **kwargs):
     """
     Wrapper to check cache before calling flow function.
@@ -449,7 +468,7 @@ def with_cache(endpoint: str, symbol: str, flow_function, *args, **kwargs):
 
     # Cache miss - call the actual function
     logger.info(f"Cache miss for {endpoint}/{symbol}, fetching fresh data")
-    result = flow_function(symbol, *args, **kwargs)
+    result = _call_flow(flow_function, symbol, *args, **kwargs)
 
     # Parse JSON string if needed
     if isinstance(result, str):
@@ -512,7 +531,7 @@ def get_price_history_payload(symbol: str):
         db.set_cached_data("price-history", payload, symbol)
         return payload
 
-    result = flow.get_price_history(symbol)
+    result = _call_flow(flow.get_price_history, symbol)
     if isinstance(result, str):
         result = json.loads(result)
     result = normalize_price_history_payload(result)
@@ -533,7 +552,7 @@ def with_ai_cache(endpoint: str, symbol: str, flow_function, *args, **kwargs):
     # Ensure Ollama is reachable before invoking
     flow.ensure_ollama(OLLAMA_HOST)
 
-    result = flow_function(symbol, *args, **kwargs)
+    result = _call_flow(flow_function, symbol, *args, **kwargs)
     if result is None:
         logger.error("AI endpoint %s returned None for %s", endpoint, symbol)
         raise HTTPException(
@@ -759,7 +778,7 @@ def get_related_stocks_payload(symbol: str, limit: int, exclude: str):
 
         # If base ticker lacks fundamentals, fallback to flow data.
         if base_features["price"] <= 0:
-            raw = flow.get_fundamentals(symbol)
+            raw = _call_flow(flow.get_fundamentals, symbol)
             parsed = json.loads(raw) if isinstance(raw, str) else (raw or {})
             base_payload = parsed if isinstance(parsed, dict) else {"symbol": symbol}
             base_features = _feature_vector(base_payload)
@@ -1133,6 +1152,8 @@ def get_fundamentals(symbol: str):
     try:
         result = get_fundamentals_payload(symbol)
         return JSONResponse(content=result)
+    except flow.MarketDataError:
+        raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error fetching fundamentals for %s: %s", symbol, str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -1198,6 +1219,9 @@ def get_ml_price_history_payload(symbol: str):
             history = ticker.history(period="5y")
             payload = serialize_value(json.loads(history.to_json(orient="table")))
         except Exception as exc:  # pylint: disable=broad-except
+            mapped = flow.market_data_error_for(exc)
+            if mapped is not None:
+                raise mapped from exc
             logger.warning("ML yfinance history failed for %s: %s", symbol, str(exc))
             return None
 
@@ -1278,6 +1302,8 @@ def predict_symbol(symbol: str, horizon: int | None = None):
         )
     except HTTPException:
         raise
+    except flow.MarketDataError:
+        raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("ML predict error for %s: %s", symbol, str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -1309,6 +1335,8 @@ def predict_backtest(symbol: str, horizon: int | None = None):
             logger.warning("Failed to cache ML backtest for %s: %s", symbol, exc)
         return JSONResponse(content=metrics)
     except HTTPException:
+        raise
+    except flow.MarketDataError:
         raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("ML backtest error for %s: %s", symbol, str(exc))
@@ -1400,6 +1428,8 @@ def predict_features(symbol: str, top_n: int = 5):
         )
     except HTTPException:
         raise
+    except flow.MarketDataError:
+        raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("ML features error for %s: %s", symbol, str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -1421,6 +1451,8 @@ def get_price_history(symbol: str, start: str | None = None, end: str | None = N
                     data = [r for r in data if r.get("Date", "")[:10] <= end]
             result = {"data": data} if "data" in result else data
         return JSONResponse(content=result)
+    except flow.MarketDataError:
+        raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error fetching price history for %s: %s", symbol, str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -1433,6 +1465,8 @@ def get_analyst_targets(symbol: str):
     try:
         result = with_cache("analyst-targets", symbol, flow.get_analyst_price_targets)
         return JSONResponse(content=result)
+    except flow.MarketDataError:
+        raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error fetching analyst targets for %s: %s", symbol, str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -1445,6 +1479,8 @@ def get_calendar(symbol: str):
     try:
         result = with_cache("calendar", symbol, flow.get_calendar)
         return JSONResponse(content=result)
+    except flow.MarketDataError:
+        raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error fetching calendar for %s: %s", symbol, str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -1457,6 +1493,8 @@ def get_balance_sheet(symbol: str):
     try:
         result = with_cache("balance-sheet", symbol, flow.get_balance_sheet)
         return JSONResponse(content=result)
+    except flow.MarketDataError:
+        raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error fetching balance sheet for %s: %s", symbol, str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -1469,6 +1507,8 @@ def get_income_stmt(symbol: str):
     try:
         result = with_cache("income-stmt", symbol, flow.get_quarterly_income_stmt)
         return JSONResponse(content=result)
+    except flow.MarketDataError:
+        raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error fetching income statement for %s: %s", symbol, str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -1481,6 +1521,8 @@ def get_news(symbol: str):
     try:
         result = with_cache("news", symbol, flow.get_news)
         return JSONResponse(content=result)
+    except flow.MarketDataError:
+        raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error fetching news for %s: %s", symbol, str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -1494,6 +1536,8 @@ def get_option_chain(symbol: str):
         result = with_cache("option-chain", symbol, flow.get_option_chain)
         result = serialize_value(result)
         return JSONResponse(content=result)
+    except flow.MarketDataError:
+        raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error fetching option chain for %s: %s", symbol, str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -1510,6 +1554,8 @@ def get_recommendations(symbol: str):
             raise HTTPException(status_code=404, detail="Recommendations not found")
         return JSONResponse(content=serialize_value(result))
     except HTTPException:
+        raise
+    except flow.MarketDataError:
         raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error fetching recommendations for %s: %s", symbol, str(exc))
@@ -1531,6 +1577,8 @@ def get_institutional_holders(symbol: str):
             )
         return JSONResponse(content=serialize_value(result))
     except HTTPException:
+        raise
+    except flow.MarketDataError:
         raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error(
@@ -1555,6 +1603,8 @@ def get_insider_transactions(symbol: str):
         return JSONResponse(content=serialize_value(result))
     except HTTPException:
         raise
+    except flow.MarketDataError:
+        raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error fetching insider transactions for %s: %s", symbol, str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -1573,6 +1623,8 @@ def get_analyst_upgrades(symbol: str):
             raise HTTPException(status_code=404, detail="Analyst upgrades not found")
         return JSONResponse(content=serialize_value(result))
     except HTTPException:
+        raise
+    except flow.MarketDataError:
         raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error fetching analyst upgrades for %s: %s", symbol, str(exc))
@@ -1595,6 +1647,8 @@ def get_related_stocks(
     try:
         result = get_related_stocks_payload(symbol, limit, exclude)
         return JSONResponse(content=result)
+    except flow.MarketDataError:
+        raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error fetching related stocks for %s: %s", symbol, str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -1649,6 +1703,8 @@ def get_stock_snapshot(
     for section, getter in section_getters.items():
         try:
             snapshot[section] = getter()
+        except flow.MarketDataError:
+            raise
         except Exception as exc:  # pylint: disable=broad-except
             logger.warning(
                 "Snapshot section failed for %s/%s: %s",
@@ -1674,12 +1730,14 @@ def get_screen_undervalued_large_caps():
 
         # Cache miss - fetch fresh data
         logger.info("Cache miss for screen-undervalued, fetching fresh data")
-        result = flow.get_screen_undervalued_large_caps()
+        result = _call_flow(flow.get_screen_undervalued_large_caps)
 
         # Cache the result
         db.set_cached_data("screen-undervalued", result, "ALL")
 
         return JSONResponse(content=result)
+    except flow.MarketDataError:
+        raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error fetching undervalued screen: %s", str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -1722,10 +1780,12 @@ def get_money_flow_screener(
             return JSONResponse(content=cached_data)
 
         flow.ensure_ollama(OLLAMA_HOST)
-        result = flow.get_money_flow_stocks(period, direction, limit)
+        result = _call_flow(flow.get_money_flow_stocks, period, direction, limit)
 
         db.set_cached_data("money-flow", result, cached_key)
         return JSONResponse(content=result)
+    except flow.MarketDataError:
+        raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error in money-flow screener: %s", str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -1800,6 +1860,8 @@ def get_ai_fundamental_analysis(symbol: str):
         return JSONResponse(content=result)
     except HTTPException:
         raise
+    except flow.MarketDataError:
+        raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error in AI fundamental analysis for %s: %s", symbol, str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -1816,6 +1878,8 @@ def get_ai_balance_sheet_analysis(symbol: str):
         logger.info("Successfully generated AI balance sheet analysis for %s", symbol)
         return JSONResponse(content=result)
     except HTTPException:
+        raise
+    except flow.MarketDataError:
         raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error in AI balance sheet analysis for %s: %s", symbol, str(exc))
@@ -1836,6 +1900,8 @@ def get_ai_quarterly_income_stm_analysis(symbol: str):
         return JSONResponse(content=result)
     except HTTPException:
         raise
+    except flow.MarketDataError:
+        raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error(
             "Error in AI income statement analysis for %s: %s", symbol, str(exc)
@@ -1855,6 +1921,8 @@ def get_ai_technical_analysis(symbol: str):
         return JSONResponse(content=result)
     except HTTPException:
         raise
+    except flow.MarketDataError:
+        raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error in AI technical analysis for %s: %s", symbol, str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -1871,6 +1939,8 @@ def get_ai_action_recommendation(symbol: str):
         logger.info("Successfully generated AI action recommendation for %s", symbol)
         return JSONResponse(content=result)
     except HTTPException:
+        raise
+    except flow.MarketDataError:
         raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error in AI action recommendation for %s: %s", symbol, str(exc))
@@ -1892,6 +1962,8 @@ def get_ai_action_recommendation_sentence(symbol: str):
         )
         return JSONResponse(content=result)
     except HTTPException:
+        raise
+    except flow.MarketDataError:
         raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error(
@@ -1915,6 +1987,8 @@ def get_ai_action_recommendation_single_word(symbol: str):
         )
         return JSONResponse(content=result)
     except HTTPException:
+        raise
+    except flow.MarketDataError:
         raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error(
@@ -1949,6 +2023,8 @@ def get_ai_news_sentiment(symbol: str):
                 ) from None
     except HTTPException:
         raise
+    except flow.MarketDataError:
+        raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error in AI news sentiment for %s: %s", symbol, str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -1964,6 +2040,8 @@ def get_ai_full_report(symbol: str):
         return JSONResponse(content=result)
     except HTTPException:
         raise
+    except flow.MarketDataError:
+        raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error in AI full report for %s: %s", symbol, str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -1977,6 +2055,8 @@ def get_trading_strategy(symbol: str):
         result = with_cache("trading-strategy", symbol, flow.get_trading_strategy)
         logger.info("Successfully generated trading strategy for %s", symbol)
         return JSONResponse(content=result)
+    except flow.MarketDataError:
+        raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error generating trading strategy for %s: %s", symbol, str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -1993,6 +2073,8 @@ def get_decision_engine(symbol: str, portfolio: str = ""):
             _parse_portfolio_tickers(portfolio, symbol),
         )
         return JSONResponse(content=payload)
+    except flow.MarketDataError:
+        raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Decision engine error for %s: %s", symbol, str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -2167,6 +2249,8 @@ def get_fundamentals_db(symbol: str):
         finally:
             conn.close()
     except HTTPException:
+        raise
+    except flow.MarketDataError:
         raise
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("Error fetching DB fundamentals for %s: %s", symbol, str(exc))
