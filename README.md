@@ -932,7 +932,7 @@ docker compose up -d
 
 **Observability:**
 
-- `GET /metrics` - In-process request counts, error counts by status class, and latency summaries in Prometheus text format. Uses route templates for bounded labels and requires `X-API-Key` like other non-health endpoints. See [OPERATIONS.md](docs/OPERATIONS.md).
+- `GET /metrics` - In-process request counts, error counts by status class, and latency summaries in Prometheus text format. Uses route templates for bounded labels and requires `X-API-Key` like other non-health endpoints. See [OPERATIONS.md](docs/OPERATIONS.md) for scrape configuration, dashboard panels, and starter alerts.
 
 **Data Endpoints (14):**
 
@@ -1131,7 +1131,7 @@ One-click presets (**Baseline**, **Trend**, **Long-horizon**) are included. Iden
 
 ## Docker Deployment
 
-See the [Operations Guide](docs/OPERATIONS.md) for ports, environment variables, cache and data paths, and the `daily-sync` container.
+See the [Operations Guide](docs/OPERATIONS.md) for ports, environment variables, health checks, metrics dashboards and alerts, cache and data paths, and the `daily-sync` container.
 
 The API's CORS origins can be overridden with `OOBIR_CORS_ORIGINS`, a
 comma-separated list such as `https://ui.example.com,https://admin.example.com`
