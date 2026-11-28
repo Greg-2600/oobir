@@ -28,6 +28,14 @@ def get_conn():
     )
 
 
+def _first_present(item: dict, *keys: str):
+    """Return the first present key's value, keeping falsy values such as 0."""
+    for key in keys:
+        if key in item:
+            return item[key]
+    return None
+
+
 def extract_rows(payload: dict, ticker: str) -> list[tuple]:
     data = None
     if isinstance(payload, dict):
@@ -42,16 +50,14 @@ def extract_rows(payload: dict, ticker: str) -> list[tuple]:
         rows.append(
             (
                 ticker,
-                item.get("Date") or item.get("date"),
-                item.get("Open") or item.get("open"),
-                item.get("High") or item.get("high"),
-                item.get("Low") or item.get("low"),
-                item.get("Close") or item.get("close"),
-                item.get("Volume") or item.get("volume"),
-                item.get("Dividends") or item.get("dividends"),
-                item.get("Stock Splits")
-                or item.get("stock_splits")
-                or item.get("StockSplits"),
+                _first_present(item, "Date", "date"),
+                _first_present(item, "Open", "open"),
+                _first_present(item, "High", "high"),
+                _first_present(item, "Low", "low"),
+                _first_present(item, "Close", "close"),
+                _first_present(item, "Volume", "volume"),
+                _first_present(item, "Dividends", "dividends"),
+                _first_present(item, "Stock Splits", "stock_splits", "StockSplits"),
             )
         )
     return rows
