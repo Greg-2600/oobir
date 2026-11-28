@@ -1,6 +1,6 @@
 # OOBIR — AI-Powered Stock Analysis Platform
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.13+-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/REST_API-FastAPI-green?logo=fastapi)
 ![Docker](https://img.shields.io/badge/Cloud_Native-Docker-blue?logo=docker)
 ![AI](https://img.shields.io/badge/AI-Ollama_LLM-purple?logo=ai)
@@ -23,7 +23,7 @@
 - 🔌 **REST API First**: 44 production-ready endpoints including data, AI analysis, ownership/analyst data, trading strategy, ML prediction, batch export, and screener routes with auto-generated OpenAPI docs
 - 🤖 **AI-Powered**: Local Ollama LLM (Llama 3.2) for privacy-preserving intelligent analysis
 - ☁️ **Cloud-Native**: Docker containerization for deployment anywhere (AWS, Azure, GCP, on-premises)
-- 🐍 **Python-Driven**: Modern Python 3.11+ with type hints, async support, and clean architecture
+- 🐍 **Python-Driven**: Modern Python 3.13+ with type hints, async support, and clean architecture
 - 📊 **Dual Analysis**: Combines fundamental metrics (P/E, earnings) with technical indicators (SMA, RSI, MACD)
 - 🌐 **Triple Interface**: CLI tool, REST API, and interactive Web UI—all powered by single codebase
 
@@ -42,7 +42,7 @@
 
 | Layer | Technology | Purpose |
 | ------- | ----------- | --------- |
-| **Backend** | Python 3.11+ | Core business logic and data processing |
+| **Backend** | Python 3.13+ | Core business logic and data processing |
 | **REST API** | FastAPI | High-performance async API endpoints |
 | **AI/LLM** | Ollama (Llama 3.2) | Local, privacy-preserving AI analysis |
 | **ML** | scikit-learn | Gradient-boosted price-direction model + backtesting |
@@ -600,7 +600,7 @@ Run cache tests: `pytest tests/test_cache_layer.py -v`
 3. **AI Integration**: Ollama LLM seamlessly integrated for intelligent analysis
 4. **Cloud-Native Design**: Stateless services support horizontal scaling
 5. **Separation of Concerns**: Distinct layers for presentation, logic, and data
-6. **Python-Powered**: Modern Python 3.11+ with type hints and async support
+6. **Python-Powered**: Modern Python 3.13+ with type hints and async support
 
 ## Features
 
@@ -1308,7 +1308,7 @@ Requires Ollama with `huihui_ai/llama3.2-abliterate:3b` model installed.
 
 #### Core Infrastructure
 
-- **Language**: Python 3.11+ (modern, type-hint compatible)
+- **Language**: Python 3.13+ (modern, type-hint compatible)
 - **Web Framework**: FastAPI (async-ready, auto-documented REST APIs)
 - **Financial Data**: yfinance (open-source, free stock market data)
 - **LLM Integration**: Ollama with huihui_ai/llama3.2-abliterate:3b (local, privacy-preserving)
