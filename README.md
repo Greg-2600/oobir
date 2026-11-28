@@ -32,6 +32,7 @@
 - [Quick Start](#-quick-start-2-minutes)
 - [Bootstrapping Historical Data](#bootstrapping-historical-data)
 - [Operations Guide](docs/OPERATIONS.md)
+- [API Versioning and Deprecation Policy](docs/API_VERSIONING.md)
 - [Key Features](#-key-features)
 - [Machine Learning Predictions](#machine-learning-predictions)
 - [REST API](#rest-api)
@@ -903,6 +904,10 @@ docker compose exec app python flow.py --host http://ollama:11434 AAPL get_ai_fu
 ```
 
 ## REST API
+
+All `/api/*` routes are API version 1. See the
+[API versioning and deprecation policy](docs/API_VERSIONING.md) for compatibility
+rules and the deprecation process before building a client against these routes.
 
 ### Starting the API Server
 
