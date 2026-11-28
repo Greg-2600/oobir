@@ -150,6 +150,72 @@ unmatched requests use `unmatched` instead of the raw URL, keeping label
 cardinality bounded. Counters are in memory per process and reset on restart;
 they are not aggregated across replicas.
 
+## Dashboards and alerts
+
+The three metric families above support a small Prometheus and Grafana setup
+without a sidecar. Scrape the application port directly (Nginx does not proxy
+`/metrics`) and pass the API key from your secret store in the scrape header;
+never commit a real key to the scrape configuration:
+
+```yaml
+scrape_configs:
+  - job_name: oobir
+    metrics_path: /metrics
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["app:2010"]
+    headers:
+      X-API-Key: "<api-key-from-secret-store>"
+```
+
+Suggested dashboard panels, using the exact sample names exposed by the app:
+
+| Panel | PromQL |
+| ----- | ------ |
+| Requests per second by status class | `sum by (status_class) (rate(oobir_http_requests_total[5m]))` |
+| 5xx share of traffic | `sum(rate(oobir_http_request_errors_total{status_class="5xx"}[5m])) / sum(rate(oobir_http_requests_total[5m]))` |
+| Mean request latency in seconds | `sum(rate(oobir_http_request_duration_seconds_sum[5m])) / sum(rate(oobir_http_request_duration_seconds_count[5m]))` |
+| Slowest routes by mean latency | `topk(5, sum by (route) (rate(oobir_http_request_duration_seconds_sum[5m])) / sum by (route) (rate(oobir_http_request_duration_seconds_count[5m])))` |
+
+The duration metric is a summary that exposes only `_sum` and `_count`, so
+these panels show mean latency rather than percentiles. Add a histogram metric
+if p95 or p99 latency is required. Rate queries stay empty while the service
+receives no traffic, which is expected.
+
+Two starter alerts cover the common failure modes:
+
+```yaml
+groups:
+  - name: oobir
+    rules:
+      - alert: OobirHigh5xxRate
+        expr: |
+          sum(rate(oobir_http_request_errors_total{status_class="5xx"}[5m]))
+            / sum(rate(oobir_http_requests_total[5m])) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: OOBIR is returning more than 5% 5xx responses
+      - alert: OobirSlowRequests
+        expr: |
+          sum(rate(oobir_http_request_duration_seconds_sum[5m]))
+            / sum(rate(oobir_http_request_duration_seconds_count[5m])) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: OOBIR mean request latency is above 2 seconds
+```
+
+Dependency state is not exported as a metric, so pair these alerts with a
+synthetic check that calls the unauthenticated `GET /health/deps` endpoint, for
+example `curl -fsS http://app:2010/health/deps` from a scheduled probe. It
+returns HTTP 503 when Ollama, the cache, or a configured database is degraded.
+When investigating an alert, use the `X-Correlation-ID` response header: the
+app logs the same value with each `request_started` event so a client report
+can be matched to a server-side log line.
+
 ## Cache and data paths
 
 | Path | Location | Notes |
