@@ -930,6 +930,10 @@ docker compose up -d
 - `GET /health/ollama` - Ollama service health check
 - `GET /health/deps` - Dependency health for Ollama, yfinance, the SQLite cache, and PostgreSQL/TimescaleDB. The cache check opens SQLite and runs a trivial query; the database check runs only when PostgreSQL is configured, uses a short timeout, and reports `ok`, `degraded`, or `unconfigured` without exposing connection details. Degraded required dependencies return HTTP 503; an unconfigured database does not.
 
+**Observability:**
+
+- `GET /metrics` - In-process request counts, error counts by status class, and latency summaries in Prometheus text format. Uses route templates for bounded labels and requires `X-API-Key` like other non-health endpoints. See [OPERATIONS.md](docs/OPERATIONS.md).
+
 **Data Endpoints (14):**
 
 - `GET /api/fundamentals/{symbol}` - Company fundamentals
